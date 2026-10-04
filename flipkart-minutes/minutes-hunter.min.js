@@ -289,17 +289,9 @@
           <span>In-Stock Only</span>
         </label>
         <div>
-          <span>Scope: </span>
-          <select id="fk-h-scope" class="fk-h-select">
-            <option value="55">All 55 Stores</option>
-            <option value="10">First 10 Stores</option>
-            <option value="5">First 5 Stores (Test)</option>
-          </select>
-        </div>
-        <div>
           <span>Store: </span>
           <select id="fk-h-store" class="fk-h-select">
-            <option value="all">All (per scope)</option>
+            <option value="all">All 55 Stores</option>
             ${STORES.map((s, i) => `<option value="${i}">${s[1]}</option>`).join('')}
           </select>
         </div>
@@ -412,9 +404,8 @@
     searchResults = [];
 
     const inStockOnly = document.getElementById('fk-h-instock').checked;
-    const scopeCount = parseInt(document.getElementById('fk-h-scope').value, 10);
     const storeChoice = document.getElementById('fk-h-store').value;
-    const targetStores = storeChoice === 'all' ? STORES.slice(0, scopeCount) : [STORES[parseInt(storeChoice, 10)]];
+    const targetStores = storeChoice === 'all' ? STORES : [STORES[parseInt(storeChoice, 10)]];
 
     let storesWithItems = 0;
     let minPriceFound = 999999;
