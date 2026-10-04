@@ -526,7 +526,9 @@ const FK_HEADERS = {
           }
         }
 
-        // Product search — all pages (loops until API returns no more products)
+        // Product search — paginated with smart stop conditions:
+        // stops when: API returns 0 products, all products are duplicates (API looping),
+        // no nextPageContext returned, or hard safety cap of 20 pages is hit.
 
         // Helper: extract all products from a response regardless of widget shape
         function extractProducts(slots) {
@@ -546,12 +548,14 @@ const FK_HEADERS = {
           return products;
         }
 
+        const MAX_PAGES = 20;          // hard safety cap
+        const seenUrls = new Set();    // dedup tracker — detects API looping same page
         let nextPageContext = null;
         let pageNum = 1;
         let storeAdded = false;
         let liveSla = 'Paused';
 
-        while (!abortScan) {
+        while (!abortScan && pageNum <= MAX_PAGES) {
           const pageUri = '/search?q=' + encodeURIComponent(query) +
             '&marketplace=HYPERLOCAL' +
             (pageNum > 1 ? '&page=' + pageNum : '');
@@ -577,17 +581,25 @@ const FK_HEADERS = {
           const rawSla = meta.slaInSec;
           liveSla = rawSla ? `${Math.round(rawSla / 60)}m` : liveSla;
 
-          // Capture nextPageContext for subsequent pages
+          // Capture nextPageContext; if absent, this is the last page
           nextPageContext = pJson.RESPONSE?.pageData?.pageContext || null;
 
           const products = extractProducts(slots);
-          if (products.length === 0) break; // No more results for this store
+          if (products.length === 0) break; // API returned empty page — done
 
+          // Count truly new products on this page — stop if API is looping same results
+          let newOnPage = 0;
           for (const p of products) {
             const val = p.productInfo?.value || {};
             const title = val.title || val.titles?.title || 'Unknown';
             const price = val.pricing?.finalPrice?.value ?? val.pricing?.finalPrice?.decimalValue ?? null;
             const avail = val.availability?.displayState || 'UNKNOWN';
+
+            // Build a dedup key from URL or title+price
+            const dedupKey = val.smartUrl || val.baseUrl || (title + '|' + (price ?? ''));
+            if (seenUrls.has(dedupKey)) continue; // already seen — API is looping
+            seenUrls.add(dedupKey);
+            newOnPage++;
 
             if (inStockOnly && avail !== 'IN_STOCK') continue;
 
@@ -621,6 +633,12 @@ const FK_HEADERS = {
             `;
             tableBody.appendChild(row);
           }
+
+          // If every product on this page was already seen, the API is looping — stop
+          if (newOnPage === 0) break;
+
+          // Also stop if the API gave no nextPageContext (signals last page)
+          if (!nextPageContext) break;
 
           // Update counters live after each page
           document.getElementById('fk-sum-stores').textContent = storesWithItems + (storeAdded ? 1 : 0);
