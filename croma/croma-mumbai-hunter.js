@@ -1376,7 +1376,7 @@
     let totalInStockOccurrences = 0;
     let hitRateLimit = false;
 
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 1;
     let index = 0;
 
     async function worker() {
@@ -1389,8 +1389,8 @@
         let batchResults = {};
         try {
           batchResults = (await checkBatchSLA([targetProduct], pinItem.pin)) || {};
-          // 20ms safe delay between requests
-          await new Promise(r => setTimeout(r, 20));
+          // Pause between sequential pincode requests to reduce rate-limit pressure.
+          await new Promise(r => setTimeout(r, 250));
         } catch (e) {
           if (e.message === "WAF_RATE_LIMIT") {
             hitRateLimit = true;

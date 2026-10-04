@@ -24,7 +24,7 @@ Check one product by SKU or Croma product URL across **86+ Mumbai & MMR Pincodes
 Create a browser bookmark with the URL below. It loads the scanner pinned to release `v2.1.1`, with a cache-busting timestamp:
 
 ```javascript
-javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@v2.1.1/croma/croma-mumbai-hunter.min.js?t='+Date.now();document.body.appendChild(s);})();
+javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@v2.1.2/croma/croma-mumbai-hunter.min.js?t='+Date.now();document.body.appendChild(s);})();
 ```
 
 ### Method 2: Instant DevTools Console Execution (Zero Setup)
