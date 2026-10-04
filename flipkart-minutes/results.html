@@ -50,6 +50,7 @@
           <th data-key="title">Product</th>
           <th data-key="price">Price</th>
           <th data-key="availability">Stock</th>
+          <th data-key="productUrl">Link</th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
@@ -91,6 +92,7 @@
         <td>${esc(r.title)}</td>
         <td class="price">${r.price ? '₹' + esc(r.price) : '-'}</td>
         <td class="${r.availability === 'IN_STOCK' ? 'in' : 'out'}">${r.availability === 'IN_STOCK' ? 'In Stock' : 'Out'}</td>
+        <td>${r.productUrl ? `<a href="${esc(r.productUrl)}" target="_blank" rel="noopener">Open</a>` : '-'}</td>
       </tr>`).join('');
     document.getElementById('empty').hidden = rows.length > 0;
 

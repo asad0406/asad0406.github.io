@@ -526,78 +526,119 @@ const FK_HEADERS = {
           }
         }
 
-        // Product search
-        const pageRes = await fetch(`${currentHost}/api/4/page/fetch?cacheFirst=false`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: FK_HEADERS,
-          body: JSON.stringify({
-            pageUri: '/search?q=' + encodeURIComponent(query) + '&marketplace=HYPERLOCAL',
-            pageContext: { fetchSeoData: true, networkSpeed: 10000 },
-            requestContext: { type: 'BROWSE_PAGE' }
-          })
-        });
+        // Product search — all pages (loops until API returns no more products)
 
-        if (pageRes.status === 200) {
+        // Helper: extract all products from a response regardless of widget shape
+        function extractProducts(slots) {
+          const products = [];
+          for (const slot of slots) {
+            const d = slot.widget?.data;
+            if (!d) continue;
+            // Cover all known Flipkart widget shapes
+            const candidates = [
+              ...(d.products || []),
+              ...(d.styledText?.products || []),
+              ...(d.productList?.products || []),
+              ...(d.searchResults?.products || []),
+            ];
+            products.push(...candidates);
+          }
+          return products;
+        }
+
+        let nextPageContext = null;
+        let pageNum = 1;
+        let storeAdded = false;
+        let liveSla = 'Paused';
+
+        while (!abortScan) {
+          const pageUri = '/search?q=' + encodeURIComponent(query) +
+            '&marketplace=HYPERLOCAL' +
+            (pageNum > 1 ? '&page=' + pageNum : '');
+
+          const fetchBody = {
+            pageUri,
+            pageContext: nextPageContext || { fetchSeoData: true, networkSpeed: 10000 },
+            requestContext: { type: 'BROWSE_PAGE' }
+          };
+
+          const pageRes = await fetch(`${currentHost}/api/4/page/fetch?cacheFirst=false`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: FK_HEADERS,
+            body: JSON.stringify(fetchBody)
+          });
+
+          if (pageRes.status !== 200) break;
+
           const pJson = await pageRes.json();
           const meta = pJson.RESPONSE?.pageData?.trackingContext?.meta || {};
           const slots = pJson.RESPONSE?.slots || [];
           const rawSla = meta.slaInSec;
-          const liveSla = rawSla ? `${Math.round(rawSla / 60)}m` : 'Paused';
+          liveSla = rawSla ? `${Math.round(rawSla / 60)}m` : liveSla;
 
-          let storeAdded = false;
+          // Capture nextPageContext for subsequent pages
+          nextPageContext = pJson.RESPONSE?.pageData?.pageContext || null;
 
-          for (const slot of slots) {
-            for (const p of (slot.widget?.data?.products || [])) {
-              const val = p.productInfo?.value || {};
-              const title = val.title || val.titles?.title || 'Unknown';
-              const price = val.pricing?.finalPrice?.value ?? val.pricing?.finalPrice?.decimalValue ?? null;
-              const avail = val.availability?.displayState || 'UNKNOWN';
+          const products = extractProducts(slots);
+          if (products.length === 0) break; // No more results for this store
 
-              if (inStockOnly && avail !== 'IN_STOCK') continue;
+          for (const p of products) {
+            const val = p.productInfo?.value || {};
+            const title = val.title || val.titles?.title || 'Unknown';
+            const price = val.pricing?.finalPrice?.value ?? val.pricing?.finalPrice?.decimalValue ?? null;
+            const avail = val.availability?.displayState || 'UNKNOWN';
 
-              const item = {
-                storeId: meta.storeId || sid,
-                locality: loc,
-                pincode: pin,
-                deliveryLocation: STORE_INFO[sid]?.addr || '',
-                mapsUrl: STORE_INFO[sid]?.maps || '',
-                liveSla,
-                title,
-                price,
-                mrp: val.pricing?.mrp?.value ?? null,
-                availability: avail
-              };
+            if (inStockOnly && avail !== 'IN_STOCK') continue;
 
-              searchResults.push(item);
-              storeAdded = true;
+            const item = {
+              storeId: meta.storeId || sid,
+              locality: loc,
+              pincode: pin,
+              deliveryLocation: STORE_INFO[sid]?.addr || '',
+              mapsUrl: STORE_INFO[sid]?.maps || '',
+              liveSla,
+              title,
+              productUrl: val.smartUrl || (val.baseUrl ? 'https://www.flipkart.com' + val.baseUrl : ''),
+              price,
+              mrp: val.pricing?.mrp?.value ?? null,
+              availability: avail
+            };
 
-              if (price && price < minPriceFound) minPriceFound = price;
+            searchResults.push(item);
+            storeAdded = true;
 
-              // Append row to UI table
-              const row = document.createElement('tr');
-              row.innerHTML = `
-                <td><b>${loc}</b></td>
-                <td>⚡ ${liveSla}</td>
-                <td>${title}</td>
-                <td class="fk-h-price">${price ? '₹' + price : '-'}</td>
-                <td><span class="fk-h-stock ${avail === 'IN_STOCK' ? 'fk-h-in' : 'fk-h-out'}">${avail === 'IN_STOCK' ? 'In Stock' : 'Out'}</span></td>
-              `;
-              tableBody.appendChild(row);
-            }
+            if (price && price < minPriceFound) minPriceFound = price;
+
+            // Append row to UI table
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td><b>${loc}</b></td>
+              <td>⚡ ${liveSla}</td>
+              <td>${title}</td>
+              <td class="fk-h-price">${price ? '₹' + price : '-'}</td>
+              <td><span class="fk-h-stock ${avail === 'IN_STOCK' ? 'fk-h-in' : 'fk-h-out'}">${avail === 'IN_STOCK' ? 'In Stock' : 'Out'}</span></td>
+            `;
+            tableBody.appendChild(row);
           }
 
-          if (storeAdded) storesWithItems++;
+          // Update counters live after each page
+          document.getElementById('fk-sum-stores').textContent = storesWithItems + (storeAdded ? 1 : 0);
+          document.getElementById('fk-sum-items').textContent = searchResults.length;
+          document.getElementById('fk-sum-min').textContent = minPriceFound < 999999 ? `₹${minPriceFound}` : '-';
+          statusEl.lastElementChild.textContent = `${searchResults.length} items found`;
+          statusEl.firstElementChild.textContent = `[${i + 1}/${targetStores.length}] ${loc} — page ${pageNum}...`;
+
+          pageNum++;
+          if (!abortScan) {
+            await new Promise(r => setTimeout(r, 200)); // small delay between pages
+          }
         }
+
+        if (storeAdded) storesWithItems++;
       } catch (err) {
         console.warn('Scan error for', loc, err);
       }
-
-      // Update counters
-      document.getElementById('fk-sum-stores').textContent = storesWithItems;
-      document.getElementById('fk-sum-items').textContent = searchResults.length;
-      document.getElementById('fk-sum-min').textContent = minPriceFound < 999999 ? `₹${minPriceFound}` : '-';
-      statusEl.lastElementChild.textContent = `${searchResults.length} items found`;
 
       if (i < targetStores.length - 1) {
         await new Promise(r => setTimeout(r, 300));
@@ -622,9 +663,9 @@ const FK_HEADERS = {
     if (!searchResults.length) return alert('No results yet. Run a search first!');
     const rows = searchResults.map(r => [
       `"${r.storeId}"`, `"${r.locality}"`, `"${r.pincode}"`, `"${r.deliveryLocation.replace(/"/g, '""')}"`, `"${r.mapsUrl}"`, `"${r.liveSla}"`,
-      `"${r.title.replace(/"/g, '""')}"`, r.price ?? '', r.mrp ?? '', `"${r.availability}"`
+      `"${r.title.replace(/"/g, '""')}"`, r.price ?? '', r.mrp ?? '', `"${r.availability}"`, `"${r.productUrl}"`
     ]);
-    const csv = ['Store_ID,Locality,Pincode,Delivery_Location,Google_Maps_URL,Live_SLA,Product_Title,Final_Price,MRP,Availability', ...rows.map(r => r.join(','))].join('\n');
+    const csv = ['Store_ID,Locality,Pincode,Delivery_Location,Google_Maps_URL,Live_SLA,Product_Title,Final_Price,MRP,Availability,Product_URL', ...rows.map(r => r.join(','))].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = `flipkart_minutes_${document.getElementById('fk-h-query').value.trim() || 'search'}.csv`;
