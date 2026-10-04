@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flipkart Minutes Mumbai - Verified Delivery Locations</title>
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet MarkerCluster CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <style>
+        :root {
+            --primary: #2874f0;
+            --primary-dark: #1a5ac9;
+            --fk-yellow: #ffe500;
+            --success: #10b981;
+            --text-dark: #0f172a;
+            --bg-glass: rgba(255, 255, 255, 0.96);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            overflow: hidden;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Floating Top Navigation Bar (Compact) */
+        .top-nav {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            padding: 6px 14px;
+            border-radius: 30px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            max-width: 95vw;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 800;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+        }
+        .brand-badge {
+            background: #2874f0;
+            color: #ffffff;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+        .stats-badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 3px 8px;
+            border-radius: 14px;
+            white-space: nowrap;
+        }
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-input {
+            padding: 4px 10px 4px 26px;
+            border-radius: 16px;
+            border: 1px solid #cbd5e1;
+            font-size: 11.5px;
+            width: 170px;
+            outline: none;
+            transition: all 0.2s ease;
+            background: #ffffff;
+        }
+        .search-input:focus {
+            border-color: #2874f0;
+            box-shadow: 0 0 0 2px rgba(40, 116, 240, 0.15);
+            width: 220px;
+        }
+        .search-icon {
+            position: absolute;
+            left: 8px;
+            font-size: 11px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        .hub-link {
+            font-size: 11px;
+            font-weight: 700;
+            text-decoration: none;
+            color: #2874f0;
+            background: #eff6ff;
+            padding: 4px 10px;
+            border-radius: 14px;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+        .hub-link:hover {
+            background: #2874f0;
+            color: #ffffff;
+        }
+
+        /* Compact Delivery Pointer */
+        .delivery-pointer {
+            background: transparent !important;
+            border: none !important;
+        }
+        .pointer-wrapper {
+            position: relative;
+            width: 28px;
+            height: 38px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .pointer-wrapper:hover {
+            transform: scale(1.25) translateY(-4px);
+            z-index: 99999 !important;
+        }
+        .pointer-pin {
+            width: 24px;
+            height: 30px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+        }
+        .pointer-sla-pill {
+            position: absolute;
+            bottom: -1px;
+            background: #ffe500;
+            color: #713f12;
+            font-size: 8.5px;
+            font-weight: 800;
+            padding: 0px 4px;
+            border-radius: 6px;
+            border: 1px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            white-space: nowrap;
+            line-height: 1.1;
+        }
+
+        /* MarkerCluster Customization (Compact) */
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+            background-color: rgba(40, 116, 240, 0.2) !important;
+        }
+        .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+            background-color: #2874f0 !important;
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            font-size: 11.5px !important;
+            width: 28px !important;
+            height: 28px !important;
+            line-height: 28px !important;
+            margin-top: 4px !important;
+            margin-left: 4px !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+        }
+
+        /* Leaflet Popup Styling - Ultra Compact & Simple */
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+            border: 1px solid #cbd5e1;
+        }
+        .leaflet-popup-content {
+            margin: 0;
+            line-height: 1.35;
+            width: 265px !important;
+        }
+        .leaflet-popup-tip {
+            background: #ffffff;
+        }
+        .leaflet-popup-close-button {
+            top: 6px !important;
+            right: 8px !important;
+            color: #94a3b8 !important;
+            font-size: 16px !important;
+        }
+
+        .popup-compact {
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 12px;
+            background: #ffffff;
+        }
+        .popup-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 6px;
+            padding-right: 14px;
+        }
+        .popup-title {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.25;
+        }
+        .popup-sla {
+            background: #fef08a;
+            color: #854d0e;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .popup-sub {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+        }
+        .store-id {
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+        .status-dot {
+            color: #10b981;
+            font-weight: 700;
+            font-size: 10.5px;
+        }
+        .popup-addr {
+            font-size: 11px;
+            color: #334155;
+            line-height: 1.35;
+            background: #f8fafc;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            word-break: break-word;
+        }
+        .popup-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .coords-tag {
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            font-size: 10px;
+            color: #64748b;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s;
+        }
+        .coords-tag:hover {
+            background: #eff6ff;
+            color: #2874f0;
+            border-color: #bfdbfe;
+        }
+        .maps-link {
+            font-size: 11px;
+            font-weight: 700;
+            color: #2874f0;
+            text-decoration: none;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: #eff6ff;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .maps-link:hover {
+            background: #2874f0;
+            color: #ffffff;
+        }
+
+        @media (max-width: 768px) {
+            .top-nav {
+                flex-direction: column;
+                border-radius: 14px;
+                width: 92vw;
+                gap: 6px;
+                padding: 8px;
+            }
+            .search-input { width: 100%; }
+            .search-input:focus { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-nav">
+        <div class="brand">
+            <span>⚡ Minutes</span>
+            <span class="brand-badge">MUMBAI</span>
+        </div>
+        <div class="stats-badge">
+            <span id="activeCount">55</span> Locations
+        </div>
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search locality or pincode..." />
+        </div>
+        <a href="index.html" class="hub-link">← Hub</a>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        const storesData = [{"store_id": "mum_110_wh_hl_01", "locality": "Airoli (Navi Mumbai)", "delivery_location": "Fire Brigade Building, Anna Saheb Patil Marg, Sector 3, Airoli, Navi Mumbai, Maharashtra 400708, India", "pincode": "400708", "coordinates": {"latitude": 19.1558, "longitude": 72.9984, "formatted": "19.1558, 72.9984"}, "status": "Active / Open", "sla": "15 mins (896s)", "sla_seconds": 896, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1558,72.9984&query_place_id=ChIJQxKuxE2_5zsRK4hoqFIBZKM"}, {"store_id": "mum_127_wh_hl_01", "locality": "Andheri East", "delivery_location": "318 / 41, Andheri - Kurla Rd, Bhim Nagar, Andheri East, Mumbai, Maharashtra 400059, India", "pincode": "400069", "coordinates": {"latitude": 19.1136, "longitude": 72.8697, "formatted": "19.1136, 72.8697"}, "status": "Active / Open", "sla": "7 mins (424s)", "sla_seconds": 424, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1136,72.8697&query_place_id=ChIJ994SATzI5zsRNbDgpulEkeA"}, {"store_id": "mum_256_wh_hl_01", "locality": "Andheri West", "delivery_location": "Seven, Bunglols Shiv Mandir, Shastri Nagar, Andheri West, Mumbai, Maharashtra 400053, India", "pincode": "400053", "coordinates": {"latitude": 19.1363, "longitude": 72.8277, "formatted": "19.1363, 72.8277"}, "status": "Active / Open", "sla": "8 mins (466s)", "sla_seconds": 466, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1363,72.8277&query_place_id=ChIJNeErdRi25zsRPSucyjDjYNk"}, {"store_id": "mum_179_wh_hl_01", "locality": "Bandra West", "delivery_location": "4201, Bandra West, Mumbai, Maharashtra 400050, India", "pincode": "400050", "coordinates": {"latitude": 19.0596, "longitude": 72.8295, "formatted": "19.0596, 72.8295"}, "status": "Active / Open", "sla": "10 mins (581s)", "sla_seconds": 581, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.0596,72.8295&query_place_id=ChIJQS69FxXJ5zsR4XOhFEIHku8"}, {"store_id": "mum_066_wh_hl_01", "locality": "Bhandup West", "delivery_location": "F-346 Dreams The Mall, Station Rd, Bhandup (W, Sadan wadi, Bhandup West, Mumbai, Maharashtra 400078, India", "pincode": "400078", "coordinates": {"latitude": 19.1511, "longitude": 72.9372, "formatted": "19.1511, 72.9372"}, "status": "Active / Open", "sla": "13 mins (794s)", "sla_seconds": 794, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1511,72.9372&query_place_id=ChIJ5WNimfm55zsRlC7IazNogVc"}, {"store_id": "mum_137_wh_hl_01", "locality": "Bhayandar East (Golden Nest)", "delivery_location": "Silent Park, Sonam Sagar, Indira Nagar, Mira Bhayandar, Maharashtra 401105, India", "pincode": "401105", "coordinates": {"latitude": 19.296, "longitude": 72.859, "formatted": "19.2960, 72.8590"}, "status": "Active / Open", "sla": "7 mins (434s)", "sla_seconds": 434, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.296,72.859&query_place_id=ChIJs2xftTaw5zsRwPjmI3iEYd0"}, {"store_id": "mum_150_wh_hl_01", "locality": "Bhayandar West", "delivery_location": "WING-B, J B C Rd, Bhayandar, Sripal Nagar, Bhayandar West, Mira Bhayandar, Maharashtra 401101, India", "pincode": "401101", "coordinates": {"latitude": 19.3015, "longitude": 72.8505, "formatted": "19.3015, 72.8505"}, "status": "Active / Open", "sla": "6 mins (373s)", "sla_seconds": 373, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.3015,72.8505&query_place_id=ChIJ9SyXpNKx5zsR86JFuncpYb0"}, {"store_id": "mum_005_wh_hl_01", "locality": "Bhendi Bazaar / Dongri", "delivery_location": "XR4P+33H, IbrahimMerchant Rd, Mandvi, Mumbai, Maharashtra 400009, India", "pincode": "400009", "coordinates": {"latitude": 18.9552, "longitude": 72.8352, "formatted": "18.9552, 72.8352"}, "status": "Active / Open", "sla": "13 mins (764s)", "sla_seconds": 764, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=18.9552,72.8352&query_place_id=ChIJ__8zSDvO5zsRR2JpK-3w5co"}, {"store_id": "mum_144_wh_hl_01", "locality": "Borivali East", "delivery_location": "Green Park 1 Park West-4, GREEN PARK-1, Raheja Estate, Kulupwadi, Borivali East, Mumbai, Maharashtra 400066, India", "pincode": "400066", "coordinates": {"latitude": 19.229, "longitude": 72.866, "formatted": "19.2290, 72.8660"}, "status": "Active / Open", "sla": "8 mins (451s)", "sla_seconds": 451, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.229,72.866&query_place_id=ChIJ10mIXc6w5zsRj7yQLsByIPM"}, {"store_id": "mum_043_wh_hl_01", "locality": "Borivali West", "delivery_location": "mall court, 2016, near borivali, Shanti Nagar, Borivali West, Mumbai, Maharashtra 400092, India", "pincode": "400092", "coordinates": {"latitude": 19.2307, "longitude": 72.8567, "formatted": "19.2307, 72.8567"}, "status": "Active / Open", "sla": "9 mins (542s)", "sla_seconds": 542, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.2307,72.8567&query_place_id=ChIJyy4DOtew5zsRebrk2NkBWqI"}, {"store_id": "mum_189_wh_hl_01", "locality": "Chembur", "delivery_location": "Sunder Apartment, B-50, V N Purva Marg, near China Villa, Borla, Union Park, Chembur, Mumbai, Maharashtra 400071, India", "pincode": "400071", "coordinates": {"latitude": 19.0522, "longitude": 72.8995, "formatted": "19.0522, 72.8995"}, "status": "Active / Open", "sla": "8 mins (469s)", "sla_seconds": 469, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.0522,72.8995&query_place_id=ChIJnS3YsQLG5zsRIWraD2IXinc"}, {"store_id": "mum_012_wh_hl_01", "locality": "Chembur East", "delivery_location": "55, Siddharth Colony, Postal Colony, Chembur, Mumbai, Maharashtra 400071, India", "pincode": "400071", "coordinates": {"latitude": 19.058, "longitude": 72.891, "formatted": "19.0580, 72.8910"}, "status": "Active / Open", "sla": "19 mins (1114s)", "sla_seconds": 1114, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.058,72.891&query_place_id=ChIJtyOPiaPI5zsRBtJMWjMkxyk"}, {"store_id": "mum_126_wh_hl_01", "locality": "Dadar / Prabhadevi", "delivery_location": "2R9X+447, Dadar East, Dadar, Mumbai, Maharashtra 400014, India", "pincode": "400028", "coordinates": {"latitude": 19.0178, "longitude": 72.8478, "formatted": "19.0178, 72.8478"}, "status": "Active / Open", "sla": "5 mins (300s)", "sla_seconds": 300, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.0178,72.8478&query_place_id=ChIJjQT6YwDP5zsRmkFTNhBqHaQ"}, {"store_id": "mum_075_wh_hl_01", "locality": "Dahisar West", "delivery_location": "7V45+PJP, Rajesahaji Marg, Avdhut Nagar, Dahisar East, Mira Bhayandar, Mumbai, Maharashtra 400068, India", "pincode": "400068", "coordinates": {"latitude": 19.257, "longitude": 72.859, "formatted": "19.2570, 72.8590"}, "status": "Active / Open", "sla": "10 mins (582s)", "sla_seconds": 582, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.257,72.859&query_place_id=ChIJO8EtP_uw5zsR5LOunyr51Ug"}, {"store_id": "mum_102_wh_hl_01", "locality": "Dombivli East (Manpada)", "delivery_location": "4, Patharli Rd, Dombivli, Naka, Mumbai, Kalyan, Maharashtra 421201, India", "pincode": "421201", "coordinates": {"latitude": 19.215, "longitude": 73.098, "formatted": "19.2150, 73.0980"}, "status": "Active / Open", "sla": "14 mins (823s)", "sla_seconds": 823, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.215,73.098&query_place_id=ChIJj7M6dI6V5zsRYLM5hRxgIwY"}, {"store_id": "mum_176_wh_hl_01", "locality": "Dombivli West", "delivery_location": "639G+4G9, Dr Nemade Galli, Dombivli, Juni, Dombivli West, Kalyan, Maharashtra 421202, India", "pincode": "421202", "coordinates": {"latitude": 19.218, "longitude": 73.076, "formatted": "19.2180, 73.0760"}, "status": "Active / Open", "sla": "13 mins (777s)", "sla_seconds": 777, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.218,73.076&query_place_id=ChIJdZSitiK-5zsRg0N0T6rI5y0"}, {"store_id": "mum_063_wh_hl_01", "locality": "Ghansoli (Sector 8)", "delivery_location": "Venkateswara CHS, Jijamata Nagar, Ghansoli, Navi Mumbai, Maharashtra 400701, India", "pincode": "400701", "coordinates": {"latitude": 19.124, "longitude": 73.003, "formatted": "19.1240, 73.0030"}, "status": "Active / Open", "sla": "7 mins (430s)", "sla_seconds": 430, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.124,73.003&query_place_id=ChIJoTOXEbfA5zsRsLVT6AXHAvg"}, {"store_id": "mum_129_wh_hl_01", "locality": "Goregaon East (Gokuldham)", "delivery_location": "B/42, Sai Marg, Gokuldham Colony, Aarey, Mumbai, Maharashtra 400063, India", "pincode": "400063", "coordinates": {"latitude": 19.172, "longitude": 72.868, "formatted": "19.1720, 72.8680"}, "status": "Active / Open", "sla": "7 mins (398s)", "sla_seconds": 398, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.172,72.868&query_place_id=ChIJJaRTx6a35zsRnsiy-AWXvA0"}, {"store_id": "mum_132_wh_hl_01", "locality": "Goregaon West", "delivery_location": "Sumit Samarth Arcade, F-1, Aarey Rd, near Chintamani Temple, Jawahar Nagar, Goregaon West, Mumbai, Maharashtra 400104, India", "pincode": "400062", "coordinates": {"latitude": 19.1663, "longitude": 72.8484, "formatted": "19.1663, 72.8484"}, "status": "Active / Open", "sla": "20 mins (1173s)", "sla_seconds": 1173, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1663,72.8484&query_place_id=ChIJIawYQw235zsRXux6zf-tBl4"}, {"store_id": "mum_072_wh_hl_01", "locality": "Grant Road / Gamdevi", "delivery_location": "XR97+XPR, Tardeo Rd, Janata Nagar, Tardeo, Mumbai, Maharashtra 400034, India", "pincode": "400007", "coordinates": {"latitude": 18.9699, "longitude": 72.8142, "formatted": "18.9699, 72.8142"}, "status": "Active / Open", "sla": "14 mins (866s)", "sla_seconds": 866, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=18.9699,72.8142&query_place_id=ChIJqVYRKwDP5zsR85Nq76dQUuM"}, {"store_id": "mum_018_wh_hl_01", "locality": "Juhu", "delivery_location": "8, Juhu Tara Rd, opposite J W Marriot Hotel, Juhu Tara, Juhu, Mumbai, Maharashtra 400049, India", "pincode": "400049", "coordinates": {"latitude": 19.102, "longitude": 72.827, "formatted": "19.1020, 72.8270"}, "status": "Active / Open", "sla": "15 mins (898s)", "sla_seconds": 898, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.102,72.827&query_place_id=ChIJLeZxYr_J5zsRKhLe6YkYhhI"}, {"store_id": "mum_158_wh_hl_01", "locality": "Kalbadevi / Marine Lines", "delivery_location": "Darshan Building, 63/67, Atmaram Merchant Rd, Marine Lines East, Fanas Wadi, Kalbadevi, Mumbai, Maharashtra 400002, India", "pincode": "400002", "coordinates": {"latitude": 18.9519, "longitude": 72.8281, "formatted": "18.9519, 72.8281"}, "status": "Active / Open", "sla": "11 mins (687s)", "sla_seconds": 687, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=18.9519,72.8281&query_place_id=ChIJq5WUnSLO5zsRwI7vnwBJ1I0"}, {"store_id": "mum_203_wh_hl_01", "locality": "Kalwa", "delivery_location": "6X2X+77M, Kharegaon, Kalwa, Thane, Maharashtra 400605, India", "pincode": "400605", "coordinates": {"latitude": 19.201, "longitude": 72.998, "formatted": "19.2010, 72.9980"}, "status": "Active / Open", "sla": "10 mins (582s)", "sla_seconds": 582, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.201,72.998&query_place_id=ChIJhXEi7s2-5zsR47ov41lOSOA"}, {"store_id": "bom_045_wh_hl_01", "locality": "Kalyan West (Syndicate)", "delivery_location": "Shree Tirupati Darshan, Rambaug, Kalyan, Maharashtra 421301, India", "pincode": "421301", "coordinates": {"latitude": 19.243, "longitude": 73.135, "formatted": "19.2430, 73.1350"}, "status": "Active / Open", "sla": "9 mins (562s)", "sla_seconds": 562, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.243,73.135&query_place_id=ChIJ1b_CSyuU5zsRyXgA5OcB_so"}, {"store_id": "mum_080_wh_hl_01", "locality": "Kamothe", "delivery_location": "PRATIK GEMS, 10, near HDFC Bank, Sector 35, Kamothe, Panvel, Maharashtra 410209, India", "pincode": "410209", "coordinates": {"latitude": 19.023, "longitude": 73.089, "formatted": "19.0230, 73.0890"}, "status": "Active / Open", "sla": "14 mins (840s)", "sla_seconds": 840, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.023,73.089&query_place_id=ChIJLSJOldfp5zsRXI_ErWz4sto"}, {"store_id": "mum_113_wh_hl_01", "locality": "Kandivali West", "delivery_location": "D-WING, Kandivali, Shankar Pada, Kandivali West, Mumbai, Maharashtra 400067, India", "pincode": "400067", "coordinates": {"latitude": 19.2064, "longitude": 72.836, "formatted": "19.2064, 72.8360"}, "status": "Active / Open", "sla": "14 mins (854s)", "sla_seconds": 854, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.2064,72.836&query_place_id=ChIJLcJLmMW25zsRgdZ8gN4Clc8"}, {"store_id": "mum_168_wh_hl_01", "locality": "Kanjurmarg West", "delivery_location": "N G Royal Park, Saikrupa Society, Indira Nagar, Kanjurmarg East, Mumbai, Maharashtra 400042, India", "pincode": "400078", "coordinates": {"latitude": 19.131, "longitude": 72.932, "formatted": "19.1310, 72.9320"}, "status": "Active / Open", "sla": "22 mins (1317s)", "sla_seconds": 1317, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.131,72.932&query_place_id=ChIJadJu0YjH5zsRET-8LcvaH8w"}, {"store_id": "mum_062_wh_hl_01", "locality": "Kharghar (Sector 20)", "delivery_location": "G-42/1, Block G, Sector 12, Kharghar, Panvel, Maharashtra 410210, India", "pincode": "410210", "coordinates": {"latitude": 19.043, "longitude": 73.069, "formatted": "19.0430, 73.0690"}, "status": "Active / Open", "sla": "8 mins (459s)", "sla_seconds": 459, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.043,73.069&query_place_id=ChIJn2fOJhfC5zsRmx6nSVer-_k"}, {"store_id": "mum_108_wh_hl_01", "locality": "Kopar Khairane (Sector 15)", "delivery_location": "603, Sector 8, Kopar Khairane, Navi Mumbai, Maharashtra 400709, India", "pincode": "400709", "coordinates": {"latitude": 19.102, "longitude": 73.008, "formatted": "19.1020, 73.0080"}, "status": "Active / Open", "sla": "8 mins (507s)", "sla_seconds": 507, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.102,73.008&query_place_id=ChIJE5YxntnA5zsR6Ztx2MoXW3k"}, {"store_id": "mum_901_wh_hl_01", "locality": "Kurla West", "delivery_location": "3VFM+3Q5 DEEPAK kumar, Vinobha Bhave Nagar, Kurla West, Kurla, Mumbai, Maharashtra 400070, India", "pincode": "400070", "coordinates": {"latitude": 19.0726, "longitude": 72.8845, "formatted": "19.0726, 72.8845"}, "status": "Active / Open", "sla": "9 mins (556s)", "sla_seconds": 556, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.0726,72.8845&query_place_id=ChIJadhDDADJ5zsRrqFCX9pCzBw"}, {"store_id": "mum_061_wh_hl_01", "locality": "Mahim", "delivery_location": "Aloo Paroo House, Mahim, Mumbai, Maharashtra 400016, India", "pincode": "400016", "coordinates": {"latitude": 19.04, "longitude": 72.842, "formatted": "19.0400, 72.8420"}, "status": "Active / Open", "sla": "5 mins (300s)", "sla_seconds": 300, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.04,72.842&query_place_id=ChIJB-QJuC3J5zsReaObjLv37qI"}, {"store_id": "mum_245_wh_hl_01", "locality": "Malad East", "delivery_location": "WING-C1, OMKAR SRA, Omkar SRA Rd, शांताराम तलाव, सिद्धेश्वर नगर, कोकणीपाडा, मालाड ईस्ट, मुंबई, महाराष्ट्र 400097, India", "pincode": "400097", "coordinates": {"latitude": 19.183, "longitude": 72.86, "formatted": "19.1830, 72.8600"}, "status": "Paused / Closed", "sla": "Paused (Dispatch Window Closed)", "sla_seconds": null, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.183,72.86&query_place_id=ChIJ3dVCAgC35zsR8NXKHz2O0wI"}, {"store_id": "mum_162_wh_hl_01", "locality": "Malad West", "delivery_location": "Malad, Malad Foot Over Brg, Malad, Vijaykar Wadi Industrial, Vijaykar Wadi, Malad West, Mumbai, Maharashtra 400064, India", "pincode": "400064", "coordinates": {"latitude": 19.1874, "longitude": 72.8484, "formatted": "19.1874, 72.8484"}, "status": "Active / Open", "sla": "8 mins (492s)", "sla_seconds": 492, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1874,72.8484&query_place_id=ChIJsxl12eK25zsRdrhWrQyNXTE"}, {"store_id": "mum_159_wh_hl_01", "locality": "Mira Road East", "delivery_location": "New Rahul Tower, Mira Nursing Home Ln, Naya Nagar, Mira Road East, Mira Bhayandar, Maharashtra 401107, India", "pincode": "401107", "coordinates": {"latitude": 19.2846, "longitude": 72.8596, "formatted": "19.2846, 72.8596"}, "status": "Active / Open", "sla": "9 mins (519s)", "sla_seconds": 519, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.2846,72.8596&query_place_id=ChIJ_fIZ006w5zsRo-L_pRPNoL4"}, {"store_id": "mum_178_wh_hl_01", "locality": "Mulund East", "delivery_location": "WING-E, Arunoday Nagar, Mulund East, Mumbai, Maharashtra 400081, India", "pincode": "400081", "coordinates": {"latitude": 19.17, "longitude": 72.966, "formatted": "19.1700, 72.9660"}, "status": "Active / Open", "sla": "9 mins (527s)", "sla_seconds": 527, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.17,72.966&query_place_id=ChIJOW1Fc-m45zsRiRaZjfevmdo"}, {"store_id": "mum_104_wh_hl_01", "locality": "Mulund West (LBS Marg)", "delivery_location": "WING-B, Chandraprabha Chs, Mulund, Mulund West, Mumbai, Maharashtra 400080, India", "pincode": "400080", "coordinates": {"latitude": 19.175, "longitude": 72.949, "formatted": "19.1750, 72.9490"}, "status": "Active / Open", "sla": "29 mins (1749s)", "sla_seconds": 1749, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.175,72.949&query_place_id=ChIJa9bLqvm45zsROL3xjcFKztI"}, {"store_id": "mum_160_wh_hl_01", "locality": "Nalasopara East (Achole Rd)", "delivery_location": "CRCH+9GG, Nala Sopara, Damodar Nagar, Nalasopara East, Vasai-Virar, Maharashtra 401209, India", "pincode": "401209", "coordinates": {"latitude": 19.421, "longitude": 72.829, "formatted": "19.4210, 72.8290"}, "status": "Active / Open", "sla": "9 mins (545s)", "sla_seconds": 545, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.421,72.829&query_place_id=ChIJ-_FdQj-p5zsRhW4-LcK2JE8"}, {"store_id": "mum_133_wh_hl_01", "locality": "Nalasopara West", "delivery_location": "CR98+53M, St. Depot Rd, Nala Sopara, Lakshmiben Chedda Nagar, Nalasopara West, Vasai-Virar, Maharashtra 401203, India", "pincode": "401203", "coordinates": {"latitude": 19.4182, "longitude": 72.8153, "formatted": "19.4182, 72.8153"}, "status": "Active / Open", "sla": "7 mins (418s)", "sla_seconds": 418, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.4182,72.8153&query_place_id=ChIJdylTWFup5zsRuAR5WvxB5-E"}, {"store_id": "mum_010_wh_hl_01", "locality": "Nerul (Navi Mumbai)", "delivery_location": "A-2, Kamaladevi Birajdar Marg, Nerul East, Sector 21, Nerul, Navi Mumbai, Maharashtra 400706, India", "pincode": "400706", "coordinates": {"latitude": 19.033, "longitude": 73.0197, "formatted": "19.0330, 73.0197"}, "status": "Active / Open", "sla": "11 mins (657s)", "sla_seconds": 657, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.033,73.0197&query_place_id=ChIJSzFkqcHD5zsRVDWdxb0KGHo"}, {"store_id": "mum_067_wh_hl_01", "locality": "Panvel (Old / New)", "delivery_location": "JAI GANESH CHS, Forest Colony, Panvel, Maharashtra 410206, India", "pincode": "410206", "coordinates": {"latitude": 18.991, "longitude": 73.118, "formatted": "18.9910, 73.1180"}, "status": "Active / Open", "sla": "8 mins (492s)", "sla_seconds": 492, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=18.991,73.118&query_place_id=ChIJRTj1jWno5zsR1SOl2-v45us"}, {"store_id": "mum_025_wh_hl_01", "locality": "Powai", "delivery_location": "26, Ridge Rd, Sector C, Jalvayu Vihar, Powai, Mumbai, Maharashtra 400076, India", "pincode": "400076", "coordinates": {"latitude": 19.1176, "longitude": 72.906, "formatted": "19.1176, 72.9060"}, "status": "Active / Open", "sla": "10 mins (598s)", "sla_seconds": 598, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1176,72.906&query_place_id=ChIJ9xDXF-TH5zsRXgmJVeeNrIc"}, {"store_id": "mum_109_wh_hl_01", "locality": "Sanpada (Navi Mumbai)", "delivery_location": "3274+HQX, Sector 2 Sanpada Rd, Sector 2, Sanpada, Navi Mumbai, Maharashtra 400705, India", "pincode": "400705", "coordinates": {"latitude": 19.064, "longitude": 73.007, "formatted": "19.0640, 73.0070"}, "status": "Active / Open", "sla": "9 mins (522s)", "sla_seconds": 522, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.064,73.007&query_place_id=ChIJ5VVhPEXB5zsRrP7x-25O-L0"}, {"store_id": "mum_191_wh_hl_01", "locality": "Santacruz East", "delivery_location": "Bridge, 5, Datta Mandir Rd, Vakola, Santacruz East, Mumbai, Maharashtra 400055, India", "pincode": "400055", "coordinates": {"latitude": 19.081, "longitude": 72.851, "formatted": "19.0810, 72.8510"}, "status": "Active / Open", "sla": "17 mins (1037s)", "sla_seconds": 1037, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.081,72.851&query_place_id=ChIJpXhAGADJ5zsRbS8yFyZxsFQ"}, {"store_id": "mum_174_wh_hl_01", "locality": "Seawoods / Karave", "delivery_location": "Grand Central, 31-32, Seawood Fountain, Nerul East, Sector 30, Nerul, Navi Mumbai, Maharashtra 400706, India", "pincode": "400706", "coordinates": {"latitude": 19.021, "longitude": 73.018, "formatted": "19.0210, 73.0180"}, "status": "Active / Open", "sla": "9 mins (569s)", "sla_seconds": 569, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.021,73.018&query_place_id=ChIJVQkxn73D5zsRRBt7GoGwBPQ"}, {"store_id": "mum_011_wh_hl_01", "locality": "Sion", "delivery_location": "16/7, Rd Number 6, Sindhi Colony, Sion, Mumbai, Maharashtra 400022, India", "pincode": "400022", "coordinates": {"latitude": 19.043, "longitude": 72.863, "formatted": "19.0430, 72.8630"}, "status": "Active / Open", "sla": "8 mins (485s)", "sla_seconds": 485, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.043,72.863&query_place_id=ChIJoefPA9LI5zsR64PaWvR7kqs"}, {"store_id": "mum_103_wh_hl_01", "locality": "Thane West (Ghodbunder Rd / Hiranandani Estate)", "delivery_location": "GANGOTRI GLACIAR, VIJAY NAGRI, कावेसर, ठाणे वेस्ट, ठाणे, महाराष्ट्र 400615, India", "pincode": "400607", "coordinates": {"latitude": 19.256, "longitude": 72.973, "formatted": "19.2560, 72.9730"}, "status": "Active / Open", "sla": "6 mins (363s)", "sla_seconds": 363, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.256,72.973&query_place_id=ChIJRfqj0ZS75zsRUC-Zt83E2Vk"}, {"store_id": "mum_190_wh_hl_01", "locality": "Thane West (Kasarvadavali)", "delivery_location": "Kasarvadavali, Thane West Bldg No 3, Jasmine, Parijat Garden, Kasarvadavali, Thane West, Thane, Maharashtra 400615, India", "pincode": "400615", "coordinates": {"latitude": 19.268, "longitude": 72.964, "formatted": "19.2680, 72.9640"}, "status": "Active / Open", "sla": "6 mins (353s)", "sla_seconds": 353, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.268,72.964&query_place_id=ChIJOXaC89G75zsRtLbEVE7Ikg4"}, {"store_id": "mum_170_wh_hl_01", "locality": "Thane West (Naupada)", "delivery_location": "9, Tembhi Naka, Aambe, Ghosale Lake, Thane, Maharashtra 400601, India", "pincode": "400602", "coordinates": {"latitude": 19.1983, "longitude": 72.9781, "formatted": "19.1983, 72.9781"}, "status": "Active / Open", "sla": "8 mins (485s)", "sla_seconds": 485, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.1983,72.9781&query_place_id=ChIJ7XcwLTu55zsR3cKrxkgSzso"}, {"store_id": "mum_037_wh_hl_01", "locality": "Thane West (Wagle Estate)", "delivery_location": "97, Rd Number 18, Neheru Nagar, Wagle Industrial Estate, Thane West, Thane, Maharashtra 400604, India", "pincode": "400604", "coordinates": {"latitude": 19.193, "longitude": 72.952, "formatted": "19.1930, 72.9520"}, "status": "Active / Open", "sla": "18 mins (1101s)", "sla_seconds": 1101, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.193,72.952&query_place_id=ChIJDQJ11QW55zsRDIx8e0N4FiY"}, {"store_id": "mum_172_wh_hl_01", "locality": "Ulwe (Sector 19)", "delivery_location": "24, Sector 23, Ulwe, Mumbai, Wahal, Maharashtra 410206, India", "pincode": "410206", "coordinates": {"latitude": 18.977, "longitude": 73.033, "formatted": "18.9770, 73.0330"}, "status": "Active / Open", "sla": "10 mins (604s)", "sla_seconds": 604, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=18.977,73.033&query_place_id=ChIJiVHeRyTD5zsRDSEWt6YYs-o"}, {"store_id": "mum_207_wh_hl_01", "locality": "Vasai East", "delivery_location": "9RMR+XQ Vasai-Virar, Maharashtra, India", "pincode": "401208", "coordinates": {"latitude": 19.385, "longitude": 72.842, "formatted": "19.3850, 72.8420"}, "status": "Paused / Closed", "sla": "Paused (Dispatch Window Closed)", "sla_seconds": null, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.385,72.842&query_place_id=Egs3SkZKOVJNUitYUSImOiQKCg2Q6o0LFaDOaisQChoUChIJe1jBa5Wu5zsRRVGqS6lTT4Y"}, {"store_id": "mum_117_wh_hl_01", "locality": "Vasai West", "delivery_location": "A10, Ambadi Rd, Jayraj Nagar, Sai Nagar, Vasai West, Vasai-Virar, Maharashtra 401202, India", "pincode": "401202", "coordinates": {"latitude": 19.385, "longitude": 72.825, "formatted": "19.3850, 72.8250"}, "status": "Active / Open", "sla": "13 mins (777s)", "sla_seconds": 777, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.385,72.825&query_place_id=ChIJlVptKrmu5zsRlrPzNNW13zg"}, {"store_id": "mum_016_wh_hl_02", "locality": "Vashi (Navi Mumbai)", "delivery_location": "Shop No B2, 3 1, Juhu Nagar, Sector-16, Vashi, Navi Mumbai, Maharashtra 400703, India", "pincode": "400703", "coordinates": {"latitude": 19.0771, "longitude": 72.9986, "formatted": "19.0771, 72.9986"}, "status": "Active / Open", "sla": "10 mins (583s)", "sla_seconds": 583, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.0771,72.9986&query_place_id=ChIJiVDpRArB5zsRg7du4PAjSbM"}, {"store_id": "mum_148_wh_hl_01", "locality": "Virar West (Global City)", "delivery_location": "FR65+MJR, Kolwadi, Vartak Ward, Virar West, Vasai-Virar, Maharashtra 401303, India", "pincode": "401303", "coordinates": {"latitude": 19.462, "longitude": 72.809, "formatted": "19.4620, 72.8090"}, "status": "Active / Open", "sla": "8 mins (476s)", "sla_seconds": 476, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.462,72.809&query_place_id=ChIJz-N9O4mp5zsR_BXBUAU9eP8"}, {"store_id": "mum_071_wh_hl_01", "locality": "Worli Naka", "delivery_location": "Sukhada Apartment Wing-A, 239, Dr Annie Besant Rd, B Wing, Worli Shivaji Nagar, Worli, Mumbai, Maharashtra 400030, India", "pincode": "400018", "coordinates": {"latitude": 19.0068, "longitude": 72.818, "formatted": "19.0068, 72.8180"}, "status": "Active / Open", "sla": "11 mins (656s)", "sla_seconds": 656, "google_maps_url": "https://www.google.com/maps/search/?api=1&query=19.0068,72.818&query_place_id=ChIJ-WDiDJfO5zsRCBQ4MMhKUTc"}];
+
+        // Initialize Map
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: true
+        }).setView([19.1000, 72.9000], 11);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // 1. OpenStreetMap Standard (Primary Default)
+        const osmStandard = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // 2. OpenStreetMap Humanitarian (HOT)
+        const osmHot = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            subdomains: ['a', 'b', 'c'],
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors, Tiles by <a href="https://www.hotosm.org/" target="_blank">HOT</a>'
+        });
+
+        // 3. Satellite Imagery
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri, Earthstar Geographics'
+        });
+
+        // Basemap Switcher (Bottom Left)
+        L.control.layers({
+            "🗺️ OpenStreetMap": osmStandard,
+            "🎨 OSM Humanitarian": osmHot,
+            "🛰️ Satellite": satellite
+        }, null, { position: 'bottomleft' }).addTo(map);
+
+        // Sleek Compact SVG Delivery Pointer Icon
+        function createDeliveryPointerIcon(slaText) {
+            const minutesMatch = slaText.match(/(\d+)\s*mins?/i);
+            const slaDisplay = minutesMatch ? `${minutesMatch[1]}m` : '⚡';
+
+            const svgPin = `
+                <svg class="pointer-pin" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 0C7.163 0 0 7.163 0 16C0 26 16 40 16 40C16 40 32 26 32 16C32 7.163 24.837 0 16 0Z" fill="#2874F0"/>
+                    <circle cx="16" cy="15" r="10.5" fill="#FFE500"/>
+                    <path d="M17.2 9L11.5 16H16.2L14.8 21.5L20.5 14.5H15.8L17.2 9Z" fill="#1E293B"/>
+                </svg>
+            `;
+
+            return L.divIcon({
+                className: 'delivery-pointer',
+                iconSize: [28, 38],
+                iconAnchor: [14, 34],
+                popupAnchor: [0, -32],
+                html: `
+                    <div class="pointer-wrapper">
+                        ${svgPin}
+                        <span class="pointer-sla-pill">⚡${slaDisplay}</span>
+                    </div>
+                `
+            });
+        }
+
+        // Copy coordinates utility
+        window.copyCoords = function(coordsText, el) {
+            navigator.clipboard.writeText(coordsText).then(() => {
+                const orig = el.innerText;
+                el.innerText = 'Copied!';
+                setTimeout(() => el.innerText = orig, 1500);
+            }).catch(() => {
+                el.innerText = 'Copied!';
+            });
+        };
+
+        // Marker Cluster Group
+        const clusterGroup = L.markerClusterGroup({
+            showCoverageOnHover: false,
+            maxClusterRadius: 30,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 14
+        });
+
+        const markers = [];
+
+        storesData.forEach(store => {
+            const lat = store.coordinates.latitude;
+            const lng = store.coordinates.longitude;
+            const formattedCoords = store.coordinates.formatted || `${lat}, ${lng}`;
+            const minutesMatch = (store.sla || '').match(/(\d+)\s*mins?/i);
+            const shortSla = minutesMatch ? `${minutesMatch[1]} mins` : store.sla;
+
+            const icon = createDeliveryPointerIcon(store.sla || '');
+            const marker = L.marker([lat, lng], { icon: icon });
+
+            const popupContent = `
+                <div class="popup-compact">
+                    <div class="popup-head">
+                        <span class="popup-title" title="${store.locality}">${store.locality}</span>
+                        <span class="popup-sla">⚡ ${shortSla}</span>
+                    </div>
+                    <div class="popup-sub">
+                        <span class="store-id">${store.store_id}</span>
+                        <span class="status-dot">● Active</span>
+                    </div>
+                    <div class="popup-addr">
+                        ${store.delivery_location}
+                    </div>
+                    <div class="popup-actions">
+                        <span class="coords-tag" onclick="copyCoords('${formattedCoords}', this)" title="Click to copy">
+                            📍 ${formattedCoords}
+                        </span>
+                        <a href="${store.google_maps_url}" target="_blank" rel="noopener noreferrer" class="maps-link">
+                            Open Maps ↗
+                        </a>
+                    </div>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent, {
+                maxWidth: 260,
+                autoPanPadding: [15, 60]
+            });
+
+            marker.storeData = store;
+            markers.push(marker);
+            clusterGroup.addLayer(marker);
+        });
+
+        map.addLayer(clusterGroup);
+
+        // Fit bounds
+        if (markers.length > 0) {
+            map.fitBounds(clusterGroup.getBounds(), {
+                paddingTopLeft: [40, 70],
+                paddingBottomRight: [40, 40],
+                maxZoom: 13
+            });
+        }
+
+        // Live Search Filter
+        const searchInput = document.getElementById('searchInput');
+        const activeCount = document.getElementById('activeCount');
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            let visibleCount = 0;
+            let firstMatch = null;
+
+            clusterGroup.clearLayers();
+
+            markers.forEach(marker => {
+                const s = marker.storeData;
+                const match = !query ||
+                    s.locality.toLowerCase().includes(query) ||
+                    s.store_id.toLowerCase().includes(query) ||
+                    (s.pincode && s.pincode.includes(query)) ||
+                    s.delivery_location.toLowerCase().includes(query);
+
+                if (match) {
+                    clusterGroup.addLayer(marker);
+                    visibleCount++;
+                    if (!firstMatch) firstMatch = marker;
+                }
+            });
+
+            activeCount.innerText = visibleCount;
+
+            if (query && firstMatch && visibleCount === 1) {
+                map.flyTo(firstMatch.getLatLng(), 15, { duration: 0.8 });
+                setTimeout(() => firstMatch.openPopup(), 900);
+            } else if (query && visibleCount > 1) {
+                map.fitBounds(clusterGroup.getBounds(), {
+                    paddingTopLeft: [40, 70],
+                    paddingBottomRight: [40, 40]
+                });
+            } else if (!query) {
+                map.fitBounds(clusterGroup.getBounds(), {
+                    paddingTopLeft: [40, 70],
+                    paddingBottomRight: [40, 40]
+                });
+            }
+        });
+    </script>
+</body>
+</html>
