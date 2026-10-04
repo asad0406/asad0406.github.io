@@ -318,10 +318,10 @@
 
     #modal {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      width: min(720px, 94vw);
-      max-height: 92vh;
+      top: 16px;
+      right: 16px;
+      width: min(740px, 95vw);
+      height: min(740px, 94vh);
       background: rgba(14, 18, 27, 0.92);
       backdrop-filter: blur(22px) saturate(180%);
       -webkit-backdrop-filter: blur(22px) saturate(180%);
@@ -610,35 +610,33 @@
       text-overflow: ellipsis;
     }
 
-    /* Live Stats Row */
+    /* Live Stats Row - Compact single row */
     .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 6px 12px;
     }
     .stat-card {
-      background: rgba(15, 23, 42, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
-      padding: 8px 12px;
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      align-items: center;
+      gap: 6px;
     }
     .stat-label {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
+      color: #94a3b8;
     }
     .stat-val {
-      font-size: 16px;
+      font-size: 13.5px;
       font-weight: 800;
       color: #ffffff;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
     .stat-val.green { color: #10b981; }
     .stat-val.red { color: #ef4444; }
@@ -772,8 +770,10 @@
       background: rgba(10, 15, 26, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
-      max-height: 290px;
+      min-height: 240px;
+      max-height: 380px;
       overflow-y: auto;
+      flex: 1;
     }
     .table-container::-webkit-scrollbar {
       width: 5px;
