@@ -216,10 +216,46 @@
     };
   }
 
-  // Multi-product batch SLA query checking both SDEL (Store Express) and HDEL (Warehouse) simultaneously
-  // Safely chunks into batches of 25 products (50 lines) to avoid Croma OMS payload limits
+  // Single-SKU Drilldown SLA query checking both SDEL (Store Express) and HDEL (Warehouse) simultaneously
+  // Protected with WAF Circuit Breaker to prevent Akamai rate-limiting
   async function checkBatchSLA(products, pincode) {
     if (!products || !products.length || !pincode) return {};
+
+    const promiseLine = [];
+    let lineId = 1;
+    for (const p of products) {
+      const sku = String(p.code);
+      promiseLine.push({
+        fulfillmentType: "SDEL",
+        itemID: sku,
+        lineId: String(lineId++),
+        reqEndDate: "2500-01-01",
+        reqStartDate: "",
+        requiredQty: "1",
+        shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
+        extn: { widerStoreFlag: "N" }
+      });
+      promiseLine.push({
+        fulfillmentType: "HDEL",
+        itemID: sku,
+        lineId: String(lineId++),
+        reqEndDate: "2500-01-01",
+        reqStartDate: "",
+        requiredQty: "1",
+        shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
+        extn: { widerStoreFlag: "N" }
+      });
+    }
+
+    const payload = {
+      promise: {
+        allocationRuleID: "SYSTEM",
+        checkInventory: "Y",
+        organizationCode: "CROMA",
+        sourcingClassification: "EC",
+        promiseLines: { promiseLine }
+      }
+    };
 
     const skuResults = {};
     for (const p of products) {
@@ -241,104 +277,65 @@
       };
     }
 
-    const CHUNK_SIZE = 25;
-    const chunks = [];
-    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
-      chunks.push(products.slice(i, i + CHUNK_SIZE));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+
+    try {
+      const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
+        method: "POST",
+        headers: API_HEADERS,
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      clearTimeout(timer);
+      if (!res) return skuResults;
+      if (res.status === 403 || res.status === 429) {
+        throw new Error("WAF_RATE_LIMIT");
+      }
+      if (!res.ok) return skuResults;
+
+      const data = await res.json();
+      const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
+
+      for (const line of lines) {
+        const item = skuResults[String(line.itemID)];
+        if (!item) continue;
+        const assignment = line.assignments?.assignment?.[0];
+        if (!assignment) continue;
+
+        item.available = true;
+        const node = assignment.shipNode || "";
+        const nodeName = STORE_NAMES[node] || (node ? `Hub [${node}]` : "");
+        const dDate = assignment.deliveryDate || "";
+        const carrier = (line.carrierServiceCode || "").replace("Blitz - ", "");
+
+        if (line.fulfillmentType === "SDEL") {
+          item.hasExpress = true;
+          item.expressStore = node;
+          item.expressStoreName = nodeName;
+          item.expressCarrier = carrier;
+          item.expressDate = dDate;
+        } else if (line.fulfillmentType === "HDEL") {
+          item.hasWarehouse = true;
+          item.warehouseHub = node;
+          item.warehouseHubName = nodeName;
+          item.warehouseCarrier = carrier;
+          item.warehouseDate = dDate;
+        }
+
+        if (item.hasExpress) {
+          item.fastestMode = "SDEL";
+          item.fastestDate = item.expressDate;
+        } else if (item.hasWarehouse) {
+          item.fastestMode = "HDEL";
+          item.fastestDate = item.warehouseDate;
+        }
+      }
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.message === "WAF_RATE_LIMIT") throw e;
     }
 
-    await Promise.all(chunks.map(async (chunk) => {
-      const promiseLine = [];
-      let lineId = 1;
-      for (const p of chunk) {
-        const sku = String(p.code);
-        promiseLine.push({
-          fulfillmentType: "SDEL",
-          itemID: sku,
-          lineId: String(lineId++),
-          reqEndDate: "2500-01-01",
-          reqStartDate: "",
-          requiredQty: "1",
-          shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
-          extn: { widerStoreFlag: "N" }
-        });
-        promiseLine.push({
-          fulfillmentType: "HDEL",
-          itemID: sku,
-          lineId: String(lineId++),
-          reqEndDate: "2500-01-01",
-          reqStartDate: "",
-          requiredQty: "1",
-          shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
-          extn: { widerStoreFlag: "N" }
-        });
-      }
-
-      const payload = {
-        promise: {
-          allocationRuleID: "SYSTEM",
-          checkInventory: "Y",
-          organizationCode: "CROMA",
-          sourcingClassification: "EC",
-          promiseLines: { promiseLine }
-        }
-      };
-
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 4500);
-
-      try {
-        const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
-          method: "POST",
-          headers: API_HEADERS,
-          body: JSON.stringify(payload),
-          signal: ctrl.signal
-        });
-        clearTimeout(timer);
-        if (!res || !res.ok) return;
-        const data = await res.json();
-        const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
-
-        for (const line of lines) {
-          const item = skuResults[String(line.itemID)];
-          if (!item) continue;
-          const assignment = line.assignments?.assignment?.[0];
-          if (!assignment) continue;
-
-          item.available = true;
-          const node = assignment.shipNode || "";
-          const nodeName = STORE_NAMES[node] || (node ? `Hub [${node}]` : "");
-          const dDate = assignment.deliveryDate || "";
-          const carrier = (line.carrierServiceCode || "").replace("Blitz - ", "");
-
-          if (line.fulfillmentType === "SDEL") {
-            item.hasExpress = true;
-            item.expressStore = node;
-            item.expressStoreName = nodeName;
-            item.expressCarrier = carrier;
-            item.expressDate = dDate;
-          } else if (line.fulfillmentType === "HDEL") {
-            item.hasWarehouse = true;
-            item.warehouseHub = node;
-            item.warehouseHubName = nodeName;
-            item.warehouseCarrier = carrier;
-            item.warehouseDate = dDate;
-          }
-
-          if (item.hasExpress) {
-            item.fastestMode = "SDEL";
-            item.fastestDate = item.expressDate;
-          } else if (item.hasWarehouse) {
-            item.fastestMode = "HDEL";
-            item.fastestDate = item.warehouseDate;
-          }
-        }
-      } catch (e) {
-        clearTimeout(timer);
-      }
-    }));
-
-    return skuResults;
   }
 
   // Inject UI Root
@@ -1172,36 +1169,19 @@
   });
   window.addEventListener('mouseup', () => { isDragging = false; });
 
-  // Update Hero Card details
+  // Update Hero Card details for selected SKU
   function updateHeroCard(sku) {
-    if (sku === "ALL") {
-      productTitle.textContent = currentProducts.length > 1 ? `All Matching Products (${currentProducts.length} items)` : (currentProducts[0]?.name || "Catalog Search");
-      productImg.src = currentProducts[0]?.image || "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png";
-      const prices = currentProducts.map(p => p.rawPrice).filter(Boolean);
-      if (prices.length > 0) {
-        const minP = Math.min(...prices);
-        const maxP = Math.max(...prices);
-        productPrice.textContent = minP === maxP ? `₹${minP.toLocaleString('en-IN')}` : `₹${minP.toLocaleString('en-IN')} - ₹${maxP.toLocaleString('en-IN')}`;
-      } else {
-        productPrice.textContent = "₹ -";
-      }
-    } else {
-      const p = currentProducts.find(x => x.code === sku);
-      if (p) {
-        productTitle.textContent = p.name;
-        productPrice.textContent = p.price || "₹ -";
-        if (p.image) productImg.src = p.image;
-      }
+    const p = currentProducts.find(x => x.code === sku) || currentProducts[0];
+    if (p) {
+      productTitle.textContent = p.name;
+      productPrice.textContent = p.price || "₹ -";
+      if (p.image) productImg.src = p.image;
     }
   }
 
-  // Populate Product Picker Dropdown
+  // Populate Product Picker Dropdown with all matching products
   function populateProductPicker() {
     productPicker.innerHTML = '';
-    const allOpt = document.createElement('option');
-    allOpt.value = "ALL";
-    allOpt.textContent = `⭐ All Matching Products (${currentProducts.length} items)`;
-    productPicker.appendChild(allOpt);
 
     currentProducts.forEach((p, idx) => {
       const opt = document.createElement('option');
@@ -1210,179 +1190,120 @@
       productPicker.appendChild(opt);
     });
 
+    if (!activeSelectedSKU || !currentProducts.some(p => p.code === activeSelectedSKU)) {
+      activeSelectedSKU = currentProducts[0]?.code || "";
+    }
+
     productPicker.value = activeSelectedSKU;
     updateHeroCard(activeSelectedSKU);
   }
 
-  productPicker.onchange = () => {
+  // Update Stats Counters for active SKU
+  function updateStats() {
+    const targetSku = activeSelectedSKU || currentProducts[0]?.code;
+    const pMap = scanMatrix[targetSku] || {};
+    const scannedPins = Object.keys(pMap).length;
+    const availPins = Object.values(pMap).filter(x => x.available).length;
+    statScanned.textContent = `${scannedPins} / 86`;
+    statAvail.textContent = availPins;
+    statOos.textContent = scannedPins - availPins;
+  }
+
+  productPicker.onchange = async () => {
     activeSelectedSKU = productPicker.value;
     updateHeroCard(activeSelectedSKU);
-    renderTable();
+    if (!scanMatrix[activeSelectedSKU] || Object.keys(scanMatrix[activeSelectedSKU]).length === 0) {
+      await runScan();
+    } else {
+      renderTable();
+      updateStats();
+    }
   };
 
-  // Render Table based on selected view (ALL_PRODUCTS vs Single SKU)
+  // Render Table: 86-pincode drilldown breakdown for selected SKU
   function renderTable() {
     const availOnly = chkAvailOnly.checked;
     const expressOnly = chkExpressOnly.checked;
 
-    if (activeSelectedSKU === "ALL" && currentProducts.length > 1) {
-      // MASTER PRODUCTS SUMMARY MATRIX
-      tableHead.innerHTML = `
-        <tr>
-          <th>Product Name & SKU</th>
-          <th style="width: 85px;">Price</th>
-          <th style="width: 125px;">Mumbai In-Stock</th>
-          <th>Fastest Delivery Hub</th>
-          <th style="width: 95px; text-align: center;">Drilldown</th>
-        </tr>
-      `;
+    tableHead.innerHTML = `
+      <tr>
+        <th style="width: 75px;">Pincode</th>
+        <th>Area / Locality</th>
+        <th style="width: 105px;">Status</th>
+        <th>Fulfillment Mode & Store</th>
+        <th style="width: 135px;">Delivery ETA</th>
+      </tr>
+    `;
 
-      const rowsData = currentProducts.map(p => {
-        const pMap = scanMatrix[p.code] || {};
-        let inStockCount = 0;
-        let expressCount = 0;
-        let warehouseCount = 0;
-        let fastestETA = "-";
-        let fastestHub = "-";
+    const targetSku = activeSelectedSKU || currentProducts[0]?.code;
+    const pMap = scanMatrix[targetSku] || {};
 
-        Object.values(pMap).forEach(entry => {
-          if (activeZone !== "ALL" && entry.zone !== activeZone) return;
-          if (entry.available) {
-            inStockCount++;
-            if (entry.hasExpress) expressCount++;
-            if (entry.hasWarehouse) warehouseCount++;
-            if (fastestETA === "-" && entry.fastestDate) {
-              fastestETA = formatDeliveryETA(entry.fastestDate, entry.fastestCarrier);
-              fastestHub = entry.hasExpress ? (entry.expressStoreName || entry.expressStore) : (entry.warehouseHubName || entry.warehouseHub);
-            }
-          }
-        });
+    const filtered = MUMBAI_PINCODES.map(item => {
+      const entry = pMap[item.pin] || {
+        pin: item.pin,
+        area: item.area,
+        zone: item.zone,
+        available: false
+      };
+      return entry;
+    }).filter(r => {
+      if (activeZone !== "ALL" && r.zone !== activeZone) return false;
+      if (availOnly && !r.available) return false;
+      if (expressOnly && !r.hasExpress) return false;
+      return true;
+    });
 
-        return {
-          product: p,
-          inStockCount,
-          expressCount,
-          warehouseCount,
-          fastestETA,
-          fastestHub,
-          isAvail: inStockCount > 0
-        };
-      }).filter(r => {
-        if (availOnly && !r.isAvail) return false;
-        if (expressOnly && r.expressCount === 0) return false;
-        return true;
-      });
+    if (filtered.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 28px;">No pincodes match the selected filters.</td></tr>`;
+      return;
+    }
 
-      if (rowsData.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 28px;">No products match the selected filters.</td></tr>`;
-        return;
+    tableBody.innerHTML = filtered.map(r => {
+      let fBadge = '<span style="color:#64748b;">-</span>';
+      if (r.available) {
+        if (r.hasExpress && r.hasWarehouse) {
+          fBadge = `<span class="badge-express">⚡ Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#38bdf8;">+ 🚚 Warehouse [${r.warehouseHub}]</span>`;
+        } else if (r.hasExpress) {
+          fBadge = `<span class="badge-express">⚡ Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#94a3b8;">${r.expressStoreName}</div>`;
+        } else if (r.hasWarehouse) {
+          fBadge = `<span class="badge-warehouse">🚚 Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#94a3b8;">${r.warehouseHubName}</div>`;
+        }
       }
 
-      tableBody.innerHTML = rowsData.map(r => `
+      const eta = r.available ? (formatDeliveryETA(r.fastestDate, r.hasExpress ? r.expressCarrier : r.warehouseCarrier)) : '-';
+
+      return `
         <tr>
+          <td class="pincode-cell">${r.pin}</td>
           <td>
-            <div style="font-weight:600; color:#f1f5f9; display:flex; align-items:center; gap:8px;">
-              <span style="color:#00E5BE; font-size:10px; font-family:'JetBrains Mono',monospace;">[${r.product.code}]</span>
-              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;" title="${r.product.name}">${r.product.name}</span>
-            </div>
-            <div style="font-size:10px; color:#64748b; margin-top:2px;">
-              ${r.expressCount > 0 ? `<span class="badge-express">⚡ ${r.expressCount} Express Hubs</span> ` : ''}
-              ${r.warehouseCount > 0 ? `<span class="badge-warehouse">🚚 ${r.warehouseCount} Warehouse</span>` : ''}
-            </div>
+            <div style="font-weight:600; color:#f1f5f9;">${r.area}</div>
+            <div style="font-size:10px; color:#64748b;">${r.zone}</div>
           </td>
-          <td style="font-weight:700; color:#00E5BE; font-size:12px;">${r.product.price || '-'}</td>
           <td>
-            <span class="badge-status ${r.inStockCount > 0 ? 'avail' : 'oos'}">
-              ${r.inStockCount > 0 ? `<span class="pulse-dot"></span>${r.inStockCount} / 86 Pincodes` : 'OUT OF STOCK'}
+            <span class="badge-status ${r.available ? 'avail' : 'oos'}">
+              ${r.available ? '<span class="pulse-dot"></span>IN STOCK' : 'OUT OF STOCK'}
             </span>
           </td>
-          <td style="font-size:11px;">
-            <div style="color:#e2e8f0; font-weight:600;">${r.fastestHub}</div>
-            <div style="color:#94a3b8; font-size:10px;">${r.fastestETA}</div>
+          <td>${fBadge}</td>
+          <td style="font-size:11px; color:${r.available ? '#e2e8f0' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'};">
+            ${eta}
           </td>
-          <td style="text-align: center;">
-            <button class="btn-view-prod" onclick="this.getRootNode().host.__selectSKU('${r.product.code}')">View 86 ↗</button>
-          </td>
-        </tr>
-      `).join('');
-
-    } else {
-      // SINGLE PRODUCT 86-PINCODE BREAKDOWN
-      tableHead.innerHTML = `
-        <tr>
-          <th style="width: 75px;">Pincode</th>
-          <th>Area / Locality</th>
-          <th style="width: 100px;">Status</th>
-          <th>Fulfillment Mode & Store</th>
-          <th style="width: 135px;">Delivery ETA</th>
         </tr>
       `;
-
-      const targetSku = activeSelectedSKU === "ALL" ? (currentProducts[0]?.code || "") : activeSelectedSKU;
-      const pMap = scanMatrix[targetSku] || {};
-
-      const filtered = MUMBAI_PINCODES.map(item => {
-        const entry = pMap[item.pin] || {
-          pin: item.pin,
-          area: item.area,
-          zone: item.zone,
-          available: false
-        };
-        return entry;
-      }).filter(r => {
-        if (activeZone !== "ALL" && r.zone !== activeZone) return false;
-        if (availOnly && !r.available) return false;
-        if (expressOnly && !r.hasExpress) return false;
-        return true;
-      });
-
-      if (filtered.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 28px;">No pincodes match the selected filters.</td></tr>`;
-        return;
-      }
-
-      tableBody.innerHTML = filtered.map(r => {
-        let fBadge = '<span style="color:#64748b;">-</span>';
-        if (r.available) {
-          if (r.hasExpress && r.hasWarehouse) {
-            fBadge = `<span class="badge-express">⚡ Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#38bdf8;">+ 🚚 Warehouse [${r.warehouseHub}]</span>`;
-          } else if (r.hasExpress) {
-            fBadge = `<span class="badge-express">⚡ Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#94a3b8;">${r.expressStoreName}</div>`;
-          } else if (r.hasWarehouse) {
-            fBadge = `<span class="badge-warehouse">🚚 Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#94a3b8;">${r.warehouseHubName}</div>`;
-          }
-        }
-
-        const eta = r.available ? (formatDeliveryETA(r.fastestDate, r.hasExpress ? r.expressCarrier : r.warehouseCarrier)) : '-';
-
-        return `
-          <tr>
-            <td class="pincode-cell">${r.pin}</td>
-            <td>
-              <div style="font-weight:600; color:#f1f5f9;">${r.area}</div>
-              <div style="font-size:10px; color:#64748b;">${r.zone}</div>
-            </td>
-            <td>
-              <span class="badge-status ${r.available ? 'avail' : 'oos'}">
-                ${r.available ? '<span class="pulse-dot"></span>IN STOCK' : 'OUT OF STOCK'}
-              </span>
-            </td>
-            <td>${fBadge}</td>
-            <td style="font-size:11px; color:${r.available ? '#e2e8f0' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'};">
-              ${eta}
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
+    }).join('');
   }
 
   // Drilldown helper exposed to custom element host
-  host.__selectSKU = (sku) => {
+  host.__selectSKU = async (sku) => {
     activeSelectedSKU = sku;
     productPicker.value = sku;
     updateHeroCard(sku);
-    renderTable();
+    if (!scanMatrix[sku] || Object.keys(scanMatrix[sku]).length === 0) {
+      await runScan();
+    } else {
+      renderTable();
+      updateStats();
+    }
   };
 
   // Zone Chips Filter
@@ -1399,7 +1320,7 @@
   chkAvailOnly.onchange = renderTable;
   chkExpressOnly.onchange = renderTable;
 
-  // Unified Multi-SKU Search and Scan Runner
+  // Single-SKU Drilldown Scan Runner across all 86 Mumbai pincodes
   async function runScan() {
     if (isScanning) {
       abortScan = true;
@@ -1472,7 +1393,7 @@
           searchSummaryText.innerHTML = `Loaded all <b style="color:#00E5BE;">${currentProducts.length}</b> products for "${q}"`;
           catalogCountBadge.textContent = `${currentProducts.length} Products Ready`;
 
-          activeSelectedSKU = currentProducts.length === 1 ? currentProducts[0].code : "ALL";
+          activeSelectedSKU = currentProducts[0].code;
         } catch (err) {
           showToast("Search failed: " + err.message);
           btnScan.disabled = false;
@@ -1489,10 +1410,11 @@
       return;
     }
 
-    // Determine target products to scan (ALL matching products or specific selected SKU)
-    const prodsToScan = activeSelectedSKU === "ALL" ? currentProducts : (currentProducts.filter(p => p.code === activeSelectedSKU).length ? currentProducts.filter(p => p.code === activeSelectedSKU) : currentProducts);
+    const targetProduct = currentProducts.find(p => p.code === activeSelectedSKU) || currentProducts[0];
+    if (!targetProduct) return;
+    activeSelectedSKU = targetProduct.code;
 
-    // Begin real-time multi-SKU batch scanning of all 86 Mumbai pincodes
+    // Begin real-time single-SKU drilldown scanning of all 86 Mumbai pincodes
     isScanning = true;
     abortScan = false;
     btnScan.disabled = false;
@@ -1505,69 +1427,73 @@
     `;
 
     progressContainer.style.display = 'block';
-    scanMatrix = {};
-    prodsToScan.forEach(p => { scanMatrix[p.code] = {}; });
+    scanMatrix[targetProduct.code] = scanMatrix[targetProduct.code] || {};
 
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning ${prodsToScan.length} product(s) across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning [${targetProduct.code}] across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
 
     const targetPins = [...MUMBAI_PINCODES];
     const total = targetPins.length;
     let completed = 0;
     let totalInStockOccurrences = 0;
+    let hitRateLimit = false;
 
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 2;
     let index = 0;
 
     async function worker() {
       while (true) {
-        if (abortScan) break;
+        if (abortScan || hitRateLimit) break;
         if (index >= targetPins.length) break;
         const pinItem = targetPins[index++];
         if (!pinItem || !pinItem.pin) break;
 
         let batchResults = {};
         try {
-          batchResults = await checkBatchSLA(prodsToScan, pinItem.pin);
+          batchResults = await checkBatchSLA([targetProduct], pinItem.pin);
+          // 40ms safe delay between requests
+          await new Promise(r => setTimeout(r, 40));
         } catch (e) {
+          if (e.message === "WAF_RATE_LIMIT") {
+            hitRateLimit = true;
+            abortScan = true;
+            break;
+          }
           batchResults = {};
         }
 
         if (abortScan) break;
         completed++;
 
-        // Store result for each SKU
-        prodsToScan.forEach(p => {
-          const res = batchResults[p.code];
-          const entry = {
-            pin: pinItem.pin,
-            area: pinItem.area || "",
-            zone: pinItem.zone || "",
-            available: !!res?.available,
-            hasExpress: !!res?.hasExpress,
-            hasWarehouse: !!res?.hasWarehouse,
-            expressStore: res?.expressStore || "",
-            expressStoreName: res?.expressStoreName || "",
-            expressCarrier: res?.expressCarrier || "",
-            expressDate: res?.expressDate || "",
-            warehouseHub: res?.warehouseHub || "",
-            warehouseHubName: res?.warehouseHubName || "",
-            warehouseCarrier: res?.warehouseCarrier || "",
-            warehouseDate: res?.warehouseDate || "",
-            fastestDate: res?.fastestDate || "",
-            fastestCarrier: (res?.hasExpress ? res?.expressCarrier : res?.warehouseCarrier) || ""
-          };
+        const res = batchResults[targetProduct.code];
+        const entry = {
+          pin: pinItem.pin,
+          area: pinItem.area || "",
+          zone: pinItem.zone || "",
+          available: !!res?.available,
+          hasExpress: !!res?.hasExpress,
+          hasWarehouse: !!res?.hasWarehouse,
+          expressStore: res?.expressStore || "",
+          expressStoreName: res?.expressStoreName || "",
+          expressCarrier: res?.expressCarrier || "",
+          expressDate: res?.expressDate || "",
+          warehouseHub: res?.warehouseHub || "",
+          warehouseHubName: res?.warehouseHubName || "",
+          warehouseCarrier: res?.warehouseCarrier || "",
+          warehouseDate: res?.warehouseDate || "",
+          fastestDate: res?.fastestDate || "",
+          fastestCarrier: (res?.hasExpress ? res?.expressCarrier : res?.warehouseCarrier) || ""
+        };
 
-          if (entry.available) totalInStockOccurrences++;
-          scanMatrix[p.code][pinItem.pin] = entry;
-        });
+        if (entry.available) totalInStockOccurrences++;
+        scanMatrix[targetProduct.code][pinItem.pin] = entry;
 
         const pct = Math.min(100, Math.round((completed / total) * 100));
         progressBar.style.width = pct + '%';
         statScanned.textContent = `${completed} / ${total}`;
         statAvail.textContent = totalInStockOccurrences;
-        statOos.textContent = (completed * prodsToScan.length) - totalInStockOccurrences;
+        statOos.textContent = completed - totalInStockOccurrences;
 
-        if (completed % 4 === 0 || completed >= total) {
+        if (completed % 5 === 0 || completed >= total) {
           renderTable();
         }
       }
@@ -1590,7 +1516,11 @@
         <span>Re-Scan</span>
       `;
       renderTable();
-      showToast(completed < total ? `Scan Stopped (${completed}/${total} pincodes)` : `Scan Complete! ${totalInStockOccurrences} In-Stock Matches Found ✨`);
+      if (hitRateLimit) {
+        showToast("⚠️ Akamai Rate Limit reached. Please pause a moment or switch network.");
+      } else {
+        showToast(completed < total ? `Scan Stopped (${completed}/${total} pincodes)` : `Scan Complete! In-Stock at ${totalInStockOccurrences} of 86 Pincodes ✨`);
+      }
     }
   }
 
