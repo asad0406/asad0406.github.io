@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>⚡ Flipkart Minutes Hunter — Search Results</title>
-  <style>
+  <style<!-- CSP_NONCE_STYLE -->>
     :root {
       --primary: #2874f0;
       --primary-dark: #1a5ac9;
@@ -484,7 +484,7 @@
     </div>
   </div>
 
-  <script>
+  <script<!-- CSP_NONCE_SCRIPT -->>
     let DATA = [];
     let currentQuery = '';
     let sortColumn = 'price';
@@ -708,9 +708,19 @@
       }).catch(e => alert('Failed to copy: ' + e));
     }
 
+    /* __DATA_INJECTION__ */
+
+    // Try reading from opener if opened via window.open
+    try {
+      if (!DATA.length && window.opener && window.opener.fkResults && window.opener.fkResults.length) {
+        const q = window.opener.document?.getElementById('fk-h-query')?.value?.trim() || '';
+        initData(window.opener.fkResults, q);
+      }
+    } catch(e) {}
+
     // Try reading hash if loaded as URL
     try {
-      if (location.hash && location.hash.length > 2) {
+      if (!DATA.length && location.hash && location.hash.length > 2) {
         const raw = decodeURIComponent(location.hash.slice(1));
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) initData(parsed, '');
