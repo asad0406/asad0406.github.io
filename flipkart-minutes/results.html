@@ -102,43 +102,56 @@
       align-items: center;
       gap: 8px;
       margin-top: 12px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-bottom: 2px;
+    }
+    .toolbar::-webkit-scrollbar {
+      height: 4px;
+    }
+    .toolbar::-webkit-scrollbar-thumb {
+      background: var(--line);
+      border-radius: 4px;
     }
     .toolbar .spacer {
       flex: 1;
-      min-width: 0;
+      min-width: 8px;
     }
     input#filter, select.filter-select {
-      padding: 7px 11px;
+      padding: 6px 11px;
       border: 1.5px solid var(--line);
       border-radius: 20px;
-      font-size: 12.5px;
+      font-size: 12px;
       background: var(--card);
       color: var(--ink);
-      flex: none;
+      flex: 0 0 auto;
       font-family: var(--body);
       outline: none;
+      white-space: nowrap;
     }
     select.filter-select {
-      min-width: 140px;
+      max-width: 140px;
       cursor: pointer;
     }
     input#filter {
-      width: 220px;
+      width: 160px;
+      flex: 0 1 auto;
     }
     input#filter:focus, select.filter-select:focus {
       border-color: var(--fk-blue);
     }
     button.tool-btn {
-      padding: 7px 14px;
+      padding: 6px 13px;
       border: 1.5px solid var(--line);
       border-radius: 20px;
       background: var(--card);
       color: var(--ink);
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      flex: none;
+      flex: 0 0 auto;
+      white-space: nowrap;
       font-family: var(--body);
       transition: all 0.15s;
     }
@@ -156,7 +169,9 @@
       color: #ffffff;
       font-family: var(--display);
       font-weight: 700;
-      padding: 8px 16px;
+      padding: 7px 16px;
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     button.btn-primary:hover {
       background: var(--fk-blue-dim);
@@ -571,8 +586,6 @@
       header { padding: 12px 14px; }
       .toolbar { gap: 6px; }
       #tableWrap { padding: 0 10px 14px; }
-      input#filter { width: 100%; }
-      select.filter-select { flex: 1; min-width: 120px; }
     }
   </style>
 </head>
