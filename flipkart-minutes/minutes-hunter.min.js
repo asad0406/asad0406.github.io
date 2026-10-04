@@ -340,6 +340,28 @@
   `;
   document.body.appendChild(overlay);
 
+  // Drag the panel by its header (buttons are excluded)
+  const header = overlay.querySelector('.fk-h-header');
+  header.style.cursor = 'move';
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    const rect = overlay.getBoundingClientRect();
+    const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+    overlay.style.right = 'auto';
+    overlay.style.bottom = 'auto';
+    const onMove = (ev) => {
+      overlay.style.left = Math.max(0, ev.clientX - offX) + 'px';
+      overlay.style.top = Math.max(0, ev.clientY - offY) + 'px';
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+
   // 3. Inject Launcher Pill
   const launcher = document.createElement('div');
   launcher.id = 'fk-hunter-launcher';
