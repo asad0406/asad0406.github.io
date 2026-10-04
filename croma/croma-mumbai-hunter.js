@@ -331,11 +331,12 @@
           item.fastestDate = item.warehouseDate;
         }
       }
+      return skuResults;
     } catch (e) {
       clearTimeout(timer);
       if (e.message === "WAF_RATE_LIMIT") throw e;
+      return skuResults;
     }
-
   }
 
   // Inject UI Root
@@ -1213,7 +1214,7 @@
     activeSelectedSKU = productPicker.value;
     updateHeroCard(activeSelectedSKU);
     if (!scanMatrix[activeSelectedSKU] || Object.keys(scanMatrix[activeSelectedSKU]).length === 0) {
-      await runScan();
+      if (!isScanning) await startScan();
     } else {
       renderTable();
       updateStats();
@@ -1299,7 +1300,7 @@
     productPicker.value = sku;
     updateHeroCard(sku);
     if (!scanMatrix[sku] || Object.keys(scanMatrix[sku]).length === 0) {
-      await runScan();
+      if (!isScanning) await startScan();
     } else {
       renderTable();
       updateStats();
@@ -1320,21 +1321,30 @@
   chkAvailOnly.onchange = renderTable;
   chkExpressOnly.onchange = renderTable;
 
-  // Single-SKU Drilldown Scan Runner across all 86 Mumbai pincodes
-  async function runScan() {
+  // Scan Controls: Separate startScan and stopScan to avoid accidental self-aborts
+  function stopScan() {
     if (isScanning) {
       abortScan = true;
       btnScan.disabled = true;
       btnScan.innerHTML = `<span>Stopping...</span>`;
-      return;
     }
+  }
+
+  // Single-SKU Drilldown Scan Runner across all 86 Mumbai pincodes
+  async function startScan() {
+    if (isScanning) return; // Guard against concurrent runs
 
     const q = queryInput.value.trim();
     if (!q && currentProducts.length === 0) {
-      showToast("Please enter a product or category! 🔍");
+      showToast("Please enter a product, SKU, or Croma URL! 🔍");
       queryInput.focus();
       return;
     }
+
+    // Check if user entered a Croma product URL or direct SKU
+    const urlSkuMatch = q.match(/\/p\/(\d+)/);
+    const directSkuMatch = q.match(/^\d{5,7}$/);
+    const targetSku = urlSkuMatch ? urlSkuMatch[1] : (directSkuMatch ? directSkuMatch[0] : null);
 
     // If query changed or no products loaded, query Croma search catalog
     if (q && (q !== currentQuery || currentProducts.length === 0)) {
@@ -1349,21 +1359,26 @@
         <span>Loading...</span>
       `;
 
-      // Check if user entered a Croma product URL or direct SKU
-      const urlSkuMatch = q.match(/\/p\/(\d+)/);
-      const directSkuMatch = q.match(/^\d{5,7}$/);
-      const targetSku = urlSkuMatch ? urlSkuMatch[1] : (directSkuMatch ? directSkuMatch[0] : null);
-
       if (targetSku) {
         // Direct SKU or pasted Product URL
         try {
           const res = await searchCatalogAll(targetSku);
-          const matchedProd = res.products?.find(p => p.code === targetSku) || res.products?.[0];
+          const matchedProd = res.products?.find(p => String(p.code) === String(targetSku)) || res.products?.[0];
           if (matchedProd) {
-            currentProducts = [matchedProd];
+            const rawP = matchedProd.price?.value || parseFloat((matchedProd.price?.formattedValue || "").replace(/[^\d.]/g, '')) || 0;
+            const img = matchedProd.images?.find(im => im.imageType === 'PRIMARY')?.url || matchedProd.productImage || "";
+            const pUrl = matchedProd.url ? (matchedProd.url.startsWith('http') ? matchedProd.url : `https://www.croma.com${matchedProd.url}`) : `https://www.croma.com/p/${matchedProd.code}`;
+            currentProducts = [{
+              code: String(matchedProd.code),
+              name: matchedProd.name,
+              price: matchedProd.price?.formattedValue || (rawP ? `₹${rawP.toLocaleString('en-IN')}` : ""),
+              rawPrice: rawP,
+              image: img,
+              url: pUrl
+            }];
           } else {
             currentProducts = [{
-              code: targetSku,
+              code: String(targetSku),
               name: `Product SKU [${targetSku}]`,
               price: "",
               rawPrice: 0,
@@ -1373,7 +1388,7 @@
           }
         } catch (e) {
           currentProducts = [{
-            code: targetSku,
+            code: String(targetSku),
             name: `Product SKU [${targetSku}]`,
             price: "",
             rawPrice: 0,
@@ -1384,7 +1399,7 @@
         paginationBar.style.display = 'flex';
         searchSummaryText.innerHTML = `Loaded SKU <b style="color:#00E5BE;">[${targetSku}]</b>: ${currentProducts[0].name.slice(0, 36)}...`;
         catalogCountBadge.textContent = '1 SKU Ready';
-        activeSelectedSKU = targetSku;
+        activeSelectedSKU = String(targetSku);
       } else {
         try {
           const res = await searchCatalogAll(q);
@@ -1428,13 +1443,14 @@
     }
 
     if (currentProducts.length === 0) {
-      showToast("Please enter a search query first! 🔍");
+      showToast("Please enter a search query or product URL! 🔍");
       return;
     }
 
     const targetProduct = currentProducts.find(p => p.code === activeSelectedSKU) || currentProducts[0];
     if (!targetProduct) return;
     activeSelectedSKU = targetProduct.code;
+    updateHeroCard(activeSelectedSKU);
 
     // Begin real-time single-SKU drilldown scanning of all 86 Mumbai pincodes
     isScanning = true;
@@ -1471,7 +1487,7 @@
 
         let batchResults = {};
         try {
-          batchResults = await checkBatchSLA([targetProduct], pinItem.pin);
+          batchResults = (await checkBatchSLA([targetProduct], pinItem.pin)) || {};
           // 20ms safe delay between requests
           await new Promise(r => setTimeout(r, 20));
         } catch (e) {
@@ -1486,7 +1502,7 @@
         if (abortScan) break;
         completed++;
 
-        const res = batchResults[targetProduct.code];
+        const res = (batchResults && batchResults[targetProduct.code]) || {};
         const entry = {
           pin: pinItem.pin,
           area: pinItem.area || "",
@@ -1546,11 +1562,19 @@
     }
   }
 
-  btnScan.onclick = runScan;
-  queryInput.onkeydown = (e) => {
-    if (e.key === 'Enter') runScan();
+  btnScan.onclick = () => {
+    if (isScanning) {
+      stopScan();
+    } else {
+      startScan();
+    }
   };
 
+  queryInput.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      if (!isScanning) startScan();
+    }
+  };
 
   // Auto-detect SKU if user opens bookmarklet while on a Croma product page
   try {
@@ -1558,8 +1582,11 @@
     if (skuMatch && skuMatch[1]) {
       const pageSku = skuMatch[1];
       const pageTitle = document.querySelector('h1')?.textContent?.trim() || document.title.replace(' - Buy Online at Best Price in India - Croma', '').trim();
-      const pagePrice = document.querySelector('[class*="amount"], [class*="price"], [data-testid*="price"]')?.textContent?.trim() || "";
+      const rawPriceText = document.querySelector('[class*="amount"], [class*="price"], [data-testid*="price"]')?.textContent?.trim() || "";
+      const priceMatch = rawPriceText.match(/₹[\d,]+(\.\d{2})?/);
+      const pagePrice = priceMatch ? priceMatch[0] : rawPriceText;
       const pageImg = document.querySelector('img[src*="croma.com"], img[src*="media-ik"]')?.src || "";
+
       queryInput.value = window.location.href;
       currentQuery = window.location.href;
       currentProducts = [{
@@ -1579,8 +1606,8 @@
 
       // Automatically launch scan on product page load
       setTimeout(() => {
-        runScan();
-      }, 250);
+        if (!isScanning) startScan();
+      }, 300);
     }
   } catch (e) {}
 
