@@ -6,9 +6,12 @@ const resultsHtmlPath = path.join(repoRoot, 'swiggy-instamart', 'results.html');
 const hunterJsPath = path.join(repoRoot, 'swiggy-instamart', 'swiggy-hunter.js');
 const hunterMinJsPath = path.join(repoRoot, 'swiggy-instamart', 'swiggy-hunter.min.js');
 
-// 1. Load Stores from verified mumbai_pods_primary_addresses.json
+// 1. Load Stores from verified mumbai_pods_with_live_swiggy_addresses.json
 let storesData = [];
-const podsJsonPath = 'C:\\Users\\Om Computers\\Pictures\\swiggy_new\\mumbai_pods_primary_addresses.json';
+const livePodsPath = path.join(repoRoot, 'swiggy-instamart', 'mumbai_pods_with_live_swiggy_addresses.json');
+const fallbackPodsPath = 'C:\\Users\\Om Computers\\Pictures\\swiggy_new\\mumbai_pods_with_live_swiggy_addresses.json';
+const podsJsonPath = fs.existsSync(livePodsPath) ? livePodsPath : fallbackPodsPath;
+
 if (fs.existsSync(podsJsonPath)) {
   const rawPods = JSON.parse(fs.readFileSync(podsJsonPath, 'utf8'));
   storesData = rawPods.map(p => [
@@ -16,9 +19,10 @@ if (fs.existsSync(podsJsonPath)) {
     p.locality,
     p.coordinates?.latitude || 0,
     p.coordinates?.longitude || 0,
-    p.primaryServingAddress || ''
+    p.liveSwiggyAddress || p.primaryServingAddress || '',
+    p.pincode || ''
   ]);
-  console.log(`Loaded ${storesData.length} dark stores from pods JSON.`);
+  console.log(`Loaded ${storesData.length} dark stores with pre-saved live Swiggy addresses.`);
 } else {
   console.warn('Pods JSON not found, using fallback store array');
 }
@@ -33,7 +37,7 @@ function generateHunterCode(stores, tableHtml) {
   return `/**
  * 🛵 Swiggy Instamart Multi-Store Hunter v1.0
  * Injects a floating interactive search GUI directly on swiggy.com/instamart
- * to scan all 112 Mumbai dark stores (or custom uploaded pods JSON).
+ * to scan all 112 Mumbai dark stores (with pre-saved live addresses).
  */
 (function() {
   if (window.__SWIGGY_HUNTER_LOADED__) {
@@ -51,7 +55,7 @@ function generateHunterCode(stores, tableHtml) {
   const IMG_BASE = 'https://instamart-media-assets.swiggy.com/swiggy/image/upload/';
 
   let lastRequestAt = 0;
-  const REQUEST_GAP_MS = 1750;
+  const REQUEST_GAP_MS = 1100;
 
   async function rateLimitedFetch(...args) {
     const wait = lastRequestAt + REQUEST_GAP_MS - Date.now();
@@ -244,9 +248,9 @@ function generateHunterCode(stores, tableHtml) {
   function productsToRows(products, store) {
     const seen = new Set();
     const rows = [];
-    const [podId, locality, lat, lng, defaultAddress] = store;
+    const [podId, locality, lat, lng, defaultAddress, defaultPin] = store;
     const resolvedAddr = store.resolvedAddress || defaultAddress || '';
-    const resolvedPin = store.resolvedPincode || '';
+    const resolvedPin = store.resolvedPincode || defaultPin || '';
     const maps = \`https://www.google.com/maps?q=\${lat},\${lng}\`;
 
     for (const d of products) {
@@ -868,7 +872,8 @@ function generateHunterCode(stores, tableHtml) {
             p.locality || p.name || 'Store',
             p.coordinates?.latitude || p.lat || 0,
             p.coordinates?.longitude || p.lng || 0,
-            p.primaryServingAddress || p.address || ''
+            p.liveSwiggyAddress || p.primaryServingAddress || p.address || '',
+            p.pincode || (p.primaryServingAddress?.match(/\\b(4\\d{5})\\b/) || [''])[0] || ''
           ]);
         }
         STORES = parsed;
@@ -965,7 +970,10 @@ function generateHunterCode(stores, tableHtml) {
     for (let i = 0; i < targetStores.length; i++) {
       if (abortScan) break;
       const store = targetStores[i];
-      const [podId, loc, lat, lng, defaultAddress] = store;
+      const [podId, loc, lat, lng, defaultAddress, defaultPin] = store;
+      store.resolvedAddress = defaultAddress || '';
+      store.resolvedPincode = defaultPin || '';
+
       const pct = Math.round(((i + 1) / targetStores.length) * 100);
       pbar.style.width = \`\${pct}%\`;
       statusText.textContent = \`[\${i + 1}/\${targetStores.length}] Checking \${loc}...\`;
@@ -973,14 +981,6 @@ function generateHunterCode(stores, tableHtml) {
       try {
         // Location update via Swiggy API
         await setLocationViaApi({ lat, lng, address: loc });
-        try {
-          const resolved = await getAddressViaApi(lat, lng);
-          store.resolvedAddress = resolved.address;
-          store.resolvedPincode = resolved.pincode;
-        } catch (e) {
-          store.resolvedAddress = defaultAddress || '';
-          store.resolvedPincode = '';
-        }
 
         let products = [];
         try {
