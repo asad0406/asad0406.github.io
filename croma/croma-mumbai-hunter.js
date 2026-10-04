@@ -397,27 +397,11 @@
       color: #64748b;
     }
 
-    .btn-find {
-      background: rgba(255, 255, 255, 0.08);
-      color: #f1f5f9;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 0 14px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn-find:hover {
-      background: rgba(255, 255, 255, 0.14);
-      color: #ffffff;
-    }
-
     .btn-scan {
       background: linear-gradient(135deg, #00E5BE 0%, #00a68d 100%);
       color: #07191d;
       border: none;
-      padding: 0 18px;
+      padding: 0 20px;
       border-radius: 10px;
       font-weight: 700;
       font-size: 13px;
@@ -427,6 +411,7 @@
       gap: 6px;
       box-shadow: 0 4px 14px rgba(0, 229, 190, 0.28);
       transition: all 0.2s;
+      white-space: nowrap;
     }
     .btn-scan:hover:not(:disabled) {
       filter: brightness(1.1);
@@ -439,6 +424,14 @@
       cursor: not-allowed;
       box-shadow: none;
       transform: none;
+    }
+    .btn-scan.btn-scan-stop {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+    }
+    .btn-scan.btn-scan-stop:hover:not(:disabled) {
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.5);
     }
 
     /* Product Card */
@@ -843,7 +836,6 @@
           <input type="text" id="query-input" placeholder="Search product (e.g. iPhone 16, PS5) or paste 6-digit SKU..." />
           <div id="search-results-dropdown"></div>
         </div>
-        <button class="btn-find" id="btn-search">Search</button>
         <button class="btn-scan" id="btn-scan">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -962,13 +954,14 @@
   let currentProductPrice = "";
   let currentProductUrl = "";
   let currentProductImg = "";
+  let lastSearchedQuery = "";
   let activeZone = "ALL";
   let scanResults = [];
   let isScanning = false;
+  let abortScan = false;
 
   // DOM Elements
   const queryInput = shadow.getElementById('query-input');
-  const btnSearch = shadow.getElementById('btn-search');
   const btnScan = shadow.getElementById('btn-scan');
   const dropdown = shadow.getElementById('search-results-dropdown');
   const productImg = shadow.getElementById('product-img');
@@ -1035,73 +1028,70 @@
     productPrice.textContent = currentProductPrice || "₹ -";
     if (imgUrl) productImg.src = imgUrl;
     btnScan.disabled = false;
-    dropdown.style.display = 'none';
   }
+
+  // Populate variants dropdown for quick switching
+  function populateVariantsDropdown(prods) {
+    dropdown.innerHTML = '';
+    if (!prods || prods.length <= 1) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 12px; font-size:11px; font-weight:700; color:#94a3b8; border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); display:flex; justify-content:space-between; align-items:center;';
+    hdr.innerHTML = `<span>Matching Variants (${prods.length})</span><span style="font-size:10px; color:#64748b; cursor:pointer;" id="close-dropdown-btn">✕ Close</span>`;
+    dropdown.appendChild(hdr);
+
+    hdr.querySelector('#close-dropdown-btn').onclick = (e) => {
+      e.stopPropagation();
+      dropdown.style.display = 'none';
+    };
+
+    prods.slice(0, 6).forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'dropdown-row';
+      const price = p.price?.formattedValue || '';
+      const isSelected = p.code === currentSKU;
+      item.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+          <span style="font-size:10px; color:#00E5BE; font-weight:700; font-family:monospace;">${p.code}</span>
+          <span style="font-weight:${isSelected ? '700' : '500'}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:360px; color:${isSelected ? '#00E5BE' : '#f1f5f9'};">${p.name}</span>
+        </div>
+        <span style="color:#00E5BE; font-weight:700; font-size:12px; white-space:nowrap; margin-left:8px;">${price}</span>
+      `;
+      item.onclick = () => {
+        const img = p.images?.find(im => im.imageType === 'PRIMARY')?.url || p.productImage;
+        const pUrl = p.url ? (p.url.startsWith('http') ? p.url : `https://www.croma.com${p.url}`) : `https://www.croma.com/p/${p.code}`;
+        setProduct(p.code, p.name, price, img, pUrl);
+        dropdown.style.display = 'none';
+        runScan();
+      };
+      dropdown.appendChild(item);
+    });
+    dropdown.style.display = 'block';
+  }
+
+  // Close dropdown on outside click
+  shadow.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-input-wrap')) dropdown.style.display = 'none';
+  });
+
+  // Auto-detect SKU if user is already on a Croma product page
+  try {
+    const skuMatch = window.location.pathname.match(/\/p\/(\d+)/);
+    if (skuMatch && skuMatch[1]) {
+      const pageSku = skuMatch[1];
+      const pageTitle = document.querySelector('h1')?.textContent?.trim() || document.title.replace(' - Buy Online at Best Price in India - Croma', '').trim();
+      const pagePrice = document.querySelector('[class*="amount"], [class*="price"]')?.textContent?.trim() || "";
+      const pageImg = document.querySelector('img[src*="croma.com"]')?.src || "";
+      setProduct(pageSku, pageTitle, pagePrice, pageImg, window.location.href);
+      queryInput.value = pageTitle || pageSku;
+      lastSearchedQuery = queryInput.value;
+    }
+  } catch (e) {}
 
   // Focus input so user can type immediately
   setTimeout(() => queryInput.focus(), 100);
-
-  // Search Catalog
-  async function performSearch(autoSelectFirst = false) {
-    const q = queryInput.value.trim();
-    if (!q) {
-      showToast("Please enter a product name or SKU! 🔍");
-      queryInput.focus();
-      return;
-    }
-
-    if (/^\d{5,7}$/.test(q)) {
-      setProduct(q, `SKU ${q}`, "", "", `https://www.croma.com/p/${q}`);
-      return;
-    }
-
-    btnSearch.disabled = true;
-    btnSearch.textContent = '...';
-    try {
-      const prods = await searchCatalog(q);
-      dropdown.innerHTML = '';
-      if (prods.length === 0) {
-        dropdown.innerHTML = '<div style="padding:10px 14px; color:#64748b; font-size:12px;">No matching items found.</div>';
-        dropdown.style.display = 'block';
-      } else {
-        if (autoSelectFirst || !currentSKU) {
-          const top = prods[0];
-          const topImg = top.images?.find(im => im.imageType === 'PRIMARY')?.url || top.productImage;
-          const topUrl = top.url ? (top.url.startsWith('http') ? top.url : `https://www.croma.com${top.url}`) : `https://www.croma.com/p/${top.code}`;
-          setProduct(top.code, top.name, top.price?.formattedValue || '', topImg, topUrl);
-        }
-
-        prods.slice(0, 6).forEach(p => {
-          const item = document.createElement('div');
-          item.className = 'dropdown-row';
-          const price = p.price?.formattedValue || '';
-          item.innerHTML = `
-            <span style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:390px; color:#f1f5f9;">${p.name}</span>
-            <span style="color:#00E5BE; font-weight:700;">${price}</span>
-          `;
-          item.onclick = () => {
-            const img = p.images?.find(im => im.imageType === 'PRIMARY')?.url || p.productImage;
-            const pUrl = p.url ? (p.url.startsWith('http') ? p.url : `https://www.croma.com${p.url}`) : `https://www.croma.com/p/${p.code}`;
-            setProduct(p.code, p.name, price, img, pUrl);
-          };
-          dropdown.appendChild(item);
-        });
-        dropdown.style.display = 'block';
-      }
-    } catch (err) {
-      alert("Search failed: " + err.message);
-    } finally {
-      btnSearch.disabled = false;
-      btnSearch.textContent = 'Search';
-    }
-  }
-
-  btnSearch.onclick = () => performSearch(false);
-  queryInput.onkeydown = (e) => {
-    if (e.key === 'Enter') {
-      performSearch(true);
-    }
-  };
 
   // Zone Chips
   zoneChips.onclick = (e) => {
@@ -1155,32 +1145,89 @@
     `).join('');
   }
 
-  // Scan Pincodes
+  // Unified 1-Click Search + Auto-Select + Scan Runner
   async function runScan() {
-    if (isScanning) return;
-    if (!currentSKU) {
-      const q = queryInput.value.trim();
-      if (!q) {
-        showToast("Please enter a product name or SKU first! 🔍");
-        queryInput.focus();
-        return;
-      }
-      await performSearch(true);
-      if (!currentSKU) return;
+    if (isScanning) {
+      abortScan = true;
+      btnScan.disabled = true;
+      btnScan.innerHTML = `<span>Stopping...</span>`;
+      return;
     }
+
+    const q = queryInput.value.trim();
+    if (!q && !currentSKU) {
+      showToast("Please enter a product name or SKU! 🔍");
+      queryInput.focus();
+      return;
+    }
+
+    // Auto-search catalog if query changed or no product loaded yet
+    if (q && (q !== lastSearchedQuery || !currentSKU)) {
+      dropdown.style.display = 'none';
+      if (/^\d{5,7}$/.test(q)) {
+        setProduct(q, `SKU ${q}`, "", "", `https://www.croma.com/p/${q}`);
+        lastSearchedQuery = q;
+      } else {
+        btnScan.disabled = true;
+        btnScan.className = 'btn-scan';
+        btnScan.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10"></path>
+          </svg>
+          <span>Finding...</span>
+        `;
+        try {
+          const prods = await searchCatalog(q);
+          if (!prods || prods.length === 0) {
+            showToast(`No matching products found for "${q}" 🔍`);
+            btnScan.disabled = false;
+            btnScan.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span>Scan</span>
+            `;
+            return;
+          }
+          // Automatically pick the top matching product!
+          const top = prods[0];
+          const topImg = top.images?.find(im => im.imageType === 'PRIMARY')?.url || top.productImage;
+          const topUrl = top.url ? (top.url.startsWith('http') ? top.url : `https://www.croma.com${top.url}`) : `https://www.croma.com/p/${top.code}`;
+          setProduct(top.code, top.name, top.price?.formattedValue || '', topImg, topUrl);
+          lastSearchedQuery = q;
+
+          // Populate variants in dropdown in case user wants to switch
+          populateVariantsDropdown(prods);
+        } catch (err) {
+          showToast("Search error: " + err.message);
+          btnScan.disabled = false;
+          btnScan.innerHTML = `<span>Scan</span>`;
+          return;
+        }
+      }
+    }
+
+    if (!currentSKU) {
+      showToast("Please enter a product name or SKU! 🔍");
+      return;
+    }
+
+    // Now immediately begin scanning all 86+ Mumbai pincodes!
     isScanning = true;
-    btnScan.disabled = true;
+    abortScan = false;
+    btnScan.disabled = false;
+    btnScan.className = 'btn-scan btn-scan-stop';
     btnScan.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;">
-        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-        <path d="M12 2a10 10 0 0 1 10 10"></path>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="5" y="5" width="14" height="14" rx="2"></rect>
       </svg>
-      <span>Scanning...</span>
+      <span>Stop</span>
     `;
 
     progressContainer.style.display = 'block';
     scanResults = [];
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning Mumbai & MMR pincodes in real-time...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
 
     const fType = selType.value;
     const targetPins = [...MUMBAI_PINCODES];
@@ -1194,8 +1241,10 @@
 
     async function worker() {
       while (index < targetPins.length) {
+        if (abortScan) break;
         const item = targetPins[index++];
         const res = await checkSLA(currentSKU, item.pin, fType);
+        if (abortScan) break;
         completed++;
 
         const entry = {
@@ -1231,6 +1280,7 @@
 
     isScanning = false;
     btnScan.disabled = false;
+    btnScan.className = 'btn-scan';
     btnScan.innerHTML = `
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -1238,10 +1288,16 @@
       <span>Re-Scan</span>
     `;
     renderTable();
-    showToast(`Scan Complete! ${availCount} Hubs Available ✨`);
+    showToast(abortScan ? `Scan Stopped (${availCount} hubs found)` : `Scan Complete! ${availCount} Hubs Available ✨`);
   }
 
   btnScan.onclick = runScan;
+  queryInput.onkeydown = (e) => {
+    if (e.key === 'Enter') runScan();
+  };
+  selType.onchange = () => {
+    if (currentSKU) runScan();
+  };
 
   // Copy Summary with Full Product Details
   btnCopy.onclick = () => {
