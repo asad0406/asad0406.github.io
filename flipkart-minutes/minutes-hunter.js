@@ -392,7 +392,8 @@ const FK_HEADERS = {
     <div class="fk-h-footer">
       <button class="fk-h-export-btn" id="fk-h-csv">⬇ Export CSV</button>
       <button class="fk-h-export-btn" id="fk-h-json">📋 Copy JSON</button>
-      <button class="fk-h-export-btn" id="fk-h-page">🌐 View Page</button>
+      <button class="fk-h-export-btn" id="fk-h-page">🌐 Results</button>
+      <button class="fk-h-export-btn" id="fk-h-map">🗺️ Map</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -686,6 +687,10 @@ const FK_HEADERS = {
   document.getElementById('fk-h-page').onclick = () => {
     if (!searchResults.length) return alert('No results yet. Run a search first!');
     window.open('https://asad0406.github.io/flipkart-minutes/results.html#' + encodeURIComponent(JSON.stringify(searchResults)), '_blank');
+  };
+
+  document.getElementById('fk-h-map').onclick = () => {
+    window.open('https://asad0406.github.io/flipkart-minutes/maps.html', '_blank');
   };
 
   csvBtn.onclick = () => {
