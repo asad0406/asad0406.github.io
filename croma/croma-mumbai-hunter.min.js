@@ -8,11 +8,10 @@
 (function () {
   'use strict';
 
-  // Toggle existing instance
+  // Clean up any existing instance to ensure fresh state and latest code execution
   const existing = document.getElementById('croma-hunter-root');
   if (existing) {
-    existing.style.display = existing.style.display === 'none' ? 'block' : 'none';
-    return;
+    existing.remove();
   }
 
   // 1. Mumbai & MMR Pincode Database (86 Pincodes across 4 Zones)
