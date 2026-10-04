@@ -24,7 +24,7 @@ Check one product by SKU or Croma product URL across **86+ Mumbai & MMR Pincodes
 Create a browser bookmark with the URL below. It follows the `main` branch and adds a cache-busting timestamp, so after the bookmark is installed once, updates pushed to `main` load through the same bookmark:
 
 ```javascript
-javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@main/croma/croma-mumbai-hunter.min.js?t='+Date.now();s.onerror=function(){alert('Failed to load Croma Hunter script.');};document.body.appendChild(s);})();
+javascript:(function(){var s=document.createElement('script');s.src='https://asad0406.github.io/croma/croma-mumbai-hunter.min.js?t='+Date.now();s.onerror=function(){alert('Failed to load Croma Hunter script.');};document.body.appendChild(s);})();
 ```
 
 ### Method 2: Instant DevTools Console Execution (Zero Setup)
