@@ -80,6 +80,10 @@
             border-color: rgba(40, 116, 240, 0.5);
             box-shadow: 0 20px 40px rgba(40, 116, 240, 0.15);
         }
+        .card.croma:hover {
+            border-color: rgba(0, 229, 190, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 229, 190, 0.15);
+        }
         .icon {
             font-size: 40px;
             margin-bottom: 16px;
@@ -104,6 +108,11 @@
             background: rgba(40, 116, 240, 0.15);
             color: #60a5fa;
             border: 1px solid rgba(40, 116, 240, 0.3);
+        }
+        .card.croma .badge {
+            background: rgba(0, 229, 190, 0.15);
+            color: #00e5be;
+            border: 1px solid rgba(0, 229, 190, 0.3);
         }
         .card h2 {
             font-size: 22px;
@@ -144,6 +153,14 @@
         .card.flipkart .btn:hover {
             box-shadow: 0 6px 20px rgba(40, 116, 240, 0.45);
         }
+        .card.croma .btn {
+            background: linear-gradient(135deg, #008f72 0%, #00e5be 100%);
+            color: #0b1118;
+            box-shadow: 0 4px 14px rgba(0, 229, 190, 0.3);
+        }
+        .card.croma .btn:hover {
+            box-shadow: 0 6px 20px rgba(0, 229, 190, 0.45);
+        }
         .footer {
             margin-top: auto;
             text-align: center;
@@ -155,7 +172,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚡ Quick Commerce Hunters</h1>
+            <h1>⚡ Quick Commerce & Electronics Hunters</h1>
             <p>Standalone zero-extension browser bookmarklets to scan prices, live inventory, and multi-store variations directly on top platforms.</p>
         </div>
 
@@ -180,6 +197,17 @@
                     <p>Scans hyperlocal deal pricing, live inventory, and delivery SLAs across 55 Mumbai dark stores directly on Flipkart with interactive maps.</p>
                 </div>
                 <a href="flipkart-minutes/" class="btn">⚡ Launch Flipkart Hunter ↗</a>
+            </div>
+
+            <!-- Croma Mumbai Hunter Card -->
+            <div class="card croma">
+                <div>
+                    <div class="icon">🔌</div>
+                    <span class="badge">86+ Mumbai Pincodes</span>
+                    <h2>Croma Mumbai Hunter</h2>
+                    <p>Scans electronics stock, store fulfillment codes (e.g. C056), carrier details, and Store Express / Warehouse delivery ETAs across 86+ Mumbai pincodes.</p>
+                </div>
+                <a href="croma/" class="btn">⚡ Launch Croma Hunter ↗</a>
             </div>
         </div>
 

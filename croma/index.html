@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Croma Mumbai Hunter — 86+ Pincode Stock & SLA Scanner</title>
+    <style>
+        :root {
+            --primary: #00b894;
+            --primary-dark: #008f72;
+            --primary-tint: #e6f9f4;
+            --croma-teal: #00e5be;
+            --bg: #0b1118;
+            --card-bg: #121c27;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #1e2d3d;
+            --success: #10b981;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-light);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 880px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 229, 190, 0.12);
+            color: var(--croma-teal);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 5px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 229, 190, 0.3);
+            margin-bottom: 14px;
+        }
+        h1 {
+            font-size: 34px;
+            font-weight: 800;
+            color: var(--text-light);
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-muted);
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        /* Draggable Bookmarklet Card */
+        .bookmark-card {
+            background: var(--card-bg);
+            border: 2px dashed rgba(0, 229, 190, 0.4);
+            border-radius: 16px;
+            padding: 36px 24px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 229, 190, 0.08);
+            margin-bottom: 36px;
+            position: relative;
+        }
+        .drag-instruction {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--croma-teal);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .draggable-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #008f72 0%, #00e5be 100%);
+            color: #0b1118;
+            font-size: 18px;
+            font-weight: 800;
+            padding: 16px 36px;
+            border-radius: 50px;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(0, 229, 190, 0.35);
+            cursor: move;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .draggable-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(0, 229, 190, 0.45);
+        }
+        .draggable-btn:active {
+            transform: scale(0.98);
+        }
+        .drag-tip {
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Copy alternative box */
+        .copy-box {
+            background: #111a24;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .copy-info {
+            font-size: 13px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+        .copy-btn {
+            background: #1e2d3d;
+            border: 1px solid rgba(0, 229, 190, 0.3);
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--croma-teal);
+        }
+        .copy-btn:hover {
+            background: var(--croma-teal);
+            color: #0b1118;
+        }
+
+        /* Steps */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 36px;
+        }
+        .step-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(0, 229, 190, 0.15);
+            color: var(--croma-teal);
+            font-weight: 800;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .step-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .step-card p {
+            font-size: 13.5px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Feature List */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 36px;
+        }
+        .feat-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .feat-icon {
+            font-size: 20px;
+            line-height: 1;
+        }
+        .feat-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: var(--text-light);
+        }
+        .feat-desc {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Direct Script Links */
+        .scripts-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 36px;
+        }
+        .scripts-section h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .script-links-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .script-link-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: #0f1722;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .script-link-item a {
+            color: var(--croma-teal);
+            text-decoration: none;
+            font-weight: 700;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+        }
+        .script-link-item a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <div class="header">
+            <div class="badge-pill">⚡ 86+ Mumbai & MMR Pincodes • Store Express & Warehouse SLAs</div>
+            <h1>Croma Mumbai Hunter</h1>
+            <p class="subtitle">Search product availability, live fulfillment store codes, carrier details, and delivery ETAs across 86+ Mumbai pincodes directly on Croma.com.</p>
+        </div>
+
+        <!-- Draggable Button Card -->
+        <div class="bookmark-card">
+            <div class="drag-instruction">
+                👇 Drag this button to your Bookmarks Bar:
+            </div>
+            
+            <a href="javascript:(function(){fetch('https://asad0406.github.io/croma/croma-mumbai-hunter.min.js?t='+Date.now()).then(r=>r.text()).then(t=>new Function(t)()).catch(e=>alert('Croma Hunter error: '+e));})();" 
+               class="draggable-btn"
+               title="Drag me to your Bookmarks bar!">
+                ⚡ Croma Hunter
+            </a>
+
+            <div class="drag-tip">
+                💡 <b>Tip:</b> If your bookmarks bar is hidden, press <b>Ctrl + Shift + B</b> (or <b>Cmd + Shift + B</b> on Mac) to show it.
+            </div>
+        </div>
+
+        <!-- Copy Alternative -->
+        <div class="copy-box">
+            <div class="copy-info">
+                Prefer manual bookmark creation or on mobile? Copy the bookmarklet code directly:
+            </div>
+            <button class="copy-btn" id="copyBtn" onclick="copyBookmarklet()">📋 Copy Bookmarklet Code</button>
+        </div>
+
+        <!-- Instructions -->
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <h3>Add Bookmark</h3>
+                <p>Drag the <b>⚡ Croma Hunter</b> button above into your browser's bookmarks bar.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <h3>Open Croma</h3>
+                <p>Navigate to <a href="https://www.croma.com" target="_blank" style="color: #00e5be; font-weight: 600;">croma.com</a> in your browser.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <h3>Scan 86+ Pincodes</h3>
+                <p>Click your bookmark! Enter any product name or 6-digit SKU code to scan real-time stock across Mumbai.</p>
+            </div>
+        </div>
+
+        <!-- Feature Highlights -->
+        <div class="feature-grid">
+            <div class="feat-item">
+                <div class="feat-icon">📍</div>
+                <div>
+                    <div class="feat-title">86+ Mumbai & MMR Pincodes</div>
+                    <div class="feat-desc">Complete coverage of South Mumbai, Western Suburbs, Central, Eastern Suburbs, Thane & Navi Mumbai.</div>
+                </div>
+            </div>
+            <div class="feat-item">
+                <div class="feat-icon">⚡</div>
+                <div>
+                    <div class="feat-title">Store Express & Warehouse SLAs</div>
+                    <div class="feat-desc">Switch between Store Express Delivery (SDEL) and Standard Warehouse Delivery (HDEL) modes.</div>
+                </div>
+            </div>
+            <div class="feat-item">
+                <div class="feat-icon">🏬</div>
+                <div>
+                    <div class="feat-title">Fulfillment Store Codes</div>
+                    <div class="feat-desc">Identifies exact darkstore / retail store code (e.g. <i>C056</i>), store name, and carrier assigned for delivery.</div>
+                </div>
+            </div>
+            <div class="feat-item">
+                <div class="feat-icon">📊</div>
+                <div>
+                    <div class="feat-title">Instant CSV & Clipboard Export</div>
+                    <div class="feat-desc">Export comprehensive tabular reports including price, delivery ETAs, stock status, and product URLs.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direct JS Links -->
+        <div class="scripts-section">
+            <h3>📦 Direct Script Links & Source Files</h3>
+            <div class="script-links-list">
+                <div class="script-link-item">
+                    <span><b>Minified Production Bookmarklet Script:</b></span>
+                    <a href="croma-mumbai-hunter.min.js" target="_blank">croma-mumbai-hunter.min.js ↗</a>
+                </div>
+                <div class="script-link-item">
+                    <span><b>Unminified Full Source Script:</b></span>
+                    <a href="croma-mumbai-hunter.js" target="_blank">croma-mumbai-hunter.js ↗</a>
+                </div>
+                <div class="script-link-item">
+                    <span><b>Documentation & Terminal CLI Guide:</b></span>
+                    <a href="README.md" target="_blank">README.md ↗</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Built for Croma Mumbai & MMR • Hosted on GitHub Pages: <a href="https://github.com/asad0406/asad0406.github.io" target="_blank" style="color: #00e5be; text-decoration: none;">asad0406.github.io</a>
+        </div>
+
+    </div>
+
+    <script>
+        const bookmarkletCode = "javascript:(function(){fetch('https://asad0406.github.io/croma/croma-mumbai-hunter.min.js?t='+Date.now()).then(r=>r.text()).then(t=>new Function(t)()).catch(e=>alert('Croma Hunter error: '+e));})();";
+
+        function copyBookmarklet() {
+            navigator.clipboard.writeText(bookmarkletCode).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.innerText = '✓ Copied to Clipboard!';
+                btn.style.background = '#10b981';
+                btn.style.color = '#ffffff';
+                btn.style.borderColor = '#10b981';
+                setTimeout(() => {
+                    btn.innerText = '📋 Copy Bookmarklet Code';
+                    btn.style.background = '#1e2d3d';
+                    btn.style.color = '#00e5be';
+                    btn.style.borderColor = 'rgba(0, 229, 190, 0.3)';
+                }, 2000);
+            }).catch(err => {
+                alert('Could not copy automatically. Code: ' + bookmarkletCode);
+            });
+        }
+    </script>
+</body>
+</html>
