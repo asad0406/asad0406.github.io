@@ -1010,7 +1010,7 @@
             <select class="product-picker-select" id="product-picker">
               <option value="ALL">⭐ View All Matching Products (Summary Matrix)</option>
             </select>
-            <span class="badge-express" title="Both Store Express & Warehouse checked simultaneously">⚡+🚚 Auto Dual Mode</span>
+            <span class="badge-express" title="Both Store Express & Warehouse checked simultaneously">&#9889;+&#128666; Auto Dual Mode</span>
           </div>
         </div>
       </div>
@@ -1052,7 +1052,7 @@
           </label>
           <label class="filter-toggle">
             <input type="checkbox" id="chk-express-only" />
-            <span>⚡ Express Only</span>
+            <span>&#9889; Express Only</span>
           </label>
         </div>
       </div>
@@ -1083,7 +1083,7 @@
       <div id="footer">
         <div class="footer-note">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E5BE" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          <span>Dual Mode: ⚡ Store Express (SDEL) & 🚚 Warehouse (HDEL)</span>
+          <span>Dual Mode: &#9889; Store Express (SDEL) &amp; &#128666; Warehouse (HDEL)</span>
         </div>
         <div class="btn-action-group">
           <button class="btn-act" id="btn-copy">
@@ -1263,11 +1263,11 @@
       let fBadge = '<span style="color:#64748b;">-</span>';
       if (r.available) {
         if (r.hasExpress && r.hasWarehouse) {
-          fBadge = `<span class="badge-express">⚡ Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#38bdf8;">+ 🚚 Warehouse [${r.warehouseHub}]</span>`;
+          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#38bdf8;">+ &#128666; Warehouse [${r.warehouseHub}]</span>`;
         } else if (r.hasExpress) {
-          fBadge = `<span class="badge-express">⚡ Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#94a3b8;">${r.expressStoreName}</div>`;
+          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#94a3b8;">${r.expressStoreName}</div>`;
         } else if (r.hasWarehouse) {
-          fBadge = `<span class="badge-warehouse">🚚 Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#94a3b8;">${r.warehouseHubName}</div>`;
+          fBadge = `<span class="badge-warehouse">&#128666; Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#94a3b8;">${r.warehouseHubName}</div>`;
         }
       }
 
@@ -1347,7 +1347,7 @@
     const targetSku = urlSkuMatch ? urlSkuMatch[1] : (directSkuMatch ? directSkuMatch[0] : null);
 
     // If query changed or no products loaded, query Croma search catalog
-    if (q && (q !== currentQuery || currentProducts.length === 0)) {
+    if (q && (q !== currentQuery || currentProducts.length === 0 || !currentProducts[0]?.rawPrice)) {
       currentQuery = q;
       btnScan.disabled = true;
       btnScan.className = 'btn-scan';
@@ -1583,7 +1583,7 @@
       const pageSku = skuMatch[1];
       const pageTitle = document.querySelector('h1')?.textContent?.trim() || document.title.replace(' - Buy Online at Best Price in India - Croma', '').trim();
       const rawPriceText = document.querySelector('[class*="amount"], [class*="price"], [data-testid*="price"]')?.textContent?.trim() || "";
-      const priceMatch = rawPriceText.match(/₹[\d,]+(\.\d{2})?/);
+      const priceMatch = rawPriceText.match(/(?:\u20B9|Rs\.?)\s*[\d,]+(?:\.\d{2})?/i);
       const pagePrice = priceMatch ? priceMatch[0] : rawPriceText;
       const pageImg = document.querySelector('img[src*="croma.com"], img[src*="media-ik"]')?.src || "";
 
