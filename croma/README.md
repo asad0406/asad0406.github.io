@@ -21,10 +21,10 @@ Check one product by SKU or Croma product URL across **86+ Mumbai & MMR Pincodes
 
 ### Method 1: Bookmarklet (Fetch Loader — Just like Minutes Hunter)
 
-Create a browser bookmark with the URL below. It loads the scanner pinned to release `v2.0.9`, with a cache-busting timestamp:
+Create a browser bookmark with the URL below. It loads the scanner pinned to release `v2.1.0`, with a cache-busting timestamp:
 
 ```javascript
-javascript:(function(){var s=document.createElement(/script/.source);s.src=/https:/.source+String.fromCharCode(47,47)+/cdn.jsdelivr.net/.source+String.fromCharCode(47)+/gh/.source+String.fromCharCode(47)+/asad0406.github.io@v2.0.9/.source+String.fromCharCode(47)+/croma/.source+String.fromCharCode(47)+/croma-mumbai-hunter.min.js/.source+String.fromCharCode(63,116,61)+Date.now();document.body.appendChild(s)})();
+javascript:(function(){var s=document.createElement(/script/.source);s.src=/https:/.source+String.fromCharCode(47,47)+/cdn.jsdelivr.net/.source+String.fromCharCode(47)+/gh/.source+String.fromCharCode(47)+/asad0406.github.io@v2.1.0/.source+String.fromCharCode(47)+/croma/.source+String.fromCharCode(47)+/croma-mumbai-hunter.min.js/.source+String.fromCharCode(63,116,61)+Date.now();document.body.appendChild(s)})();
 ```
 
 ### Method 2: Instant DevTools Console Execution (Zero Setup)
