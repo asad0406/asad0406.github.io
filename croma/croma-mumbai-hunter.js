@@ -176,6 +176,7 @@
   }
 
   async function checkSLA(sku, pincode, fulfillmentType = "SDEL") {
+    if (!sku || !pincode) return null;
     const payload = {
       promise: {
         allocationRuleID: "SYSTEM",
@@ -200,13 +201,17 @@
       }
     };
 
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
     try {
       const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
         method: "POST",
         headers: API_HEADERS,
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
       });
-      if (!res.ok) return null;
+      clearTimeout(timer);
+      if (!res || !res.ok) return null;
       const data = await res.json();
       const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine;
       if (lines && lines.length > 0) {
@@ -224,7 +229,9 @@
           };
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      clearTimeout(timer);
+    }
     return null;
   }
 
@@ -1240,17 +1247,26 @@
     let index = 0;
 
     async function worker() {
-      while (index < targetPins.length) {
+      while (true) {
         if (abortScan) break;
+        if (index >= targetPins.length) break;
         const item = targetPins[index++];
-        const res = await checkSLA(currentSKU, item.pin, fType);
+        if (!item || !item.pin) break;
+
+        let res = null;
+        try {
+          res = await checkSLA(currentSKU, item.pin, fType);
+        } catch (e) {
+          res = null;
+        }
+
         if (abortScan) break;
         completed++;
 
         const entry = {
           pin: item.pin,
-          area: item.area,
-          zone: item.zone,
+          area: item.area || "",
+          zone: item.zone || "",
           available: !!res,
           shipNode: res?.shipNode || "",
           storeName: res?.storeName || "",
@@ -1263,32 +1279,37 @@
 
         scanResults.push(entry);
 
-        const pct = Math.round((completed / total) * 100);
+        const pct = Math.min(100, Math.round((completed / total) * 100));
         progressBar.style.width = pct + '%';
         statScanned.textContent = `${completed} / ${total}`;
         statAvail.textContent = availCount;
         statOos.textContent = oosCount;
 
-        if (completed % 4 === 0 || completed === total) {
+        if (completed % 3 === 0 || completed >= total) {
           renderTable();
         }
       }
     }
 
-    const workers = Array(CONCURRENCY).fill(0).map(() => worker());
-    await Promise.all(workers);
-
-    isScanning = false;
-    btnScan.disabled = false;
-    btnScan.className = 'btn-scan';
-    btnScan.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-      </svg>
-      <span>Re-Scan</span>
-    `;
-    renderTable();
-    showToast(abortScan ? `Scan Stopped (${availCount} hubs found)` : `Scan Complete! ${availCount} Hubs Available ✨`);
+    try {
+      const workers = Array(CONCURRENCY).fill(0).map(() => worker());
+      await Promise.all(workers);
+    } catch (err) {
+      console.warn("Scan loop error:", err);
+    } finally {
+      isScanning = false;
+      abortScan = false;
+      btnScan.disabled = false;
+      btnScan.className = 'btn-scan';
+      btnScan.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>Re-Scan</span>
+      `;
+      renderTable();
+      showToast(completed < total ? `Scan Stopped (${completed}/${total} scanned)` : `Scan Complete! ${availCount} Hubs Available ✨`);
+    }
   }
 
   btnScan.onclick = runScan;
