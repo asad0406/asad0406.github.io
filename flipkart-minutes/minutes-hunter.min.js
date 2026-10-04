@@ -79,6 +79,7 @@ const FK_HEADERS = {
   let isScanning = false;
   let abortScan = false;
   let searchResults = [];
+  let resultsOpenedForScan = false;
 
   // 1. Inject Styles
   const styleEl = document.createElement('style');
@@ -88,69 +89,82 @@ const FK_HEADERS = {
       position: fixed;
       top: 24px;
       right: 24px;
-      width: 460px;
-      max-width: calc(100vw - 48px);
+      width: 470px;
+      max-width: calc(100vw - 32px);
       max-height: calc(100vh - 48px);
       background: #ffffff;
-      border-radius: 14px;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28), 0 4px 16px rgba(15, 23, 42, 0.08);
       z-index: 999999999;
       display: flex;
       flex-direction: column;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: #0f172a;
-      border: 1px solid #cbd5e1;
+      border: 1px solid rgba(203, 213, 225, 0.9);
       overflow: hidden;
-      animation: fkFadeIn 0.25s ease-out;
+      animation: fkFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes fkFadeIn {
-      from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+      from { opacity: 0; transform: translateY(-12px) scale(0.97); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .fk-h-header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #2874f0 100%);
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #ffffff;
-      padding: 12px 16px;
+      padding: 13px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       user-select: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .fk-h-title {
-      font-size: 14px;
-      font-weight: 800;
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
     .fk-h-badge {
       background: #ffe500;
-      color: #713f12;
+      color: #0f172a;
       font-size: 10px;
       font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 10px;
+      padding: 2.5px 8px;
+      border-radius: 12px;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 6px rgba(255, 229, 0, 0.25);
     }
     .fk-h-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .fk-h-btn {
       background: transparent;
       border: none;
       color: #ffffff;
-      font-size: 16px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       line-height: 1;
       opacity: 0.8;
-      padding: 2px 6px;
-      border-radius: 4px;
+      border-radius: 50%;
+      font-size: 14px;
+      transition: all 0.15s ease;
     }
-    .fk-h-btn:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+    .fk-h-btn:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.16);
+      transform: scale(1.05);
+    }
 
     .fk-h-body {
-      padding: 14px 16px;
+      padding: 16px 18px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -159,95 +173,210 @@ const FK_HEADERS = {
 
     .fk-h-input-group {
       display: flex;
-      gap: 8px;
+      gap: 10px;
     }
     .fk-h-input {
       flex: 1;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1.5px solid #cbd5e1;
-      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      font-size: 13.5px;
+      background: #f8fafc;
+      color: #0f172a;
       outline: none;
-      transition: border-color 0.15s;
+      transition: all 0.15s ease;
     }
-    .fk-h-input:focus { border-color: #2874f0; }
+    .fk-h-input:focus {
+      border-color: #2874f0;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.14);
+    }
+    .fk-h-input::placeholder { color: #94a3b8; }
     .fk-h-submit {
-      background: #2874f0;
+      background: linear-gradient(135deg, #2874f0 0%, #1a5ac9 100%);
       color: #ffffff;
       border: none;
-      padding: 8px 14px;
-      border-radius: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.15s ease;
       white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(40, 116, 240, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .fk-h-submit:hover { background: #1a5ac9; }
-    .fk-h-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+    .fk-h-submit:hover {
+      box-shadow: 0 6px 18px rgba(40, 116, 240, 0.4);
+      transform: translateY(-1px);
+    }
+    .fk-h-submit.scanning {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+    }
+    .fk-h-submit.scanning:hover {
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+    }
+    .fk-h-submit:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
 
     .fk-h-options {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 11.5px;
+      font-size: 12px;
       color: #475569;
     }
     .fk-h-check {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 7px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+    }
+    .fk-h-check input[type="checkbox"] {
+      accent-color: #2874f0;
+      width: 15px;
+      height: 15px;
       cursor: pointer;
     }
+    .fk-h-store-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     .fk-h-select {
-      padding: 3px 6px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1.5px solid #e2e8f0;
+      font-size: 11.5px;
       outline: none;
       background: #f8fafc;
+      color: #334155;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      max-width: 180px;
     }
+    .fk-h-select:focus { border-color: #2874f0; }
 
     .fk-h-progress-bar-bg {
       width: 100%;
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 3px;
+      height: 4px;
+      background: #f1f5f9;
+      border-radius: 2px;
       overflow: hidden;
       display: none;
+      margin: 2px 0;
     }
     .fk-h-progress-bar-fill {
       width: 0%;
       height: 100%;
-      background: #10b981;
+      background: linear-gradient(90deg, #2874f0, #10b981);
       transition: width 0.2s ease;
     }
     .fk-h-status {
-      font-size: 11px;
+      font-size: 11.5px;
       color: #64748b;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      min-height: 14px;
+      min-height: 18px;
+      font-weight: 500;
     }
+    .fk-h-status-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fk-h-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      display: inline-block;
+    }
+    .fk-h-dot.pulse {
+      background: #2874f0;
+      animation: fkPulse 1.2s infinite;
+    }
+    @keyframes fkPulse {
+      0% { opacity: 0.3; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+      100% { opacity: 0.3; transform: scale(0.9); }
+    }
+    .fk-h-count-badge {
+      background: #eff6ff;
+      color: #2874f0;
+      font-weight: 700;
+      font-size: 10.5px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    .fk-h-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 13px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      animation: fkFadeIn 0.2s ease;
+    }
+    .fk-h-banner.opened {
+      background: #ecfdf5;
+      border: 1.5px solid #a7f3d0;
+      color: #065f46;
+    }
+    .fk-h-banner.blocked {
+      background: #fffbeb;
+      border: 1.5px solid #fde68a;
+      color: #92400e;
+    }
+    .fk-h-banner-btn {
+      background: #059669;
+      color: #ffffff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .fk-h-banner.blocked .fk-h-banner-btn {
+      background: #d97706;
+    }
+    .fk-h-banner-btn:hover { opacity: 0.92; }
 
     .fk-h-summary {
       display: none;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      gap: 10px;
       background: #f8fafc;
-      padding: 8px;
-      border-radius: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
       border: 1px solid #e2e8f0;
     }
     .fk-h-sum-item { text-align: center; }
-    .fk-h-sum-val { font-size: 14px; font-weight: 800; color: #0f172a; }
-    .fk-h-sum-lbl { font-size: 9.5px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+    .fk-h-sum-val { font-size: 15px; font-weight: 800; color: #0f172a; }
+    .fk-h-sum-lbl { font-size: 9.5px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em; margin-top: 2px; }
 
     .fk-h-results-box {
-      max-height: 240px;
+      max-height: 200px;
       overflow-y: auto;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 10px;
       display: none;
     }
     .fk-h-table {
@@ -257,67 +386,98 @@ const FK_HEADERS = {
     }
     .fk-h-table th {
       background: #f1f5f9;
-      padding: 6px 8px;
+      padding: 7px 10px;
       text-align: left;
       font-weight: 700;
       color: #475569;
       position: sticky;
       top: 0;
       z-index: 2;
+      border-bottom: 1px solid #e2e8f0;
     }
     .fk-h-table td {
-      padding: 6px 8px;
+      padding: 7px 10px;
       border-bottom: 1px solid #f1f5f9;
       color: #1e293b;
     }
     .fk-h-table tr:hover td { background: #f8fafc; }
     .fk-h-price { font-weight: 800; color: #059669; }
-    .fk-h-stock { font-size: 9.5px; font-weight: 700; padding: 1px 4px; border-radius: 4px; }
+    .fk-h-stock { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
     .fk-h-in { background: #ecfdf5; color: #065f46; }
     .fk-h-out { background: #fef2f2; color: #991b1b; }
 
     .fk-h-footer {
-      padding: 10px 16px;
+      padding: 12px 18px;
       background: #f8fafc;
       border-top: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 8px;
     }
-    .fk-h-export-btn {
-      background: #eff6ff;
-      color: #2874f0;
-      border: 1px solid #bfdbfe;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 11.5px;
+    .fk-h-page-btn {
+      flex: 1;
+      background: #2874f0;
+      color: #ffffff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(40, 116, 240, 0.25);
     }
-    .fk-h-export-btn:hover { background: #2874f0; color: #ffffff; }
+    .fk-h-page-btn:hover {
+      background: #1a5ac9;
+      box-shadow: 0 4px 12px rgba(40, 116, 240, 0.35);
+    }
+    .fk-h-tool-btn {
+      background: #ffffff;
+      color: #334155;
+      border: 1.5px solid #e2e8f0;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .fk-h-tool-btn:hover {
+      border-color: #cbd5e1;
+      background: #f1f5f9;
+      color: #0f172a;
+    }
 
     /* Reopen Floating Launcher */
     #fk-hunter-launcher {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      background: #2874f0;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
       color: #ffffff;
-      padding: 10px 16px;
+      padding: 10px 18px;
       border-radius: 30px;
-      box-shadow: 0 8px 24px rgba(40, 116, 240, 0.4);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       z-index: 999999998;
       cursor: pointer;
-      font-weight: 800;
+      font-weight: 700;
       font-size: 13px;
       display: none;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       user-select: none;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    #fk-hunter-launcher:hover { background: #1a5ac9; }
+    #fk-hunter-launcher:hover {
+      transform: scale(1.04);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.45);
+    }
   `;
   document.head.appendChild(styleEl);
 
@@ -327,7 +487,8 @@ const FK_HEADERS = {
   overlay.innerHTML = `
     <div class="fk-h-header">
       <div class="fk-h-title">
-        <span>⚡ Minutes Hunter</span>
+        <span style="font-size: 16px;">⚡</span>
+        <span>Minutes Hunter</span>
         <span class="fk-h-badge">55 STORES</span>
       </div>
       <div class="fk-h-actions">
@@ -338,15 +499,15 @@ const FK_HEADERS = {
     <div class="fk-h-body">
       <div class="fk-h-input-group">
         <input type="text" id="fk-h-query" class="fk-h-input" placeholder="Search product (e.g. milk, coke, butter)..." />
-        <button id="fk-h-start-btn" class="fk-h-submit">Scan Stores</button>
+        <button id="fk-h-start-btn" class="fk-h-submit">⚡ Scan Stores</button>
       </div>
       <div class="fk-h-options">
         <label class="fk-h-check">
           <input type="checkbox" id="fk-h-instock" checked />
           <span>In-Stock Only</span>
         </label>
-        <div>
-          <span>Store: </span>
+        <div class="fk-h-store-wrap">
+          <span>Store:</span>
           <select id="fk-h-store" class="fk-h-select">
             <option value="all">All 55 Stores</option>
             ${STORES.map((s, i) => `<option value="${i}">${s[1]}</option>`).join('')}
@@ -357,9 +518,13 @@ const FK_HEADERS = {
         <div class="fk-h-progress-bar-fill" id="fk-h-pbar"></div>
       </div>
       <div class="fk-h-status" id="fk-h-status">
-        <span>Ready to search.</span>
-        <span id="fk-h-count"></span>
+        <div class="fk-h-status-left">
+          <span class="fk-h-dot" id="fk-h-dot"></span>
+          <span id="fk-h-status-text">Ready to search.</span>
+        </div>
+        <span class="fk-h-count-badge" id="fk-h-count"></span>
       </div>
+      <div class="fk-h-banner" id="fk-h-banner"></div>
       <div class="fk-h-summary" id="fk-h-summary">
         <div class="fk-h-sum-item">
           <div class="fk-h-sum-val" id="fk-sum-stores">0</div>
@@ -390,10 +555,9 @@ const FK_HEADERS = {
       </div>
     </div>
     <div class="fk-h-footer">
-      <button class="fk-h-export-btn" id="fk-h-csv">⬇ Export CSV</button>
-      <button class="fk-h-export-btn" id="fk-h-json">📋 Copy JSON</button>
-      <button class="fk-h-export-btn" id="fk-h-page">🌐 Results</button>
-      <button class="fk-h-export-btn" id="fk-h-map">🗺️ Map</button>
+      <button class="fk-h-page-btn" id="fk-h-page">🌐 Results Table ↗</button>
+      <button class="fk-h-tool-btn" id="fk-h-csv">⬇ Export CSV</button>
+      <button class="fk-h-tool-btn" id="fk-h-map">🗺️ Map</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -431,14 +595,38 @@ const FK_HEADERS = {
   const startBtn = document.getElementById('fk-h-start-btn');
   const closeBtn = document.getElementById('fk-h-close');
   const minBtn = document.getElementById('fk-h-min');
-  const statusEl = document.getElementById('fk-h-status');
+  const statusText = document.getElementById('fk-h-status-text');
+  const statusDot = document.getElementById('fk-h-dot');
+  const countBadge = document.getElementById('fk-h-count');
+  const banner = document.getElementById('fk-h-banner');
   const pbarBg = document.getElementById('fk-h-pbar-bg');
   const pbar = document.getElementById('fk-h-pbar');
   const resultsBox = document.getElementById('fk-h-results');
   const tableBody = document.getElementById('fk-h-table-body');
   const summaryBox = document.getElementById('fk-h-summary');
   const csvBtn = document.getElementById('fk-h-csv');
-  const jsonBtn = document.getElementById('fk-h-json');
+
+  function showResultsReadyBanner(items, query, opened) {
+    if (!banner) return;
+    banner.style.display = 'flex';
+    if (opened) {
+      banner.className = 'fk-h-banner opened';
+      banner.innerHTML = `
+        <span>✨ <b>${items.length}</b> products found! Results opened in new tab ↗</span>
+        <button id="fk-h-banner-btn" class="fk-h-banner-btn">View Again</button>
+      `;
+    } else {
+      banner.className = 'fk-h-banner blocked';
+      banner.innerHTML = `
+        <span>⚡ <b>${items.length}</b> products ready! Click to open table ↗</span>
+        <button id="fk-h-banner-btn" class="fk-h-banner-btn">Open Results</button>
+      `;
+    }
+    const bBtn = document.getElementById('fk-h-banner-btn');
+    if (bBtn) {
+      bBtn.onclick = () => openBlankResultsTable(items, query, false);
+    }
+  }
 
   closeBtn.onclick = () => {
     overlay.style.display = 'none';
@@ -469,19 +657,26 @@ const FK_HEADERS = {
       abortScan = true;
       startBtn.textContent = 'Stopping...';
       startBtn.disabled = true;
+      if (searchResults.length > 0 && !resultsOpenedForScan) {
+        resultsOpenedForScan = true;
+        openBlankResultsTable(searchResults, query, false);
+      }
       return;
     }
 
     isScanning = true;
     abortScan = false;
-    startBtn.textContent = '⏹ Stop';
-    startBtn.style.background = '#ef4444';
+    resultsOpenedForScan = false;
+    startBtn.innerHTML = '⏹ Stop Scan';
+    startBtn.classList.add('scanning');
     pbarBg.style.display = 'block';
     pbar.style.width = '0%';
     resultsBox.style.display = 'block';
     summaryBox.style.display = 'grid';
+    if (banner) banner.style.display = 'none';
     tableBody.innerHTML = '';
     searchResults = [];
+    statusDot.className = 'fk-h-dot pulse';
 
     const inStockOnly = document.getElementById('fk-h-instock').checked;
     const storeChoice = document.getElementById('fk-h-store').value;
@@ -496,7 +691,7 @@ const FK_HEADERS = {
       const [sid, loc, pin, lat, lon] = targetStores[i];
       const pct = Math.round(((i + 1) / targetStores.length) * 100);
       pbar.style.width = `${pct}%`;
-      statusEl.firstElementChild.textContent = `[${i + 1}/${targetStores.length}] Checking ${loc}...`;
+      statusText.textContent = `[${i + 1}/${targetStores.length}] Checking ${loc}...`;
 
       try {
         // Location update
@@ -669,8 +864,9 @@ const FK_HEADERS = {
           document.getElementById('fk-sum-stores').textContent = storesWithItems + (storeAdded ? 1 : 0);
           document.getElementById('fk-sum-items').textContent = searchResults.length;
           document.getElementById('fk-sum-min').textContent = minPriceFound < 999999 ? `₹${minPriceFound}` : '-';
-          statusEl.lastElementChild.textContent = `${searchResults.length} items found`;
-          statusEl.firstElementChild.textContent = `[${i + 1}/${targetStores.length}] ${loc} — page ${pageNum}...`;
+          countBadge.style.display = searchResults.length ? 'inline-block' : 'none';
+          countBadge.textContent = `${searchResults.length} found`;
+          statusText.textContent = `[${i + 1}/${targetStores.length}] ${loc} — p.${pageNum}`;
 
           pageNum++;
           if (!abortScan && hasMorePages) {
@@ -689,21 +885,45 @@ const FK_HEADERS = {
     }
 
     isScanning = false;
-    startBtn.textContent = 'Scan Stores';
-    startBtn.style.background = '#2874f0';
+    startBtn.innerHTML = '⚡ Scan Stores';
+    startBtn.classList.remove('scanning');
     startBtn.disabled = false;
-    statusEl.firstElementChild.textContent = abortScan ? 'Scan paused.' : `✓ Done! Scanned ${targetStores.length} stores.`;
+    statusDot.className = 'fk-h-dot';
+    countBadge.style.display = searchResults.length ? 'inline-block' : 'none';
+    countBadge.textContent = `${searchResults.length} total`;
+    statusText.textContent = abortScan
+      ? `Scan stopped (${searchResults.length} items found).`
+      : `✓ Done! Scanned ${targetStores.length} stores (${searchResults.length} items found).`;
     window.fkResults = searchResults;
+
+    // Auto open results once done or stopped
+    if (searchResults.length > 0 && !resultsOpenedForScan) {
+      resultsOpenedForScan = true;
+      openBlankResultsTable(searchResults, query, true);
+    }
   };
 
   // CSV Export
 
 const TABLE_PAGE_HTML = "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>⚡ Flipkart Minutes — Results</title>\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link href=\"https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">\n  <style id=\"app-style\">\n    :root {\n      --ink: #1f1b16;\n      --paper: #edebdf;\n      --card: #ffffff;\n      --crate: #2b5235;\n      --crate-tint: #e4ede3;\n      --brick: #a6402b;\n      --brick-tint: #f4e5e0;\n      --fk-blue: #2874f0;\n      --fk-blue-dim: #1a5ac9;\n      --fk-yellow: #ffe500;\n      --stone: #5b5648;\n      --line: #dcd8c8;\n      --display: \"Space Grotesk\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, system-ui, sans-serif;\n      --body: \"IBM Plex Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, system-ui, sans-serif;\n    }\n    * { box-sizing: border-box; }\n    body {\n      margin: 0;\n      font: 400 13px/1.5 var(--body);\n      background: var(--paper);\n      color: var(--ink);\n    }\n\n    header {\n      position: sticky;\n      top: 0;\n      z-index: 10;\n      background: var(--paper);\n      border-bottom: 2px solid var(--ink);\n      padding: 14px 20px 12px;\n    }\n    .top-row {\n      display: flex;\n      align-items: center;\n      justify-content: space-between;\n      gap: 14px;\n      flex-wrap: wrap;\n    }\n    .title-row {\n      display: flex;\n      align-items: center;\n      gap: 10px;\n    }\n    .title-logo {\n      font-size: 24px;\n      line-height: 1;\n      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));\n    }\n    .query-tag {\n      font-family: var(--display);\n      font-weight: 700;\n      font-size: 19px;\n      letter-spacing: -.01em;\n      background: var(--ink);\n      color: var(--paper);\n      padding: 5px 14px 6px;\n      border-radius: 3px;\n      transform: rotate(-.6deg);\n      display: inline-flex;\n      align-items: center;\n      gap: 6px;\n    }\n    .query-tag .q-mark {\n      color: var(--fk-yellow);\n    }\n\n    #metaCard {\n      flex: none;\n      display: flex;\n      gap: 6px;\n      flex-wrap: wrap;\n    }\n    #metaCard .stat {\n      font-family: var(--display);\n      border: 1.5px solid var(--ink);\n      border-radius: 3px;\n      padding: 5px 11px;\n      color: var(--ink);\n      font-size: 11.5px;\n      font-weight: 600;\n      white-space: nowrap;\n      background: var(--card);\n    }\n    #metaCard .stat b {\n      color: var(--fk-blue);\n      font-weight: 700;\n    }\n\n    .toolbar {\n      display: flex;\n      align-items: center;\n      gap: 8px;\n      margin-top: 12px;\n      flex-wrap: wrap;\n    }\n    .toolbar .spacer {\n      flex: 1;\n      min-width: 0;\n    }\n    input#filter, select.filter-select {\n      padding: 7px 11px;\n      border: 1.5px solid var(--line);\n      border-radius: 20px;\n      font-size: 12.5px;\n      background: var(--card);\n      color: var(--ink);\n      flex: none;\n      font-family: var(--body);\n      outline: none;\n    }\n    select.filter-select {\n      min-width: 140px;\n      cursor: pointer;\n    }\n    input#filter {\n      width: 220px;\n    }\n    input#filter:focus, select.filter-select:focus {\n      border-color: var(--fk-blue);\n    }\n    button.tool-btn {\n      padding: 7px 14px;\n      border: 1.5px solid var(--line);\n      border-radius: 20px;\n      background: var(--card);\n      color: var(--ink);\n      font-size: 12.5px;\n      font-weight: 600;\n      cursor: pointer;\n      flex: none;\n      font-family: var(--body);\n      transition: all 0.15s;\n    }\n    button.tool-btn:hover {\n      border-color: var(--fk-blue);\n    }\n    button.tool-btn.active {\n      background: var(--crate);\n      border-color: var(--crate);\n      color: #fff;\n    }\n    button.btn-primary {\n      background: var(--fk-blue);\n      border: none;\n      color: #ffffff;\n      font-family: var(--display);\n      font-weight: 700;\n      padding: 8px 16px;\n    }\n    button.btn-primary:hover {\n      background: var(--fk-blue-dim);\n    }\n\n    #tableWrap {\n      overflow: auto;\n      max-height: calc(100vh - 128px);\n      padding: 0 20px 20px;\n    }\n    table {\n      border-collapse: collapse;\n      width: 100%;\n      font-size: 12.5px;\n    }\n    thead th {\n      position: sticky;\n      top: 0;\n      background: var(--paper);\n      text-align: left;\n      padding: 10px 10px 8px;\n      border-bottom: 2px solid var(--ink);\n      font-weight: 600;\n      font-family: var(--display);\n      color: var(--ink);\n      white-space: nowrap;\n      cursor: pointer;\n      user-select: none;\n    }\n    thead th:hover {\n      color: var(--fk-blue);\n    }\n    tbody td {\n      padding: 9px 10px;\n      border-bottom: 1px solid var(--line);\n      font-weight: 400;\n      max-width: 280px;\n      white-space: normal;\n      overflow-wrap: break-word;\n      vertical-align: middle;\n    }\n    tbody tr {\n      border-left: 4px solid transparent;\n      transition: background 0.1s;\n    }\n    tbody td.nowrap {\n      max-width: none;\n      white-space: nowrap;\n    }\n    tbody tr:hover {\n      background: #ffffff;\n    }\n    tbody tr.sold-out {\n      background: var(--brick-tint);\n      border-left-color: var(--brick);\n    }\n    tbody tr.sold-out:hover {\n      background: #efd6cf;\n    }\n    tbody tr.in-stock {\n      background: var(--crate-tint);\n      border-left-color: var(--crate);\n    }\n    tbody tr.in-stock:hover {\n      background: #d6e5d4;\n    }\n    td.num {\n      text-align: right;\n      font-variant-numeric: tabular-nums;\n      font-family: var(--display);\n      font-weight: 600;\n    }\n    td a {\n      color: var(--fk-blue);\n      text-decoration: none;\n      font-weight: 600;\n    }\n    td a:hover {\n      text-decoration: underline;\n    }\n\n    .prod-link {\n      color: var(--ink);\n      font-weight: 600;\n      line-height: 1.35;\n      display: -webkit-box;\n      -webkit-line-clamp: 2;\n      -webkit-box-orient: vertical;\n      overflow: hidden;\n    }\n    .prod-link:hover {\n      color: var(--fk-blue);\n    }\n    .brand-tag {\n      font-size: 10px;\n      font-weight: 700;\n      color: var(--stone);\n      text-transform: uppercase;\n      letter-spacing: 0.03em;\n      margin-bottom: 2px;\n    }\n    .sla-pill {\n      font-family: var(--display);\n      font-size: 11px;\n      font-weight: 700;\n      padding: 2px 7px;\n      border-radius: 4px;\n      background: var(--card);\n      border: 1px solid var(--line);\n      color: var(--ink);\n      white-space: nowrap;\n    }\n    .thumb {\n      height: 36px;\n      width: 36px;\n      object-fit: contain;\n      border-radius: 4px;\n      vertical-align: middle;\n      cursor: zoom-in;\n      background: #ffffff;\n      border: 1px solid var(--line);\n    }\n    .thumb-fallback {\n      height: 36px;\n      width: 36px;\n      border-radius: 4px;\n      background: var(--card);\n      border: 1px solid var(--line);\n      display: inline-flex;\n      align-items: center;\n      justify-content: center;\n      font-size: 16px;\n      color: var(--stone);\n      vertical-align: middle;\n    }\n\n    .view-btn {\n      border: 1.5px solid var(--line);\n      background: var(--card);\n      border-radius: 5px;\n      width: 26px;\n      height: 26px;\n      cursor: pointer;\n      font-size: 13px;\n      display: inline-flex;\n      align-items: center;\n      justify-content: center;\n      transition: all 0.15s;\n    }\n    .view-btn:hover {\n      border-color: var(--fk-blue);\n      transform: scale(1.08);\n    }\n\n    #empty {\n      padding: 60px 20px;\n      text-align: center;\n      color: var(--stone);\n      font-family: var(--display);\n      font-size: 15px;\n      font-weight: 600;\n    }\n\n    /* Modals */\n    .modal-overlay {\n      position: fixed;\n      inset: 0;\n      background: rgba(31, 27, 22, .55);\n      display: flex;\n      align-items: center;\n      justify-content: center;\n      z-index: 100;\n      padding: 20px;\n    }\n    .modal-card {\n      background: var(--card);\n      border-radius: 4px;\n      width: 490px;\n      max-width: 100%;\n      max-height: 88vh;\n      overflow-y: auto;\n      box-shadow: 0 24px 60px rgba(31,27,22,.4);\n      position: relative;\n    }\n    .modal-card::before {\n      content: \"\";\n      position: absolute;\n      top: -10px;\n      left: 50%;\n      transform: translateX(-50%);\n      width: 20px;\n      height: 20px;\n      background: radial-gradient(circle, transparent 60%, var(--card) 61%);\n    }\n    .modal-head {\n      display: flex;\n      gap: 12px;\n      align-items: center;\n      padding: 20px 20px 16px;\n      border-bottom: 2px dashed var(--line);\n      position: sticky;\n      top: 0;\n      background: var(--card);\n      z-index: 2;\n    }\n    .modal-head img {\n      width: 48px;\n      height: 48px;\n      border-radius: 6px;\n      object-fit: contain;\n      flex: none;\n      background: var(--paper);\n      border: 1px solid var(--line);\n    }\n    .modal-head .name {\n      font-family: var(--display);\n      font-weight: 600;\n      font-size: 14.5px;\n      line-height: 1.3;\n      flex: 1;\n    }\n    .modal-close {\n      cursor: pointer;\n      color: var(--stone);\n      font-size: 14px;\n      line-height: 1;\n      flex: none;\n      width: 26px;\n      height: 26px;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n      border-radius: 50%;\n      background: var(--paper);\n      user-select: none;\n    }\n    .modal-close:hover {\n      background: var(--line);\n      color: var(--ink);\n    }\n\n    .modal-grid {\n      display: grid;\n      grid-template-columns: 1fr 1fr;\n      gap: 14px;\n      padding: 16px 20px;\n    }\n    .modal-grid .full {\n      grid-column: 1 / -1;\n    }\n    .modal-field .k {\n      font-family: var(--display);\n      font-size: 10.5px;\n      font-weight: 600;\n      color: var(--stone);\n      margin-bottom: 3px;\n      border-left: 2px solid var(--fk-blue);\n      padding-left: 6px;\n    }\n    .modal-field .v {\n      font-size: 12.5px;\n      line-height: 1.45;\n      word-break: break-word;\n      padding-left: 8px;\n    }\n\n    .modal-section {\n      padding: 14px 20px 18px;\n      border-top: 2px dashed var(--line);\n    }\n    .modal-section .sec-title {\n      font-family: var(--display);\n      font-size: 11px;\n      font-weight: 600;\n      color: var(--ink);\n      border-left: 2px solid var(--fk-blue);\n      padding-left: 6px;\n    }\n    .modal-section .sec-sub {\n      font-size: 12px;\n      color: var(--stone);\n      margin: 5px 0 10px 8px;\n    }\n    .price-row {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      gap: 10px;\n      padding: 8px 10px;\n      border-radius: 4px;\n      font-size: 12.5px;\n      margin-bottom: 4px;\n    }\n    .price-row .store {\n      display: flex;\n      align-items: center;\n      gap: 6px;\n      flex: 1;\n      min-width: 0;\n      flex-wrap: wrap;\n    }\n    .price-row .amount {\n      font-family: var(--display);\n      font-weight: 600;\n      font-variant-numeric: tabular-nums;\n      flex: none;\n      white-space: nowrap;\n    }\n    .price-row.best {\n      background: var(--crate-tint);\n    }\n    .price-row.worst {\n      background: var(--brick-tint);\n    }\n    .price-row .amount.best {\n      color: var(--crate);\n    }\n    .price-row .amount.worst {\n      color: var(--brick);\n    }\n    .pill {\n      font-family: var(--display);\n      font-size: 9.5px;\n      font-weight: 700;\n      padding: 2px 7px;\n      border-radius: 3px;\n      display: inline-block;\n      width: fit-content;\n      color: #fff;\n    }\n    .pill.best {\n      background: var(--crate);\n    }\n    .pill.worst {\n      background: var(--brick);\n    }\n    .price-row .soldout {\n      color: var(--stone);\n      font-size: 11px;\n    }\n\n    .price-compare {\n      display: flex;\n      gap: 8px;\n      margin-bottom: 6px;\n    }\n    .price-card {\n      flex: 1 1 0;\n      min-width: 0;\n      display: flex;\n      flex-direction: column;\n      align-items: flex-start;\n      gap: 3px;\n      padding: 10px 12px;\n      border-radius: 4px;\n    }\n    .price-card.best {\n      background: var(--crate-tint);\n    }\n    .price-card.worst {\n      background: var(--brick-tint);\n    }\n    .price-card .pc-label {\n      font-size: 11.5px;\n      color: var(--stone);\n      margin-top: 3px;\n    }\n    .pc-amount-row {\n      display: flex;\n      align-items: center;\n      gap: 6px;\n      margin-top: 2px;\n    }\n    .price-card .pc-amount {\n      font-family: var(--display);\n      font-size: 17px;\n      font-weight: 700;\n      font-variant-numeric: tabular-nums;\n    }\n    .price-card .pc-amount.best {\n      color: var(--crate);\n    }\n    .price-card .pc-amount.worst {\n      color: var(--brick);\n    }\n    .save-tag {\n      font-family: var(--body);\n      font-size: 10.5px;\n      font-weight: 600;\n      color: #fff;\n      padding: 2px 7px;\n      border-radius: 10px;\n      background: var(--crate);\n    }\n\n    .toggle-stores {\n      display: inline-block;\n      cursor: pointer;\n      color: var(--fk-blue);\n      font-family: var(--display);\n      font-weight: 600;\n      font-size: 11.5px;\n      margin: 6px 0 0 8px;\n      user-select: none;\n    }\n    .toggle-stores:hover {\n      color: var(--ink);\n      text-decoration: underline;\n    }\n\n    @media (max-width: 800px) {\n      header { padding: 12px 14px; }\n      .toolbar { gap: 6px; }\n      #tableWrap { padding: 0 10px 14px; }\n      input#filter { width: 100%; }\n      select.filter-select { flex: 1; min-width: 120px; }\n    }\n  </style>\n</head>\n<body>\n\n  <header>\n    <div class=\"top-row\">\n      <div class=\"title-row\">\n        <span class=\"title-logo\">⚡</span>\n        <span class=\"query-tag\" id=\"titleTag\">\n          <span class=\"q-mark\">#</span><span id=\"queryLabel\">Flipkart Minutes</span>\n        </span>\n      </div>\n      <div id=\"metaCard\"></div>\n    </div>\n    <div class=\"toolbar\">\n      <select id=\"filterStore\" class=\"filter-select\">\n        <option value=\"\">All stores</option>\n      </select>\n      <select id=\"filterBrand\" class=\"filter-select\">\n        <option value=\"\">All brands</option>\n      </select>\n      <select id=\"filterStock\" class=\"filter-select\">\n        <option value=\"\">All stock</option>\n        <option value=\"In stock\">In stock</option>\n        <option value=\"Sold out\">Sold out</option>\n      </select>\n      <select id=\"sortSelect\" class=\"filter-select\">\n        <option value=\"price-asc\">💵 Price: Low to High</option>\n        <option value=\"price-desc\">💎 Price: High to Low</option>\n        <option value=\"discount-desc\">🔥 Highest Discount %</option>\n        <option value=\"brand-asc\">🏷️ Brand: A to Z</option>\n        <option value=\"title-asc\">🔤 Product: A to Z</option>\n        <option value=\"store-asc\">📍 Store: A to Z</option>\n      </select>\n      <input id=\"filter\" type=\"text\" placeholder=\"Search product, brand, store, pincode...\">\n      <button id=\"filterVariation\" class=\"tool-btn\">Price varies by store</button>\n      <div class=\"spacer\"></div>\n      <button id=\"download\" class=\"tool-btn btn-primary\">Download CSV</button>\n    </div>\n  </header>\n\n  <div id=\"tableWrap\"></div>\n\n  <script id=\"app-script\">\n    const tableWrap = document.getElementById('tableWrap');\n    const filterEl = document.getElementById('filter');\n    const storeSel = document.getElementById('filterStore');\n    const brandSel = document.getElementById('filterBrand');\n    const stockSel = document.getElementById('filterStock');\n    const sortSel = document.getElementById('sortSelect');\n    const variationBtn = document.getElementById('filterVariation');\n\n    const COLUMN_ORDER = [\n      'locality',\n      'title',\n      'brand',\n      'availability',\n      'mrp',\n      'price',\n      'discount',\n      'imageUrl',\n      'mapsUrl'\n    ];\n\n    const COLUMN_LABELS = {\n      locality: 'Store / Locality',\n      liveSla: 'SLA',\n      title: 'Product',\n      brand: 'Brand',\n      availability: 'Stock',\n      mrp: 'MRP (₹)',\n      price: 'Price (₹)',\n      discount: 'Discount %',\n      imageUrl: 'Image',\n      mapsUrl: 'Map',\n      storeId: 'Store ID',\n      pincode: 'Pincode',\n      deliveryLocation: 'Store Address'\n    };\n\n    const DETAIL_COLS = ['locality', 'storeId', 'liveSla', 'pincode', 'brand', 'price', 'mrp', 'discount', 'availability', 'deliveryLocation'];\n    const DETAIL_FULL_WIDTH = new Set(['deliveryLocation']);\n    const NUMERIC_COLS = new Set(['mrp', 'price', 'discount']);\n    const NOWRAP_COLS = new Set(['availability', 'imageUrl', 'mapsUrl']);\n\n    const label = c => COLUMN_LABELS[c] || c;\n\n    let DATA = [];\n    let allRows = [];\n    let renderedRows = [];\n    let currentQuery = '';\n    let sortCol = null, sortDir = 1; // 1 = asc, -1 = desc\n    let onlyVariation = false;\n    let cheapestByKey = new Map();\n\n    const variantKey = r => ((r.title || '') + '__' + (r.brand || '')).trim().toLowerCase();\n\n    function normalizeRow(r) {\n      const avail = (r.availability === 'IN_STOCK' || r.availability === 'In stock') ? 'In stock' : 'Sold out';\n      return {\n        locality: r.locality || '-',\n        storeId: r.storeId || '-',\n        pincode: r.pincode || '-',\n        deliveryLocation: r.deliveryLocation || '',\n        mapsUrl: r.mapsUrl || '',\n        liveSla: r.liveSla || '-',\n        title: r.title || '-',\n        brand: r.brand || '',\n        imageUrl: r.imageUrl || '',\n        productUrl: r.productUrl || '#',\n        price: r.price != null ? Number(r.price) : null,\n        mrp: r.mrp != null ? Number(r.mrp) : null,\n        discount: r.discount != null ? Number(r.discount) : 0,\n        savings: r.savings != null ? Number(r.savings) : 0,\n        availability: avail\n      };\n    }\n\n    function parseSlaMinutes(sla) {\n      if (!sla) return 999;\n      const m = String(sla).match(/(\\d+)\\s*m/i);\n      return m ? parseInt(m[1], 10) : 999;\n    }\n\n    function priceAcrossStores(row) {\n      const k = variantKey(row);\n      return allRows\n        .filter(r => variantKey(r) === k && r.availability === 'In stock' && r.price != null)\n        .map(r => ({ store: r.locality, price: r.price, stock: r.availability }))\n        .sort((a, b) => a.price - b.price);\n    }\n\n    function computeVariationKeys() {\n      const byKey = new Map();\n      for (const r of allRows) {\n        if (r.availability !== 'In stock' || r.price == null) continue;\n        const k = variantKey(r);\n        const price = r.price;\n        const e = byKey.get(k);\n        if (!e) byKey.set(k, { min: price, max: price, cheapest: r });\n        else {\n          e.min = Math.min(e.min, price);\n          e.max = Math.max(e.max, price);\n          if (price < (e.cheapest.price ?? 999999)) e.cheapest = r;\n        }\n      }\n      cheapestByKey = new Map([...byKey].filter(([, v]) => v.min !== v.max).map(([k, v]) => [k, v.cheapest]));\n      if (variationBtn) {\n        variationBtn.textContent = `Price varies by store (${cheapestByKey.size})`;\n      }\n    }\n\n    function buildPriceSection(prices) {\n      const min = prices[0].price, max = prices[prices.length - 1].price;\n      const toggle = `<span class=\"toggle-stores\">Show all ${prices.length} stores</span>`;\n\n      if (min === max) {\n        return `<div class=\"modal-section\"><div class=\"sec-title\">Price across stores</div>` +\n          `<div class=\"price-row\"><span class=\"store\">${prices.length} stores have the same price</span>` +\n          `<span class=\"amount\">₹${min}</span></div>${toggle}</div>`;\n      }\n\n      const cheapest = prices.filter(p => p.price === min);\n      const restCount = prices.length - cheapest.length;\n      const savings = Math.round(((max - min) / max) * 100);\n      const cheapestLabel = cheapest.length === 1 ? cheapest[0].store : `${cheapest.length} stores`;\n\n      return `<div class=\"modal-section\"><div class=\"sec-title\">Price across stores</div>` +\n        `<div class=\"price-compare\">` +\n        `<div class=\"price-card best\">` +\n        `<span class=\"pill best\">cheapest</span>` +\n        `<span class=\"pc-label\">${cheapestLabel}</span>` +\n        `<span class=\"pc-amount-row\">${savings > 0 ? `<span class=\"save-tag\">save ${savings}%</span>` : ''}<span class=\"pc-amount best\">₹${min}</span></span></div>` +\n        `<div class=\"price-card worst\">` +\n        `<span class=\"pill worst\">priciest</span>` +\n        `<span class=\"pc-label\">${restCount} other store${restCount > 1 ? 's' : ''}</span>` +\n        `<span class=\"pc-amount worst\">₹${max}</span></div>` +\n        `</div>${toggle}</div>`;\n    }\n\n    function openStoreListModal(prices) {\n      const modal = document.createElement('div');\n      modal.className = 'modal-overlay';\n      const rows = prices.map(p =>\n        `<div class=\"price-row\"><span class=\"store\">${p.store}${p.stock === 'Sold out' ? ' <span class=\"soldout\">(sold out)</span>' : ''}</span>` +\n        `<span class=\"amount\">₹${p.price}</span></div>`\n      ).join('');\n      modal.innerHTML =\n        `<div class=\"modal-card\" style=\"width:360px;\">` +\n        `<div class=\"modal-head\"><div class=\"name\">All ${prices.length} stores</div>` +\n        `<span class=\"modal-close\">✕</span></div>` +\n        `<div class=\"modal-section\" style=\"border-top:none;\">${rows}</div></div>`;\n      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\n      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\n      document.body.appendChild(modal);\n    }\n\n    function openDetail(row) {\n      const modal = document.createElement('div');\n      modal.className = 'modal-overlay';\n\n      const fields = DETAIL_COLS.map(c => {\n        let val = row[c] ?? '-';\n        if (c === 'price' && val !== '-') val = `<b>₹${val}</b>`;\n        if (c === 'mrp' && val !== '-') val = `₹${val}`;\n        if (c === 'discount' && val) val = `${val}% OFF`;\n        if (c === 'deliveryLocation' && row.mapsUrl) {\n          val = `${val} <br><a href=\"${row.mapsUrl}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-weight:700;display:inline-block;margin-top:4px;\">📍 Open in Google Maps ↗</a>`;\n        }\n        return `<div class=\"modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}\">` +\n          `<div class=\"k\">${label(c)}</div><div class=\"v\">${val}</div></div>`;\n      }).join('');\n\n      const prices = priceAcrossStores(row);\n      const priceSection = prices.length > 1 ? buildPriceSection(prices) : '';\n\n      const img = row.imageUrl\n        ? `<img src=\"${row.imageUrl}\" alt=\"${row.title}\" onerror=\"this.style.display='none'\">`\n        : `<div style=\"width:48px;height:48px;border-radius:6px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;\">⚡</div>`;\n\n      modal.innerHTML =\n        `<div class=\"modal-card\">` +\n        `<div class=\"modal-head\">${img}` +\n        `<div class=\"name\"><a href=\"${row.productUrl}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\" style=\"font-size:15px;\">${row.title}</a></div>` +\n        `<span class=\"modal-close\">✕</span></div>` +\n        `<div class=\"modal-grid\">${fields}</div>` +\n        priceSection + `</div>`;\n\n      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\n      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\n      const toggleEl = modal.querySelector('.toggle-stores');\n      if (toggleEl) {\n        toggleEl.addEventListener('click', () => openStoreListModal(prices));\n      }\n      document.body.appendChild(modal);\n    }\n\n    function openImage(src) {\n      if (!src) return;\n      const modal = document.createElement('div');\n      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;' +\n        'align-items:center;justify-content:center;z-index:100;cursor:zoom-out;';\n      modal.innerHTML = `<img src=\"${src}\" style=\"max-width:85vw;max-height:85vh;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,.5);background:#fff;padding:8px;\">`;\n      modal.addEventListener('click', () => modal.remove());\n      document.body.appendChild(modal);\n    }\n\n    function cellValue(row, col) {\n      const v = row[col] ?? '';\n      if (col === 'imageUrl') {\n        return v\n          ? `<img src=\"${v}\" loading=\"lazy\" class=\"thumb\" data-src=\"${v}\" onerror=\"this.outerHTML='<span class=\\\\'thumb-fallback\\\\'>⚡</span>'\">`\n          : `<span class=\"thumb-fallback\">⚡</span>`;\n      }\n      if (col === 'title') {\n        const brand = row.brand ? `<div class=\"brand-tag\">${row.brand}</div>` : '';\n        return `${brand}<a href=\"${row.productUrl}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\">${v}</a>`;\n      }\n      if (col === 'liveSla') {\n        return `<span class=\"sla-pill\">⚡ ${v}</span>`;\n      }\n      if (col === 'price') {\n        return v != null ? `₹${v}` : '-';\n      }\n      if (col === 'mrp') {\n        return (v && v > row.price) ? `₹${v}` : '-';\n      }\n      if (col === 'discount') {\n        return v > 0 ? `<span style=\"color:var(--crate);font-weight:700;\">${v}%</span>` : '-';\n      }\n      if (col === 'mapsUrl') {\n        return v ? `<a href=\"${v}\" target=\"_blank\" rel=\"noopener noreferrer\">📍 Map ↗</a>` : '-';\n      }\n      return String(v).replace(/</g, '&lt;');\n    }\n\n    function sortRows(rows) {\n      if (!sortCol) return rows;\n      const numeric = NUMERIC_COLS.has(sortCol);\n      return [...rows].sort((a, b) => {\n        let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';\n        if (sortCol === 'liveSla') {\n          av = parseSlaMinutes(av);\n          bv = parseSlaMinutes(bv);\n          return (av - bv) * sortDir;\n        }\n        const cmp = numeric ? ((Number(av) || 0) - (Number(bv) || 0)) : String(av).localeCompare(String(bv));\n        return cmp * sortDir;\n      });\n    }\n\n    function render(rows) {\n      rows = sortRows(rows);\n      renderedRows = rows;\n      if (!rows.length) {\n        tableWrap.innerHTML = '<div id=\"empty\">No rows match your filter.</div>';\n        return;\n      }\n      const cols = COLUMN_ORDER.filter(c => c in rows[0]);\n      const head = '<thead><tr><th></th>' + cols.map(c => {\n        const arrow = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';\n        return `<th data-col=\"${c}\">${label(c)}${arrow}</th>`;\n      }).join('') + '</tr></thead>';\n\n      const body = '<tbody>' + rows.map((r, i) => {\n        const trClass = r.availability === 'Sold out' ? 'sold-out' : 'in-stock';\n        return `<tr class=\"${trClass}\"><td class=\"nowrap\"><button data-idx=\"${i}\" class=\"view-btn\" title=\"View details\">👁</button></td>` +\n          cols.map(c => {\n            const cls = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : ''].filter(Boolean).join(' ');\n            return `<td class=\"${cls}\">${cellValue(r, c)}</td>`;\n          }).join('') + '</tr>';\n      }).join('') + '</tbody>';\n\n      tableWrap.innerHTML = `<table>${head}${body}</table>`;\n\n      tableWrap.querySelectorAll('th[data-col]').forEach(th => {\n        th.addEventListener('click', () => {\n          const col = th.dataset.col;\n          sortDir = sortCol === col ? -sortDir : 1;\n          sortCol = col;\n          applyFilter();\n        });\n      });\n\n      tableWrap.querySelectorAll('.view-btn').forEach(btn => {\n        btn.addEventListener('click', () => openDetail(renderedRows[Number(btn.dataset.idx)]));\n      });\n\n      tableWrap.querySelectorAll('.thumb').forEach(img => {\n        img.addEventListener('click', () => openImage(img.dataset.src));\n      });\n    }\n\n    function applyFilter() {\n      const q = filterEl.value.trim().toLowerCase();\n      const store = storeSel.value;\n      const brand = brandSel.value;\n      const stock = stockSel.value;\n      const base = onlyVariation ? [...cheapestByKey.values()] : allRows;\n\n      const filtered = base.filter(r => {\n        if (store && r.locality !== store) return false;\n        if (brand && r.brand !== brand) return false;\n        if (stock && r.availability !== stock) return false;\n        if (!q) return true;\n        return (\n          r.title + ' ' +\n          r.brand + ' ' +\n          r.locality + ' ' +\n          r.storeId + ' ' +\n          r.pincode + ' ' +\n          r.deliveryLocation\n        ).toLowerCase().includes(q);\n      });\n\n      render(filtered);\n    }\n\n    function updateMetaRibbon() {\n      const storesSet = new Set(allRows.map(r => r.locality));\n      const prices = allRows.map(r => r.price).filter(p => p != null);\n      const minPrice = prices.length ? Math.min(...prices) : null;\n      const slas = allRows.map(r => parseSlaMinutes(r.liveSla)).filter(s => s < 999);\n      const fastestSla = slas.length ? Math.min(...slas) : null;\n\n      const metaEl = document.getElementById('metaCard');\n      metaEl.innerHTML =\n        `<span class=\"stat\"><b>${allRows.length}</b> rows</span>` +\n        `<span class=\"stat\"><b>${storesSet.size}</b> stores</span>` +\n        (minPrice != null ? `<span class=\"stat\">min <b>₹${minPrice}</b></span>` : '') +\n        (fastestSla != null ? `<span class=\"stat\">fastest <b>⚡ ${fastestSla}m</b></span>` : '') +\n        `<span class=\"stat\">${new Date().toLocaleTimeString()}</span>`;\n    }\n\n    function fillStoreOptions() {\n      const stores = [...new Set(allRows.map(r => r.locality).filter(Boolean))].sort();\n      storeSel.innerHTML = '<option value=\"\">All stores (' + stores.length + ')</option>';\n      stores.forEach(s => {\n        const opt = document.createElement('option');\n        opt.value = s;\n        opt.textContent = s;\n        storeSel.appendChild(opt);\n      });\n    }\n\n    function fillBrandOptions() {\n      const brands = [...new Set(allRows.map(r => r.brand).filter(Boolean))].sort();\n      brandSel.innerHTML = '<option value=\"\">All brands (' + brands.length + ')</option>';\n      brands.forEach(b => {\n        const opt = document.createElement('option');\n        opt.value = b;\n        opt.textContent = b;\n        brandSel.appendChild(opt);\n      });\n    }\n\n    function exportCSV() {\n      if (!allRows.length) return alert('No data to download.');\n      const headers = ['#', 'Store_Locality', 'Store_ID', 'Pincode', 'SLA', 'Brand', 'Product_Title', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Savings_INR', 'Stock', 'Store_Address', 'Google_Maps_URL', 'Product_URL'];\n      const rows = allRows.map((r, i) => [\n        i + 1,\n        `\"${(r.locality || '').replace(/\"/g, '\"\"')}\"`,\n        `\"${r.storeId || ''}\"`,\n        `\"${r.pincode || ''}\"`,\n        `\"${r.liveSla || ''}\"`,\n        `\"${(r.brand || '').replace(/\"/g, '\"\"')}\"`,\n        `\"${(r.title || '').replace(/\"/g, '\"\"')}\"`,\n        r.price ?? '',\n        r.mrp ?? '',\n        r.discount || 0,\n        r.savings || 0,\n        `\"${r.availability || ''}\"`,\n        `\"${(r.deliveryLocation || '').replace(/\"/g, '\"\"')}\"`,\n        `\"${r.mapsUrl || ''}\"`,\n        `\"${r.productUrl || ''}\"`\n      ]);\n      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');\n      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });\n      const a = document.createElement('a');\n      a.href = URL.createObjectURL(blob);\n      a.download = `flipkart_minutes_${currentQuery || 'results'}_${Date.now()}.csv`;\n      document.body.appendChild(a);\n      a.click();\n      a.remove();\n    }\n\n    function initData(items, query) {\n      currentQuery = query || '';\n      if (document.getElementById('queryLabel')) {\n        document.getElementById('queryLabel').textContent = currentQuery ? currentQuery : 'Flipkart Minutes';\n      }\n      allRows = (items || []).map(normalizeRow);\n      updateMetaRibbon();\n      fillStoreOptions();\n      fillBrandOptions();\n      computeVariationKeys();\n      applyFilter();\n    }\n\n    // Controls listeners\n    filterEl.addEventListener('input', applyFilter);\n    storeSel.addEventListener('change', applyFilter);\n    brandSel.addEventListener('change', applyFilter);\n    stockSel.addEventListener('change', applyFilter);\n    sortSel.addEventListener('change', () => {\n      const v = sortSel.value;\n      if (v === 'price-asc') { sortCol = 'price'; sortDir = 1; }\n      else if (v === 'price-desc') { sortCol = 'price'; sortDir = -1; }\n      else if (v === 'discount-desc') { sortCol = 'discount'; sortDir = -1; }\n      else if (v === 'brand-asc') { sortCol = 'brand'; sortDir = 1; }\n      else if (v === 'title-asc') { sortCol = 'title'; sortDir = 1; }\n      else if (v === 'store-asc') { sortCol = 'locality'; sortDir = 1; }\n      applyFilter();\n    });\n\n    variationBtn.addEventListener('click', () => {\n      onlyVariation = !onlyVariation;\n      variationBtn.classList.toggle('active', onlyVariation);\n      applyFilter();\n    });\n\n    document.getElementById('download').addEventListener('click', exportCSV);\n\n    /* __DATA_INJECTION__ */\n\n    // Fallback: window.opener\n    try {\n      if (!allRows.length && window.opener && window.opener.fkResults && window.opener.fkResults.length) {\n        const q = window.opener.document?.getElementById('fk-h-query')?.value?.trim() || '';\n        initData(window.opener.fkResults, q);\n      }\n    } catch(e) {}\n\n    // Fallback: URL hash\n    try {\n      if (!allRows.length && location.hash && location.hash.length > 2) {\n        const raw = decodeURIComponent(location.hash.slice(1));\n        const parsed = JSON.parse(raw);\n        if (Array.isArray(parsed)) initData(parsed, '');\n        else if (parsed.items) initData(parsed.items, parsed.query || '');\n      }\n    } catch(e) {}\n  </script>\n</body>\n</html>\n";
 
-  function openBlankResultsTable(items, query) {
-    const win = window.open('', '_blank');
-    if (!win) return alert('Popup blocked! Please allow popups for flipkart.com to view results.');
+  function openBlankResultsTable(items, query, isAuto = false) {
+    if (!items || !items.length) {
+      if (!isAuto) alert("No results yet. Run a search first!");
+      return;
+    }
     window.fkResults = items;
+    let win = null;
+    try {
+      win = window.open("", "_blank");
+    } catch (e) {
+      console.warn("window.open error:", e);
+    }
+    if (!win || win.closed || typeof win.closed === "undefined") {
+      if (typeof showResultsReadyBanner === "function") showResultsReadyBanner(items, query, false);
+      if (!isAuto) alert("Popup blocked! Please allow popups for flipkart.com to view results.");
+      return;
+    }
     const nonce = document.querySelector('script[nonce]')?.nonce || document.querySelector('script[nonce]')?.getAttribute('nonce') || '';
     const nonceAttr = nonce ? ` nonce="${nonce}"` : '';
     const safeData = JSON.stringify(items).replace(/<\/script/gi, '<\\/script');
@@ -716,6 +936,8 @@ const TABLE_PAGE_HTML = "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta ch
     win.document.open();
     win.document.write(html);
     win.document.close();
+    try { win.focus(); } catch (e) {}
+    if (typeof showResultsReadyBanner === "function") showResultsReadyBanner(items, query, true);
   }
 
     document.getElementById('fk-h-page').onclick = () => {
@@ -741,15 +963,7 @@ const TABLE_PAGE_HTML = "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta ch
     a.click();
   };
 
-  // Copy JSON
-  jsonBtn.onclick = () => {
-    if (!searchResults.length) return alert('No results yet. Run a search first!');
-    navigator.clipboard.writeText(JSON.stringify(searchResults, null, 2)).then(() => {
-      const orig = jsonBtn.textContent;
-      jsonBtn.textContent = '✓ Copied!';
-      setTimeout(() => jsonBtn.textContent = orig, 1500);
-    });
-  };
+
 
   console.log('⚡ Flipkart Minutes Hunter Overlay injected and ready!');
 })();
