@@ -979,7 +979,7 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="query-input" placeholder="Search category (e.g. earbuds, macbook) or paste 6-digit SKU..." />
+          <input type="text" id="query-input" placeholder="Paste Croma product URL, 6-digit SKU (e.g. 317553), or category..." />
         </div>
         <button class="btn-scan" id="btn-scan">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1349,20 +1349,42 @@
         <span>Loading...</span>
       `;
 
-      if (/^\d{5,7}$/.test(q)) {
-        // Direct SKU entered
-        currentProducts = [{
-          code: q,
-          name: `Product SKU [${q}]`,
-          price: "",
-          rawPrice: 0,
-          image: "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png",
-          url: `https://www.croma.com/p/${q}`
-        }];
+      // Check if user entered a Croma product URL or direct SKU
+      const urlSkuMatch = q.match(/\/p\/(\d+)/);
+      const directSkuMatch = q.match(/^\d{5,7}$/);
+      const targetSku = urlSkuMatch ? urlSkuMatch[1] : (directSkuMatch ? directSkuMatch[0] : null);
+
+      if (targetSku) {
+        // Direct SKU or pasted Product URL
+        try {
+          const res = await searchCatalogAll(targetSku);
+          const matchedProd = res.products?.find(p => p.code === targetSku) || res.products?.[0];
+          if (matchedProd) {
+            currentProducts = [matchedProd];
+          } else {
+            currentProducts = [{
+              code: targetSku,
+              name: `Product SKU [${targetSku}]`,
+              price: "",
+              rawPrice: 0,
+              image: "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png",
+              url: `https://www.croma.com/p/${targetSku}`
+            }];
+          }
+        } catch (e) {
+          currentProducts = [{
+            code: targetSku,
+            name: `Product SKU [${targetSku}]`,
+            price: "",
+            rawPrice: 0,
+            image: "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png",
+            url: `https://www.croma.com/p/${targetSku}`
+          }];
+        }
         paginationBar.style.display = 'flex';
-        searchSummaryText.innerHTML = `Loaded SKU <b style="color:#00E5BE;">[${q}]</b>`;
+        searchSummaryText.innerHTML = `Loaded SKU <b style="color:#00E5BE;">[${targetSku}]</b>: ${currentProducts[0].name.slice(0, 36)}...`;
         catalogCountBadge.textContent = '1 SKU Ready';
-        activeSelectedSKU = q;
+        activeSelectedSKU = targetSku;
       } else {
         try {
           const res = await searchCatalogAll(q);
@@ -1437,7 +1459,7 @@
     let totalInStockOccurrences = 0;
     let hitRateLimit = false;
 
-    const CONCURRENCY = 2;
+    const CONCURRENCY = 4;
     let index = 0;
 
     async function worker() {
@@ -1450,8 +1472,8 @@
         let batchResults = {};
         try {
           batchResults = await checkBatchSLA([targetProduct], pinItem.pin);
-          // 40ms safe delay between requests
-          await new Promise(r => setTimeout(r, 40));
+          // 20ms safe delay between requests
+          await new Promise(r => setTimeout(r, 20));
         } catch (e) {
           if (e.message === "WAF_RATE_LIMIT") {
             hitRateLimit = true;
@@ -1493,7 +1515,7 @@
         statAvail.textContent = totalInStockOccurrences;
         statOos.textContent = completed - totalInStockOccurrences;
 
-        if (completed % 5 === 0 || completed >= total) {
+        if (completed % 4 === 0 || completed >= total) {
           renderTable();
         }
       }
@@ -1532,14 +1554,14 @@
 
   // Auto-detect SKU if user opens bookmarklet while on a Croma product page
   try {
-    const skuMatch = window.location.pathname.match(/\/p\/(\d+)/);
+    const skuMatch = window.location.pathname.match(/\/p\/(\d+)/) || window.location.href.match(/\/p\/(\d+)/);
     if (skuMatch && skuMatch[1]) {
       const pageSku = skuMatch[1];
       const pageTitle = document.querySelector('h1')?.textContent?.trim() || document.title.replace(' - Buy Online at Best Price in India - Croma', '').trim();
-      const pagePrice = document.querySelector('[class*="amount"], [class*="price"]')?.textContent?.trim() || "";
-      const pageImg = document.querySelector('img[src*="croma.com"]')?.src || "";
-      queryInput.value = pageTitle || pageSku;
-      currentQuery = queryInput.value;
+      const pagePrice = document.querySelector('[class*="amount"], [class*="price"], [data-testid*="price"]')?.textContent?.trim() || "";
+      const pageImg = document.querySelector('img[src*="croma.com"], img[src*="media-ik"]')?.src || "";
+      queryInput.value = window.location.href;
+      currentQuery = window.location.href;
       currentProducts = [{
         code: pageSku,
         name: pageTitle || `Product [${pageSku}]`,
@@ -1550,6 +1572,15 @@
       }];
       activeSelectedSKU = pageSku;
       populateProductPicker();
+
+      paginationBar.style.display = 'flex';
+      searchSummaryText.innerHTML = `Auto-Detected SKU <b style="color:#00E5BE;">[${pageSku}]</b> from this page`;
+      catalogCountBadge.textContent = 'Auto-Scanning';
+
+      // Automatically launch scan on product page load
+      setTimeout(() => {
+        runScan();
+      }, 250);
     }
   } catch (e) {}
 
