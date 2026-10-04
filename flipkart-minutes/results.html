@@ -680,7 +680,18 @@
         deliveryLocation: r.deliveryLocation || '',
         mapsUrl: r.mapsUrl || '',
         liveSla: r.liveSla || '-',
-        title: r.title || '-',
+        title: (() => {
+          let t = r.title || r.titles?.title || '-';
+          const sub = (r.subtitle || r.titles?.subtitle || '').trim();
+          if (sub && t !== '-') {
+            const tNorm = t.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const subNorm = sub.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (subNorm && !tNorm.includes(subNorm)) {
+              t = sub.startsWith('(') && sub.endsWith(')') ? `${t} ${sub}` : `${t} (${sub})`;
+            }
+          }
+          return t;
+        })(),
         brand: r.brand || '',
         imageUrl: r.imageUrl || '',
         productUrl: r.productUrl || '#',
