@@ -21,10 +21,10 @@ Check one product by SKU or Croma product URL across **86+ Mumbai & MMR Pincodes
 
 ### Method 1: Bookmarklet (Fetch Loader — Just like Minutes Hunter)
 
-Host `croma-mumbai-hunter.min.js` on your GitHub Pages or raw CDN, then create a new browser bookmark with the URL:
+Create a browser bookmark with the URL below. It follows the `main` branch and adds a cache-busting timestamp, so after the bookmark is installed once, updates pushed to `main` load through the same bookmark:
 
 ```javascript
-javascript:(function(){fetch('https://raw.githubusercontent.com/<YOUR_USER>/<REPO>/main/bookmarklet/croma-mumbai-hunter.min.js?t='+Date.now()).then(r=>r.text()).then(t=>new Function(t)()).catch(e=>alert('Croma Hunter error: '+e));})();
+javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@main/croma/croma-mumbai-hunter.min.js?t='+Date.now();s.onerror=function(){alert('Failed to load Croma Hunter script.');};document.body.appendChild(s);})();
 ```
 
 ### Method 2: Instant DevTools Console Execution (Zero Setup)
