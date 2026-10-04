@@ -42,7 +42,10 @@
     <table>
       <thead>
         <tr>
+          <th data-key="storeId">Store ID</th>
           <th data-key="locality">Locality</th>
+          <th data-key="deliveryLocation">Delivery Location</th>
+          <th data-key="mapsUrl">Map</th>
           <th data-key="liveSla">SLA</th>
           <th data-key="title">Product</th>
           <th data-key="price">Price</th>
@@ -80,7 +83,10 @@
 
     document.getElementById('rows').innerHTML = rows.map(r => `
       <tr>
+        <td>${esc(r.storeId)}</td>
         <td>${esc(r.locality)}</td>
+        <td>${esc(r.deliveryLocation)}</td>
+        <td>${r.mapsUrl ? `<a href="${esc(r.mapsUrl)}" target="_blank" rel="noopener">Map</a>` : '-'}</td>
         <td>⚡ ${esc(r.liveSla)}</td>
         <td>${esc(r.title)}</td>
         <td class="price">${r.price ? '₹' + esc(r.price) : '-'}</td>
