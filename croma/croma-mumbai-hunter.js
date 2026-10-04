@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Croma Mumbai Hunter — Multi-SKU & Category Stock & Fulfillment Scanner
  * Designed with Apple / Linear Glassmorphism HUD aesthetics.
  * Scans all matching products across 86+ Mumbai & MMR pincodes in real-time.
@@ -345,52 +345,50 @@
 
   const shadow = host.attachShadow({ mode: 'open' });
 
-  // Modern Glassmorphic Stylesheet
+  // Clean Light Theme Stylesheet
   const style = document.createElement('style');
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     #modal {
       position: fixed;
-      top: 18px;
-      right: 18px;
-      width: min(840px, calc(100vw - 36px));
-      height: min(670px, calc(100vh - 36px));
-      background: rgba(11, 15, 25, 0.94);
-      backdrop-filter: blur(28px) saturate(190%);
-      -webkit-backdrop-filter: blur(28px) saturate(190%);
-      border: 1px solid rgba(0, 229, 190, 0.22);
-      border-radius: 16px;
-      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 35px rgba(0, 229, 190, 0.08);
+      top: 16px;
+      right: 16px;
+      width: min(860px, calc(100vw - 32px));
+      height: min(680px, calc(100vh - 32px));
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
       z-index: 2147483647;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      color: #e2e8f0;
-      font-size: 12.5px;
-      animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #1e293b;
+      font-size: 13px;
+      animation: fadeIn 0.2s ease-out;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-8px) scale(0.99); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Header */
+    /* ── Header ── */
     #header {
-      background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 100%);
+      background: #ffffff;
       padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid #e2e8f0;
       cursor: grab;
       user-select: none;
     }
@@ -399,49 +397,49 @@
     .brand-wrap {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: 10px;
     }
     .logo-badge {
-      width: 26px;
-      height: 26px;
-      border-radius: 7px;
-      background: linear-gradient(135deg, #00E5BE, #0077b6);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0f7c90, #0e9aa7);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 8px rgba(0, 229, 190, 0.3);
+      box-shadow: 0 2px 6px rgba(15, 124, 144, 0.25);
     }
     .brand-title {
       font-weight: 700;
-      font-size: 14px;
-      letter-spacing: -0.2px;
-      color: #ffffff;
+      font-size: 15px;
+      letter-spacing: -0.3px;
+      color: #1e293b;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
     }
     .brand-pill {
-      background: rgba(0, 229, 190, 0.12);
-      color: #00E5BE;
+      background: #f0fdfa;
+      color: #0f766e;
       font-size: 9.5px;
-      font-weight: 800;
-      padding: 2px 5px;
+      font-weight: 700;
+      padding: 2px 6px;
       border-radius: 4px;
-      letter-spacing: 0.4px;
-      border: 1px solid rgba(0, 229, 190, 0.3);
+      letter-spacing: 0.5px;
+      border: 1px solid #99f6e4;
     }
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
     }
     .ctrl-btn {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       color: #94a3b8;
-      width: 26px;
-      height: 26px;
-      border-radius: 7px;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -450,27 +448,28 @@
       transition: all 0.15s;
     }
     .ctrl-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #cbd5e1;
     }
     .ctrl-btn.close:hover {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      border-color: rgba(239, 68, 68, 0.35);
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
     }
 
-    /* Body - No outer scrollbar! */
+    /* ── Body ── */
     #body {
-      padding: 10px 16px 0;
+      padding: 12px 16px 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
       flex: 1;
       min-height: 0;
       overflow: hidden;
     }
 
-    /* Search Bar */
+    /* ── Search Bar ── */
     .search-bar {
       display: flex;
       gap: 8px;
@@ -481,82 +480,79 @@
     }
     .search-icon {
       position: absolute;
-      left: 11px;
+      left: 12px;
       top: 50%;
       transform: translateY(-50%);
-      color: #64748b;
+      color: #94a3b8;
       pointer-events: none;
     }
     input[type="text"] {
       width: 100%;
-      background: rgba(15, 23, 42, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: #f8fafc;
-      padding: 8px 12px 8px 33px;
-      border-radius: 8px;
-      font-size: 12.5px;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      color: #1e293b;
+      padding: 9px 14px 9px 36px;
+      border-radius: 10px;
+      font-size: 13px;
       outline: none;
-      transition: all 0.18s;
+      transition: all 0.15s;
     }
     input[type="text"]:focus {
-      border-color: #00E5BE;
-      box-shadow: 0 0 0 2px rgba(0, 229, 190, 0.16);
-      background: rgba(15, 23, 42, 0.9);
+      border-color: #0f7c90;
+      box-shadow: 0 0 0 3px rgba(15, 124, 144, 0.1);
     }
     input[type="text"]::placeholder {
-      color: #64748b;
+      color: #94a3b8;
     }
 
     .btn-scan {
-      background: linear-gradient(135deg, #00E5BE 0%, #00a68d 100%);
-      color: #07191d;
+      background: #0f7c90;
+      color: #ffffff;
       border: none;
-      padding: 0 18px;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 12.5px;
+      padding: 0 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 5px;
-      box-shadow: 0 2px 10px rgba(0, 229, 190, 0.22);
-      transition: all 0.18s;
+      gap: 6px;
+      box-shadow: 0 1px 3px rgba(15, 124, 144, 0.3);
+      transition: all 0.15s;
       white-space: nowrap;
     }
     .btn-scan:hover:not(:disabled) {
-      filter: brightness(1.08);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(0, 229, 190, 0.35);
+      background: #0e6b7d;
+      box-shadow: 0 2px 8px rgba(15, 124, 144, 0.35);
     }
     .btn-scan:disabled {
-      background: rgba(255, 255, 255, 0.05);
-      color: #64748b;
+      background: #e2e8f0;
+      color: #94a3b8;
       cursor: wait;
       box-shadow: none;
-      transform: none;
     }
 
-    /* Unified Hero Strip: Product Info + Live Stats */
+    /* ── Product Info Strip ── */
     .hero-strip {
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 10px;
-      padding: 7px 10px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
     }
     .prod-thumb-wrap {
-      width: 36px;
-      height: 36px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 7px;
+      width: 40px;
+      height: 40px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 2px;
+      padding: 3px;
       flex-shrink: 0;
     }
     .prod-thumb {
@@ -572,48 +568,45 @@
     .prod-headline {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
     .prod-title {
       font-weight: 700;
-      font-size: 13px;
-      color: #ffffff;
+      font-size: 13.5px;
+      color: #1e293b;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       flex: 1;
     }
     .prod-price {
-      font-size: 13.5px;
+      font-size: 14px;
       font-weight: 800;
-      color: #00E5BE;
-      letter-spacing: -0.2px;
+      color: #0f766e;
+      letter-spacing: -0.3px;
       white-space: nowrap;
     }
     .prod-subline {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 2px;
+      margin-top: 3px;
     }
     .product-picker-select {
-      background: #090d16;
-      color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.3);
+      background: #ffffff;
+      color: #0f7c90;
+      border: 1px solid #cbd5e1;
       border-radius: 5px;
       font-size: 11px;
       font-weight: 600;
-      padding: 1px 6px;
+      padding: 2px 6px;
       outline: none;
       cursor: pointer;
-      max-width: 320px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      max-width: 300px;
     }
     .catalog-summary {
       font-size: 11px;
-      color: #64748b;
+      color: #94a3b8;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -621,15 +614,15 @@
     .catalog-count-badge {
       font-size: 10px;
       font-weight: 700;
-      background: rgba(0, 229, 190, 0.12);
-      color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.3);
+      background: #f0fdfa;
+      color: #0f766e;
+      border: 1px solid #99f6e4;
       border-radius: 8px;
       padding: 1px 6px;
       white-space: nowrap;
     }
 
-    /* Live Stats Badges Group */
+    /* ── Live Stats Badges ── */
     .live-stats-bar {
       display: flex;
       align-items: center;
@@ -638,111 +631,114 @@
     }
     .stat-pill {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 4px;
-      background: rgba(255, 255, 255, 0.035);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 6px;
-      padding: 3px 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 4px 12px;
+      min-width: 56px;
     }
     .stat-pill.green-pill {
-      background: rgba(16, 185, 129, 0.1);
-      border-color: rgba(16, 185, 129, 0.25);
+      background: #f0fdf4;
+      border-color: #bbf7d0;
     }
     .stat-pill.red-pill {
-      background: rgba(239, 68, 68, 0.08);
-      border-color: rgba(239, 68, 68, 0.2);
+      background: #fef2f2;
+      border-color: #fecaca;
     }
     .stat-lbl {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
       color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
-    .green-pill .stat-lbl { color: #34d399; }
-    .red-pill .stat-lbl { color: #f87171; }
+    .green-pill .stat-lbl { color: #16a34a; }
+    .red-pill .stat-lbl { color: #dc2626; }
     .stat-num {
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 800;
-      color: #ffffff;
+      color: #1e293b;
       font-family: 'JetBrains Mono', monospace;
+      line-height: 1.2;
     }
-    .stat-num.cyan { color: #00E5BE; }
-    .green-pill .stat-num { color: #10b981; }
-    .red-pill .stat-num { color: #ef4444; }
+    .stat-num.cyan { color: #0f7c90; }
+    .green-pill .stat-num { color: #16a34a; }
+    .red-pill .stat-num { color: #dc2626; }
 
-    /* Progress bar */
+    /* ── Progress Bar ── */
     .progress-wrap {
       display: none;
-      background: rgba(255, 255, 255, 0.04);
-      border-radius: 2px;
-      height: 2.5px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      height: 3px;
       overflow: hidden;
     }
     .progress-bar-fill {
-      background: linear-gradient(90deg, #00E5BE, #38bdf8);
+      background: linear-gradient(90deg, #0f7c90, #0e9aa7);
       height: 100%;
       width: 0%;
       transition: width 0.15s ease;
-      box-shadow: 0 0 8px rgba(0, 229, 190, 0.6);
     }
 
-    /* Filter Bar */
+    /* ── Filter Bar ── */
     .filter-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
+      gap: 8px;
     }
     .zone-group {
       display: flex;
       gap: 4px;
     }
     .zone-chip {
-      background: rgba(255, 255, 255, 0.035);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      color: #94a3b8;
-      padding: 2px 7px;
-      border-radius: 12px;
-      font-size: 10.5px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      padding: 3px 10px;
+      border-radius: 16px;
+      font-size: 11px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.12s;
     }
     .zone-chip:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: #f1f5f9;
+      background: #e2e8f0;
+      color: #334155;
     }
     .zone-chip.active {
-      background: rgba(0, 229, 190, 0.14);
-      border-color: rgba(0, 229, 190, 0.45);
-      color: #00E5BE;
-      font-weight: 700;
+      background: #0f7c90;
+      border-color: #0f7c90;
+      color: #ffffff;
+      font-weight: 600;
     }
     .filter-toggles {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
     .filter-toggle {
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 11px;
-      color: #94a3b8;
+      font-size: 11.5px;
+      color: #64748b;
       cursor: pointer;
       user-select: none;
     }
     .filter-toggle input {
-      accent-color: #00E5BE;
+      accent-color: #0f7c90;
       cursor: pointer;
-      width: 13px;
-      height: 13px;
+      width: 14px;
+      height: 14px;
     }
 
-    /* Table Container - Takes 100% of remaining vertical height! */
+    /* ── Table ── */
     .table-container {
-      background: rgba(8, 12, 20, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
       border-radius: 10px;
       flex: 1;
       min-height: 0;
@@ -750,17 +746,16 @@
     }
     .table-container::-webkit-scrollbar {
       width: 5px;
-      height: 5px;
     }
     .table-container::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.15);
+      background: #f8fafc;
     }
     .table-container::-webkit-scrollbar-thumb {
-      background: rgba(0, 229, 190, 0.22);
+      background: #cbd5e1;
       border-radius: 4px;
     }
     .table-container::-webkit-scrollbar-thumb:hover {
-      background: rgba(0, 229, 190, 0.4);
+      background: #94a3b8;
     }
     table {
       width: 100%;
@@ -770,102 +765,100 @@
     thead {
       position: sticky;
       top: 0;
-      background: #090e18;
+      background: #f8fafc;
       z-index: 10;
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
     }
     th {
-      font-size: 10px;
-      font-weight: 700;
+      font-size: 10.5px;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #94a3b8;
-      padding: 7px 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: #64748b;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
       white-space: nowrap;
     }
     td {
-      padding: 6px 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-      font-size: 11.5px;
-      color: #cbd5e1;
+      padding: 8px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 12.5px;
+      color: #334155;
       vertical-align: middle;
     }
     tr:hover td {
-      background: rgba(0, 229, 190, 0.035);
+      background: #f0fdfa;
     }
     .pincode-cell {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
-      font-size: 11.5px;
-      color: #00E5BE;
+      font-size: 12.5px;
+      color: #0f7c90;
     }
 
-    /* Badges */
+    /* ── Badges ── */
     .badge-status {
       display: inline-flex;
       align-items: center;
-      gap: 3.5px;
-      font-size: 9.5px;
+      gap: 4px;
+      font-size: 10px;
       font-weight: 700;
-      padding: 1px 6px;
-      border-radius: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
       white-space: nowrap;
     }
     .badge-status.avail {
-      background: rgba(16, 185, 129, 0.12);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: #dcfce7;
+      color: #16a34a;
+      border: 1px solid #bbf7d0;
     }
     .badge-status.oos {
-      background: rgba(239, 68, 68, 0.1);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
     }
     .badge-express {
       display: inline-flex;
       align-items: center;
       gap: 3px;
-      background: rgba(0, 229, 190, 0.12);
-      color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.3);
-      border-radius: 4px;
-      padding: 1px 5px;
-      font-size: 9.5px;
+      background: #f0fdfa;
+      color: #0f766e;
+      border: 1px solid #99f6e4;
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 10px;
       font-weight: 700;
     }
     .badge-warehouse {
       display: inline-flex;
       align-items: center;
       gap: 3px;
-      background: rgba(56, 189, 248, 0.12);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      border-radius: 4px;
-      padding: 1px 5px;
-      font-size: 9.5px;
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 10px;
       font-weight: 700;
     }
     .pulse-dot {
-      width: 4px;
-      height: 4px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
-      background: #34d399;
-      box-shadow: 0 0 5px #34d399;
+      background: #16a34a;
     }
 
-    /* Footer */
+    /* ── Footer ── */
     #footer {
       padding: 8px 16px 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(11, 15, 25, 0.96);
+      background: #f8fafc;
     }
     .footer-note {
-      font-size: 10.5px;
-      color: #64748b;
+      font-size: 11px;
+      color: #94a3b8;
       display: flex;
       align-items: center;
       gap: 5px;
@@ -875,49 +868,53 @@
       gap: 6px;
     }
     .btn-act {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: #e2e8f0;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       transition: all 0.15s;
     }
     .btn-act:hover {
-      background: rgba(255, 255, 255, 0.09);
-      color: #fff;
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #1e293b;
     }
     .btn-act.primary {
-      background: rgba(0, 229, 190, 0.12);
-      border-color: rgba(0, 229, 190, 0.3);
-      color: #00E5BE;
+      background: #f0fdfa;
+      border-color: #99f6e4;
+      color: #0f766e;
     }
     .btn-act.primary:hover {
-      background: #00E5BE;
-      color: #07191d;
+      background: #0f7c90;
+      border-color: #0f7c90;
+      color: #ffffff;
     }
 
+    /* ── Toast ── */
     #toast {
       position: absolute;
       top: 12px;
       left: 50%;
       transform: translateX(-50%) translateY(-10px);
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(0, 229, 190, 0.4);
-      color: #00E5BE;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 11.5px;
-      font-weight: 700;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #0f7c90;
+      color: #1e293b;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
       opacity: 0;
       pointer-events: none;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.2s ease-out;
       z-index: 1000;
       white-space: nowrap;
     }
@@ -938,7 +935,7 @@
     <div id="header">
       <div class="brand-wrap">
         <div class="logo-badge">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#07191d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <circle cx="12" cy="12" r="3"></circle>
             <line x1="12" y1="2" x2="12" y2="5"></line>
@@ -964,10 +961,10 @@
 
     <!-- Body -->
     <div id="body">
-      <!-- Top Command & Search Bar -->
+      <!-- Search Bar -->
       <div class="search-bar">
         <div class="search-input-wrap">
-          <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
@@ -977,11 +974,11 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
-          <span>Scan</span>
+          <span>Re-Scan</span>
         </button>
       </div>
 
-      <!-- Integrated Product Strip & Live Stats Panel -->
+      <!-- Product Info + Live Stats -->
       <div class="hero-strip">
         <div class="prod-thumb-wrap">
           <img id="product-img" class="prod-thumb" src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png" />
@@ -989,7 +986,7 @@
         <div class="prod-details">
           <div class="prod-headline">
             <span class="prod-title" id="product-title">Ready to Scan</span>
-            <span class="prod-price" id="product-price">₹ -</span>
+            <span class="prod-price" id="product-price">&#8377; -</span>
           </div>
           <div class="prod-subline">
             <select class="product-picker-select" id="product-picker">
@@ -1016,15 +1013,15 @@
         </div>
       </div>
 
-      <!-- Hidden pagination bar shim for legacy refs -->
+      <!-- Hidden pagination bar shim -->
       <div id="pagination-bar" style="display:none;"></div>
 
-      <!-- Slim 2.5px Progress Bar -->
+      <!-- Progress Bar -->
       <div class="progress-wrap" id="progress-container">
         <div class="progress-bar-fill" id="progress-bar"></div>
       </div>
 
-      <!-- Filter Controls Strip -->
+      <!-- Filter Controls -->
       <div class="filter-bar">
         <div class="zone-group" id="zone-chips">
           <span class="zone-chip active" data-zone="ALL">All (86)</span>
@@ -1045,21 +1042,21 @@
         </div>
       </div>
 
-      <!-- Sleek High-Density Results Table -->
+      <!-- Results Table -->
       <div class="table-container">
         <table>
           <thead id="table-head">
             <tr>
-              <th style="width: 75px;">Pincode</th>
+              <th style="width: 80px;">Pincode</th>
               <th>Area / Locality</th>
-              <th style="width: 105px;">Status</th>
+              <th style="width: 100px;">Status</th>
               <th>Fulfillment Mode &amp; Store</th>
-              <th style="width: 135px;">Delivery ETA</th>
+              <th style="width: 140px;">Delivery ETA</th>
             </tr>
           </thead>
           <tbody id="table-body">
             <tr>
-              <td colspan="5" style="text-align: center; color: #64748b; padding: 48px 16px;">
+              <td colspan="5" style="text-align: center; color: #94a3b8; padding: 48px 16px;">
                 Enter a category like <b>earbuds</b>, <b>laptop</b>, <b>soundbar</b> or a 6-digit SKU and click <b>Scan</b>!
               </td>
             </tr>
@@ -1070,7 +1067,7 @@
       <!-- Footer -->
       <div id="footer">
         <div class="footer-note">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E5BE" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f7c90" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           <span>Dual Mode: &#9889; Store Express (SDEL) &amp; &#128666; Warehouse (HDEL)</span>
         </div>
         <div class="btn-action-group">
@@ -1086,7 +1083,6 @@
       </div>
     </div>
   `;
-
   shadow.appendChild(modal);
 
   // State Management
