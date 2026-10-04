@@ -525,6 +525,12 @@
       object-fit: contain;
       border-radius: 5px;
     }
+    .prod-thumb-fallback {
+      display: none;
+      color: #0f7c90;
+      font: 700 9px 'JetBrains Mono', monospace;
+      letter-spacing: 0.4px;
+    }
     .prod-details {
       flex: 1;
       min-width: 0;
@@ -958,7 +964,8 @@
       <!-- Product Info + Live Stats -->
       <div class="hero-strip">
         <div class="prod-thumb-wrap">
-          <img id="product-img" class="prod-thumb" src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png" />
+          <img id="product-img" class="prod-thumb" alt="Product thumbnail" />
+          <span id="product-img-fallback" class="prod-thumb-fallback">SKU</span>
         </div>
         <div class="prod-details">
           <div class="prod-headline">
@@ -1075,6 +1082,7 @@
   const catalogCountBadge = shadow.getElementById('catalog-count-badge');
 
   const productImg = shadow.getElementById('product-img');
+  const productImgFallback = shadow.getElementById('product-img-fallback');
   const productTitle = shadow.getElementById('product-title');
   const productPrice = shadow.getElementById('product-price');
 
@@ -1135,9 +1143,16 @@
     if (p) {
       productTitle.textContent = p.name;
       productPrice.textContent = p.price || "₹ -";
+      productImg.hidden = !p.image;
+      productImgFallback.style.display = p.image ? 'none' : 'block';
       if (p.image) productImg.src = p.image;
     }
   }
+
+  productImg.onerror = () => {
+    productImg.hidden = true;
+    productImgFallback.style.display = 'block';
+  };
 
   // Update Stats Counters for active SKU
   function updateStats() {
@@ -1192,11 +1207,11 @@
       let fBadge = '<span style="color:#64748b;">-</span>';
       if (r.available) {
         if (r.hasExpress && r.hasWarehouse) {
-          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#38bdf8;">+ &#128666; Warehouse [${r.warehouseHub}]</span>`;
+          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#0f766e;">+ &#128666; Warehouse [${r.warehouseHub}]</span>`;
         } else if (r.hasExpress) {
-          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#94a3b8;">${r.expressStoreName}</div>`;
+          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#64748b;">${r.expressStoreName}</div>`;
         } else if (r.hasWarehouse) {
-          fBadge = `<span class="badge-warehouse">&#128666; Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#94a3b8;">${r.warehouseHubName}</div>`;
+          fBadge = `<span class="badge-warehouse">&#128666; Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#64748b;">${r.warehouseHubName}</div>`;
         }
       }
 
@@ -1206,7 +1221,7 @@
         <tr>
           <td class="pincode-cell">${r.pin}</td>
           <td>
-            <div style="font-weight:600; color:#f1f5f9;">${r.area}</div>
+            <div style="font-weight:600; color:#334155;">${r.area}</div>
             <div style="font-size:10px; color:#64748b;">${r.zone}</div>
           </td>
           <td>
@@ -1215,7 +1230,7 @@
             </span>
           </td>
           <td>${fBadge}</td>
-          <td style="font-size:11px; color:${r.available ? '#e2e8f0' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'};">
+          <td style="font-size:11px; color:${r.available ? '#334155' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'};">
             ${eta}
           </td>
         </tr>
