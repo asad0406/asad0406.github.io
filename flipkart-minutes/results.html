@@ -612,7 +612,6 @@
       <button id="filterVariation" class="tool-btn">Price varies by store</button>
       <div class="spacer"></div>
       <button id="download" class="tool-btn btn-primary">Download CSV</button>
-      <button id="copyJson" class="tool-btn">Copy JSON</button>
     </div>
   </header>
 
@@ -1001,16 +1000,6 @@
       a.remove();
     }
 
-    function copyJSON() {
-      if (!allRows.length) return alert('No data to copy.');
-      navigator.clipboard.writeText(JSON.stringify(allRows, null, 2)).then(() => {
-        const btn = document.getElementById('copyJson');
-        const orig = btn.innerText;
-        btn.innerText = '✓ Copied!';
-        setTimeout(() => btn.innerText = orig, 1500);
-      }).catch(e => alert('Failed to copy: ' + e));
-    }
-
     function initData(items, query) {
       currentQuery = query || '';
       if (document.getElementById('queryLabel')) {
@@ -1047,7 +1036,6 @@
     });
 
     document.getElementById('download').addEventListener('click', exportCSV);
-    document.getElementById('copyJson').addEventListener('click', copyJSON);
 
     /* __DATA_INJECTION__ */
 
