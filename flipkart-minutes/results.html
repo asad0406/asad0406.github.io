@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minutes Hunter Results</title>
+<style>
+  :root { --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #64748b; --line: #e2e8f0; --blue: #2874f0; --green: #059669; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --line: #334155; }
+  }
+  :root[data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --line: #334155; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 8px 0 12px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  input, select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+  input { flex: 1; min-width: 180px; }
+  .stats { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; text-transform: uppercase; color: var(--muted); cursor: pointer; user-select: none; }
+  td.price { font-weight: 700; }
+  .in { color: var(--green); font-weight: 700; }
+  .out { color: #dc2626; font-weight: 700; }
+  .empty { padding: 24px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>⚡ Minutes Hunter Results</h1>
+  <div class="bar">
+    <input id="filter" type="search" placeholder="Filter by product or locality...">
+    <select id="stock">
+      <option value="all">All stock</option>
+      <option value="IN_STOCK">In stock only</option>
+    </select>
+  </div>
+  <div class="stats" id="stats">Waiting for results. Run a scan in the Minutes Hunter, then click 🌐 View Page.</div>
+  <div class="wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-key="locality">Locality</th>
+          <th data-key="liveSla">SLA</th>
+          <th data-key="title">Product</th>
+          <th data-key="price">Price</th>
+          <th data-key="availability">Stock</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>No matching items.</div>
+  </div>
+</main>
+<script>
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let data = [];
+  let sortKey = 'price', sortDir = 1;
+
+  try {
+    const hash = location.hash.slice(1);
+    data = hash ? JSON.parse(decodeURIComponent(hash)) : [];
+  } catch (e) {
+    data = [];
+  }
+
+  function render() {
+    const q = document.getElementById('filter').value.trim().toLowerCase();
+    const stock = document.getElementById('stock').value;
+    let rows = data.filter(r =>
+      (stock === 'all' || r.availability === stock) &&
+      (!q || `${r.title} ${r.locality}`.toLowerCase().includes(q))
+    );
+    rows.sort((a, b) => {
+      const av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
+      return (av > bv ? 1 : av < bv ? -1 : 0) * sortDir;
+    });
+
+    document.getElementById('rows').innerHTML = rows.map(r => `
+      <tr>
+        <td>${esc(r.locality)}</td>
+        <td>⚡ ${esc(r.liveSla)}</td>
+        <td>${esc(r.title)}</td>
+        <td class="price">${r.price ? '₹' + esc(r.price) : '-'}</td>
+        <td class="${r.availability === 'IN_STOCK' ? 'in' : 'out'}">${r.availability === 'IN_STOCK' ? 'In Stock' : 'Out'}</td>
+      </tr>`).join('');
+    document.getElementById('empty').hidden = rows.length > 0;
+
+    const stores = new Set(data.map(r => r.locality)).size;
+    const prices = data.map(r => r.price).filter(Boolean);
+    const min = prices.length ? Math.min(...prices) : null;
+    document.getElementById('stats').textContent = data.length
+      ? `${rows.length} of ${data.length} items · ${stores} stores · min ₹${min}`
+      : 'Waiting for results. Run a scan in the Minutes Hunter, then click 🌐 View Page.';
+  }
+
+  document.getElementById('filter').addEventListener('input', render);
+  document.getElementById('stock').addEventListener('change', render);
+  document.querySelectorAll('th[data-key]').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.key;
+    sortDir = sortKey === k ? -sortDir : 1;
+    sortKey = k;
+    render();
+  }));
+  render();
+</script>
+</body>
+</html>

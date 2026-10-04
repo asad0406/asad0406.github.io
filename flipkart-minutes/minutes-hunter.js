@@ -296,6 +296,13 @@
             <option value="5">First 5 Stores (Test)</option>
           </select>
         </div>
+        <div>
+          <span>Store: </span>
+          <select id="fk-h-store" class="fk-h-select">
+            <option value="all">All (per scope)</option>
+            ${STORES.map((s, i) => `<option value="${i}">${s[1]}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div class="fk-h-progress-bar-bg" id="fk-h-pbar-bg">
         <div class="fk-h-progress-bar-fill" id="fk-h-pbar"></div>
@@ -336,6 +343,7 @@
     <div class="fk-h-footer">
       <button class="fk-h-export-btn" id="fk-h-csv">⬇ Export CSV</button>
       <button class="fk-h-export-btn" id="fk-h-json">📋 Copy JSON</button>
+      <button class="fk-h-export-btn" id="fk-h-page">🌐 View Page</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -405,7 +413,8 @@
 
     const inStockOnly = document.getElementById('fk-h-instock').checked;
     const scopeCount = parseInt(document.getElementById('fk-h-scope').value, 10);
-    const targetStores = STORES.slice(0, scopeCount);
+    const storeChoice = document.getElementById('fk-h-store').value;
+    const targetStores = storeChoice === 'all' ? STORES.slice(0, scopeCount) : [STORES[parseInt(storeChoice, 10)]];
 
     let storesWithItems = 0;
     let minPriceFound = 999999;
@@ -532,6 +541,11 @@
   };
 
   // CSV Export
+  document.getElementById('fk-h-page').onclick = () => {
+    if (!searchResults.length) return alert('No results yet. Run a search first!');
+    window.open('https://asad0406.github.io/flipkart-minutes/results.html#' + encodeURIComponent(JSON.stringify(searchResults)), '_blank');
+  };
+
   csvBtn.onclick = () => {
     if (!searchResults.length) return alert('No results yet. Run a search first!');
     const rows = searchResults.map(r => [
