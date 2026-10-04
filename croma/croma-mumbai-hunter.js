@@ -348,7 +348,7 @@
   // Modern Glassmorphic Stylesheet
   const style = document.createElement('style');
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
     * {
       box-sizing: border-box;
@@ -359,38 +359,38 @@
 
     #modal {
       position: fixed;
-      top: 16px;
-      right: 16px;
-      width: min(740px, 95vw);
-      height: min(740px, 94vh);
-      background: rgba(14, 18, 27, 0.92);
-      backdrop-filter: blur(22px) saturate(180%);
-      -webkit-backdrop-filter: blur(22px) saturate(180%);
-      border: 1px solid rgba(0, 229, 190, 0.28);
-      border-radius: 18px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 40px rgba(0, 229, 190, 0.14);
+      top: 18px;
+      right: 18px;
+      width: min(840px, calc(100vw - 36px));
+      height: min(670px, calc(100vh - 36px));
+      background: rgba(11, 15, 25, 0.94);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid rgba(0, 229, 190, 0.22);
+      border-radius: 16px;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 35px rgba(0, 229, 190, 0.08);
       z-index: 2147483647;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       color: #e2e8f0;
-      font-size: 13px;
-      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 12.5px;
+      animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+      from { opacity: 0; transform: translateY(-8px) scale(0.99); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     /* Header */
     #header {
-      background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%);
-      padding: 13px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 100%);
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       cursor: grab;
       user-select: none;
     }
@@ -399,79 +399,79 @@
     .brand-wrap {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
     }
     .logo-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 9px;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
       background: linear-gradient(135deg, #00E5BE, #0077b6);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0, 229, 190, 0.35);
+      box-shadow: 0 2px 8px rgba(0, 229, 190, 0.3);
     }
     .brand-title {
       font-weight: 700;
-      font-size: 15px;
-      letter-spacing: -0.3px;
+      font-size: 14px;
+      letter-spacing: -0.2px;
       color: #ffffff;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
     .brand-pill {
-      background: rgba(0, 229, 190, 0.15);
+      background: rgba(0, 229, 190, 0.12);
       color: #00E5BE;
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
-      padding: 2px 6px;
+      padding: 2px 5px;
       border-radius: 4px;
-      letter-spacing: 0.5px;
-      border: 1px solid rgba(0, 229, 190, 0.35);
+      letter-spacing: 0.4px;
+      border: 1px solid rgba(0, 229, 190, 0.3);
     }
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
     .ctrl-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
       color: #94a3b8;
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 12px;
       transition: all 0.15s;
     }
     .ctrl-btn:hover {
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.1);
       color: #fff;
     }
     .ctrl-btn.close:hover {
-      background: rgba(239, 68, 68, 0.25);
+      background: rgba(239, 68, 68, 0.2);
       color: #f87171;
-      border-color: rgba(239, 68, 68, 0.4);
+      border-color: rgba(239, 68, 68, 0.35);
     }
 
-    /* Body */
+    /* Body - No outer scrollbar! */
     #body {
-      padding: 14px 18px;
+      padding: 10px 16px 0;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      overflow-y: auto;
-      max-height: calc(92vh - 65px);
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
     }
 
-    /* Search & Action Input */
+    /* Search Bar */
     .search-bar {
-      position: relative;
       display: flex;
       gap: 8px;
     }
@@ -481,7 +481,7 @@
     }
     .search-icon {
       position: absolute;
-      left: 12px;
+      left: 11px;
       top: 50%;
       transform: translateY(-50%);
       color: #64748b;
@@ -489,19 +489,19 @@
     }
     input[type="text"] {
       width: 100%;
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: #f8fafc;
-      padding: 9px 12px 9px 36px;
-      border-radius: 10px;
-      font-size: 13px;
+      padding: 8px 12px 8px 33px;
+      border-radius: 8px;
+      font-size: 12.5px;
       outline: none;
-      transition: all 0.2s;
+      transition: all 0.18s;
     }
     input[type="text"]:focus {
       border-color: #00E5BE;
-      box-shadow: 0 0 0 3px rgba(0, 229, 190, 0.18);
-      background: rgba(15, 23, 42, 0.95);
+      box-shadow: 0 0 0 2px rgba(0, 229, 190, 0.16);
+      background: rgba(15, 23, 42, 0.9);
     }
     input[type="text"]::placeholder {
       color: #64748b;
@@ -511,105 +511,77 @@
       background: linear-gradient(135deg, #00E5BE 0%, #00a68d 100%);
       color: #07191d;
       border: none;
-      padding: 0 20px;
-      border-radius: 10px;
+      padding: 0 18px;
+      border-radius: 8px;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 14px rgba(0, 229, 190, 0.28);
-      transition: all 0.2s;
+      gap: 5px;
+      box-shadow: 0 2px 10px rgba(0, 229, 190, 0.22);
+      transition: all 0.18s;
       white-space: nowrap;
     }
     .btn-scan:hover:not(:disabled) {
-      filter: brightness(1.1);
+      filter: brightness(1.08);
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(0, 229, 190, 0.4);
+      box-shadow: 0 4px 14px rgba(0, 229, 190, 0.35);
     }
     .btn-scan:disabled {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
       color: #64748b;
-      cursor: not-allowed;
+      cursor: wait;
       box-shadow: none;
       transform: none;
     }
-    .btn-scan.btn-scan-stop {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: #ffffff;
-      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
-    }
-    .btn-scan.btn-scan-stop:hover:not(:disabled) {
-      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.5);
-    }
 
-    /* Catalog Info & Summary Bar */
-    #pagination-bar {
-      display: none;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      border-radius: 9px;
-      padding: 6px 12px;
-      font-size: 11.5px;
-    }
-    .catalog-count-badge {
-      font-size: 10.5px;
-      font-weight: 700;
-      background: rgba(0, 229, 190, 0.15);
-      color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.35);
-      border-radius: 12px;
-      padding: 2px 9px;
-      white-space: nowrap;
-    }
-
-    /* Product Selector & Summary Card */
-    .hero-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.7) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      padding: 10px 14px;
+    /* Unified Hero Strip: Product Info + Live Stats */
+    .hero-strip {
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 7px 10px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
     }
     .prod-thumb-wrap {
-      width: 48px;
-      height: 48px;
-      background: #ffffff;
-      border-radius: 10px;
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 3px;
+      padding: 2px;
       flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     }
     .prod-thumb {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
+      border-radius: 5px;
     }
     .prod-details {
       flex: 1;
       min-width: 0;
     }
-    .prod-header-line {
+    .prod-headline {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
     }
     .prod-title {
       font-weight: 700;
-      font-size: 13.5px;
+      font-size: 13px;
       color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      flex: 1;
     }
     .prod-price {
       font-size: 13.5px;
@@ -618,121 +590,143 @@
       letter-spacing: -0.2px;
       white-space: nowrap;
     }
-    .prod-meta-row {
+    .prod-subline {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
-      margin-top: 4px;
+      margin-top: 2px;
     }
     .product-picker-select {
-      background: #0f172a;
+      background: #090d16;
       color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.35);
-      border-radius: 6px;
-      font-size: 11.5px;
+      border: 1px solid rgba(0, 229, 190, 0.3);
+      border-radius: 5px;
+      font-size: 11px;
       font-weight: 600;
-      padding: 3px 8px;
+      padding: 1px 6px;
       outline: none;
       cursor: pointer;
-      max-width: 420px;
+      max-width: 320px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    /* Live Stats Row - Compact single row */
-    .stats-grid {
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 8px;
-      padding: 6px 12px;
+    .catalog-summary {
+      font-size: 11px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .stat-card {
+    .catalog-count-badge {
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(0, 229, 190, 0.12);
+      color: #00E5BE;
+      border: 1px solid rgba(0, 229, 190, 0.3);
+      border-radius: 8px;
+      padding: 1px 6px;
+      white-space: nowrap;
+    }
+
+    /* Live Stats Badges Group */
+    .live-stats-bar {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-shrink: 0;
     }
-    .stat-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #94a3b8;
-    }
-    .stat-val {
-      font-size: 13.5px;
-      font-weight: 800;
-      color: #ffffff;
+    .stat-pill {
       display: flex;
       align-items: center;
       gap: 4px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      padding: 3px 8px;
     }
-    .stat-val.green { color: #10b981; }
-    .stat-val.red { color: #ef4444; }
-    .stat-val.cyan { color: #00E5BE; }
+    .stat-pill.green-pill {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+    .stat-pill.red-pill {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+    .stat-lbl {
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .green-pill .stat-lbl { color: #34d399; }
+    .red-pill .stat-lbl { color: #f87171; }
+    .stat-num {
+      font-size: 12px;
+      font-weight: 800;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-num.cyan { color: #00E5BE; }
+    .green-pill .stat-num { color: #10b981; }
+    .red-pill .stat-num { color: #ef4444; }
 
     /* Progress bar */
     .progress-wrap {
       display: none;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 6px;
-      height: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      height: 2.5px;
       overflow: hidden;
-      position: relative;
     }
     .progress-bar-fill {
       background: linear-gradient(90deg, #00E5BE, #38bdf8);
       height: 100%;
       width: 0%;
-      transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 0 10px rgba(0, 229, 190, 0.5);
+      transition: width 0.15s ease;
+      box-shadow: 0 0 8px rgba(0, 229, 190, 0.6);
     }
 
-    /* Zone & Fulfillment Filters */
+    /* Filter Bar */
     .filter-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 6px;
     }
     .zone-group {
       display: flex;
       gap: 4px;
-      flex-wrap: wrap;
     }
     .zone-chip {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       color: #94a3b8;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 10.5px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.12s;
     }
     .zone-chip:hover {
-      background: rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.08);
       color: #f1f5f9;
     }
     .zone-chip.active {
-      background: rgba(0, 229, 190, 0.15);
-      border-color: rgba(0, 229, 190, 0.5);
+      background: rgba(0, 229, 190, 0.14);
+      border-color: rgba(0, 229, 190, 0.45);
       color: #00E5BE;
       font-weight: 700;
     }
     .filter-toggles {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .filter-toggle {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       font-size: 11px;
       color: #94a3b8;
       cursor: pointer;
@@ -741,78 +735,32 @@
     .filter-toggle input {
       accent-color: #00E5BE;
       cursor: pointer;
+      width: 13px;
+      height: 13px;
     }
 
-    /* Badges */
-    .badge-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 10.5px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 6px;
-    }
-    .badge-status.avail {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-    .badge-status.oos {
-      background: rgba(239, 68, 68, 0.12);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.25);
-    }
-    .badge-express {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      background: rgba(0, 229, 190, 0.15);
-      color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.35);
-      border-radius: 5px;
-      padding: 2px 6px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-    .badge-warehouse {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 5px;
-      padding: 2px 6px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-
-    .pulse-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: #34d399;
-      box-shadow: 0 0 6px #34d399;
-    }
-
-    /* Table */
+    /* Table Container - Takes 100% of remaining vertical height! */
     .table-container {
-      background: rgba(10, 15, 26, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      min-height: 240px;
-      max-height: 380px;
-      overflow-y: auto;
+      background: rgba(8, 12, 20, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
       flex: 1;
+      min-height: 0;
+      overflow-y: auto;
     }
     .table-container::-webkit-scrollbar {
       width: 5px;
       height: 5px;
     }
+    .table-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+    }
     .table-container::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(0, 229, 190, 0.22);
       border-radius: 4px;
+    }
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 229, 190, 0.4);
     }
     table {
       width: 100%;
@@ -822,59 +770,101 @@
     thead {
       position: sticky;
       top: 0;
-      background: #0f172a;
+      background: #090e18;
       z-index: 10;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
     }
     th {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #94a3b8;
-      padding: 9px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      white-space: nowrap;
     }
     td {
-      padding: 8px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      font-size: 12px;
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      font-size: 11.5px;
       color: #cbd5e1;
+      vertical-align: middle;
     }
     tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(0, 229, 190, 0.035);
     }
     .pincode-cell {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
+      font-size: 11.5px;
       color: #00E5BE;
     }
-    .btn-view-prod {
+
+    /* Badges */
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 3.5px;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    .badge-status.avail {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-status.oos {
+      background: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    .badge-express {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
       background: rgba(0, 229, 190, 0.12);
       color: #00E5BE;
-      border: 1px solid rgba(0, 229, 190, 0.35);
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 10.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
+      border: 1px solid rgba(0, 229, 190, 0.3);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 9.5px;
+      font-weight: 700;
     }
-    .btn-view-prod:hover {
-      background: #00E5BE;
-      color: #0b1118;
+    .badge-warehouse {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 9.5px;
+      font-weight: 700;
+    }
+    .pulse-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 5px #34d399;
     }
 
     /* Footer */
     #footer {
-      padding: 10px 18px 14px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px 16px 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(14, 18, 27, 0.95);
+      background: rgba(11, 15, 25, 0.96);
     }
     .footer-note {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #64748b;
       display: flex;
       align-items: center;
@@ -882,52 +872,54 @@
     }
     .btn-action-group {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
     .btn-act {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: #e2e8f0;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       transition: all 0.15s;
     }
     .btn-act:hover {
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.09);
       color: #fff;
     }
     .btn-act.primary {
-      background: rgba(0, 229, 190, 0.15);
-      border-color: rgba(0, 229, 190, 0.35);
+      background: rgba(0, 229, 190, 0.12);
+      border-color: rgba(0, 229, 190, 0.3);
       color: #00E5BE;
     }
     .btn-act.primary:hover {
-      background: rgba(0, 229, 190, 0.25);
-    }
-
-    /* Toast */
-    #toast {
-      position: absolute;
-      bottom: 60px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
       background: #00E5BE;
       color: #07191d;
-      padding: 7px 16px;
+    }
+
+    #toast {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(0, 229, 190, 0.4);
+      color: #00E5BE;
+      padding: 6px 14px;
       border-radius: 20px;
+      font-size: 11.5px;
       font-weight: 700;
-      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
       opacity: 0;
       pointer-events: none;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      z-index: 100;
-      box-shadow: 0 4px 20px rgba(0, 229, 190, 0.4);
+      z-index: 1000;
+      white-space: nowrap;
     }
     #toast.show {
       opacity: 1;
@@ -946,7 +938,7 @@
     <div id="header">
       <div class="brand-wrap">
         <div class="logo-badge">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#07191d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#07191d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <circle cx="12" cy="12" r="3"></circle>
             <line x1="12" y1="2" x2="12" y2="5"></line>
@@ -972,70 +964,67 @@
 
     <!-- Body -->
     <div id="body">
-      <!-- Search Input -->
+      <!-- Top Command & Search Bar -->
       <div class="search-bar">
         <div class="search-input-wrap">
-          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="query-input" placeholder="Paste Croma product URL, 6-digit SKU (e.g. 317553), or category..." />
+          <input type="text" id="query-input" placeholder="Paste product URL, SKU, or search category (e.g. earbuds)..." />
         </div>
         <button class="btn-scan" id="btn-scan">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
           <span>Scan</span>
         </button>
       </div>
 
-      <!-- Catalog Summary Bar -->
-      <div id="pagination-bar">
-        <div id="search-summary-text">Searching Croma catalog...</div>
-        <div class="catalog-count-badge" id="catalog-count-badge">All Loaded</div>
-      </div>
-
-      <!-- Active Product Card / View Switcher -->
-      <div class="hero-card">
+      <!-- Integrated Product Strip & Live Stats Panel -->
+      <div class="hero-strip">
         <div class="prod-thumb-wrap">
           <img id="product-img" class="prod-thumb" src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png" />
         </div>
         <div class="prod-details">
-          <div class="prod-header-line">
-            <div class="prod-title" id="product-title">All Matching Products</div>
-            <div class="prod-price" id="product-price">₹ -</div>
+          <div class="prod-headline">
+            <span class="prod-title" id="product-title">Ready to Scan</span>
+            <span class="prod-price" id="product-price">₹ -</span>
           </div>
-          <div class="prod-meta-row">
+          <div class="prod-subline">
             <select class="product-picker-select" id="product-picker">
-              <option value="ALL">⭐ View All Matching Products (Summary Matrix)</option>
+              <option value="ALL">Single SKU Drilldown</option>
             </select>
-            <span class="badge-express" title="Both Store Express & Warehouse checked simultaneously">&#9889;+&#128666; Auto Dual Mode</span>
+            <div id="search-summary-text" class="catalog-summary">Enter a product or category to scan</div>
+            <div class="catalog-count-badge" id="catalog-count-badge" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div class="live-stats-bar">
+          <div class="stat-pill" title="Pincodes scanned">
+            <span class="stat-lbl">Pins</span>
+            <span class="stat-num cyan" id="stat-scanned">0 / 86</span>
+          </div>
+          <div class="stat-pill green-pill" title="In-Stock fulfillment available">
+            <span class="stat-lbl">&#9889; In-Stock</span>
+            <span class="stat-num" id="stat-avail">0</span>
+          </div>
+          <div class="stat-pill red-pill" title="Unavailable / Out of Stock">
+            <span class="stat-lbl">OOS</span>
+            <span class="stat-num" id="stat-oos">0</span>
           </div>
         </div>
       </div>
 
-      <!-- Stats Grid -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">Scanned Pincodes</span>
-          <span class="stat-val cyan" id="stat-scanned">0 / 86</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">In-Stock Stores/Hubs</span>
-          <span class="stat-val green" id="stat-avail">0</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Unavailable</span>
-          <span class="stat-val red" id="stat-oos">0</span>
-        </div>
-      </div>
+      <!-- Hidden pagination bar shim for legacy refs -->
+      <div id="pagination-bar" style="display:none;"></div>
 
-      <!-- Animated Progress Bar -->
+      <!-- Slim 2.5px Progress Bar -->
       <div class="progress-wrap" id="progress-container">
         <div class="progress-bar-fill" id="progress-bar"></div>
       </div>
 
-      <!-- Filter Bar -->
+      <!-- Filter Controls Strip -->
       <div class="filter-bar">
         <div class="zone-group" id="zone-chips">
           <span class="zone-chip active" data-zone="ALL">All (86)</span>
@@ -1056,21 +1045,21 @@
         </div>
       </div>
 
-      <!-- Results Table -->
+      <!-- Sleek High-Density Results Table -->
       <div class="table-container">
         <table>
           <thead id="table-head">
             <tr>
-              <th>Product</th>
-              <th style="width: 85px;">Price</th>
-              <th style="width: 130px;">Mumbai In-Stock</th>
-              <th>Fastest Delivery</th>
-              <th style="width: 100px; text-align: center;">Action</th>
+              <th style="width: 75px;">Pincode</th>
+              <th>Area / Locality</th>
+              <th style="width: 105px;">Status</th>
+              <th>Fulfillment Mode &amp; Store</th>
+              <th style="width: 135px;">Delivery ETA</th>
             </tr>
           </thead>
           <tbody id="table-body">
             <tr>
-              <td colspan="5" style="text-align: center; color: #64748b; padding: 32px 16px;">
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 48px 16px;">
                 Enter a category like <b>earbuds</b>, <b>laptop</b>, <b>soundbar</b> or a 6-digit SKU and click <b>Scan</b>!
               </td>
             </tr>
@@ -1086,11 +1075,11 @@
         </div>
         <div class="btn-action-group">
           <button class="btn-act" id="btn-copy">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span>Copy</span>
           </button>
           <button class="btn-act primary" id="btn-export">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             <span>Export CSV</span>
           </button>
         </div>
