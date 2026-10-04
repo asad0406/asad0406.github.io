@@ -9,10 +9,11 @@ const hunterMinJsPath = path.join(repoRoot, 'flipkart-minutes', 'minutes-hunter.
 const rawHtml = fs.readFileSync(resultsHtmlPath, 'utf8');
 const js = fs.readFileSync(hunterJsPath, 'utf8');
 
-const markerStart = '  function openBlankResultsTable(items, query) {';
+let idxStart = js.indexOf('const TABLE_PAGE_HTML = ');
+if (idxStart === -1) {
+  idxStart = js.indexOf('  function openBlankResultsTable(items, query) {');
+}
 const markerEnd = "  document.getElementById('fk-h-page').onclick = () => {";
-
-const idxStart = js.indexOf(markerStart);
 const idxEnd = js.indexOf(markerEnd);
 
 if (idxStart === -1 || idxEnd === -1) {
@@ -35,15 +36,15 @@ const newFunction = [
   "    const safeQuery = JSON.stringify(query || '');",
   '    const injection = `DATA = ${safeData};\\n    currentQuery = ${safeQuery};\\n    initData(DATA, currentQuery);`;',
   '    let html = TABLE_PAGE_HTML',
-  "      .replace('<!-- CSP_NONCE_STYLE -->', nonceAttr)",
-  "      .replace('<!-- CSP_NONCE_SCRIPT -->', nonceAttr)",
+  "      .replace('<style id=\"app-style\">', `<style id=\"app-style\"${nonceAttr}>`)",
+  "      .replace('<script id=\"app-script\">', `<script id=\"app-script\"${nonceAttr}>`)",
   "      .replace('/* __DATA_INJECTION__ */', injection);",
   '    win.document.open();',
   '    win.document.write(html);',
   '    win.document.close();',
   '  }',
   '',
-  ''
+  '  '
 ].join('\n');
 
 const updatedJs = js.slice(0, idxStart) + newFunction + js.slice(idxEnd);

@@ -3,495 +3,691 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>⚡ Flipkart Minutes Hunter — Search Results</title>
-  <style<!-- CSP_NONCE_STYLE -->>
+  <title>⚡ Flipkart Minutes — Results</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style id="app-style">
     :root {
-      --primary: #2874f0;
-      --primary-dark: #1a5ac9;
+      --ink: #1f1b16;
+      --paper: #edebdf;
+      --card: #ffffff;
+      --crate: #2b5235;
+      --crate-tint: #e4ede3;
+      --brick: #a6402b;
+      --brick-tint: #f4e5e0;
+      --fk-blue: #2874f0;
+      --fk-blue-dim: #1a5ac9;
       --fk-yellow: #ffe500;
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --border: #e2e8f0;
-      --border-dark: #cbd5e1;
-      --text: #0f172a;
-      --text-muted: #64748b;
-      --green: #16a34a;
-      --green-bg: #ecfdf5;
-      --red: #dc2626;
-      --red-bg: #fef2f2;
+      --stone: #5b5648;
+      --line: #dcd8c8;
+      --display: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      --body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.45;
-      padding-bottom: 60px;
+      margin: 0;
+      font: 400 13px/1.5 var(--body);
+      background: var(--paper);
+      color: var(--ink);
     }
 
-    /* Sticky Top Header */
     header {
       position: sticky;
       top: 0;
-      background: #ffffff;
-      border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
-      z-index: 100;
+      z-index: 10;
+      background: var(--paper);
+      border-bottom: 2px solid var(--ink);
+      padding: 14px 20px 12px;
+    }
+    .top-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 14px;
       flex-wrap: wrap;
-      gap: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .brand-wrap {
+    .title-row {
       display: flex;
       align-items: center;
       gap: 10px;
-      flex-wrap: wrap;
     }
-    .brand-logo {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .brand-badge {
-      background: var(--fk-yellow);
-      color: #713f12;
-      font-size: 11px;
-      font-weight: 800;
-      padding: 2px 8px;
-      border-radius: 12px;
+    .title-logo {
+      font-size: 24px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
     }
     .query-tag {
-      background: #eff6ff;
-      color: var(--primary);
-      border: 1px solid #bfdbfe;
-      font-size: 12px;
+      font-family: var(--display);
       font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 14px;
-    }
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .btn {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 7px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      border: 1px solid var(--border-dark);
-      background: #ffffff;
-      color: #334155;
-      transition: all 0.15s ease;
+      font-size: 19px;
+      letter-spacing: -.01em;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 5px 14px 6px;
+      border-radius: 3px;
+      transform: rotate(-.6deg);
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      text-decoration: none;
     }
-    .btn:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-    }
-    .btn-primary {
-      background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary);
-    }
-    .btn-primary:hover {
-      background: var(--primary-dark);
-      border-color: var(--primary-dark);
+    .query-tag .q-mark {
+      color: var(--fk-yellow);
     }
 
-    /* Stats Ribbon */
-    .stats-ribbon {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      padding: 14px 24px;
-      max-width: 1600px;
-      margin: 0 auto;
-    }
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 14px;
+    #metaCard {
+      flex: none;
       display: flex;
-      flex-direction: column;
+      gap: 6px;
+      flex-wrap: wrap;
     }
-    .stat-val {
-      font-size: 18px;
-      font-weight: 800;
-      color: var(--text);
-    }
-    .stat-lbl {
-      font-size: 11px;
-      color: var(--text-muted);
+    #metaCard .stat {
+      font-family: var(--display);
+      border: 1.5px solid var(--ink);
+      border-radius: 3px;
+      padding: 5px 11px;
+      color: var(--ink);
+      font-size: 11.5px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
+      white-space: nowrap;
+      background: var(--card);
+    }
+    #metaCard .stat b {
+      color: var(--fk-blue);
+      font-weight: 700;
     }
 
-    /* Controls Bar */
-    .controls-bar {
-      position: sticky;
-      top: 57px;
-      background: #ffffff;
-      border-bottom: 1px solid var(--border);
-      border-top: 1px solid var(--border);
-      padding: 10px 24px;
-      z-index: 90;
+    .toolbar {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      margin-top: 12px;
       flex-wrap: wrap;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
-    .search-input {
-      flex: 2;
-      min-width: 240px;
-      padding: 8px 12px 8px 34px;
-      border-radius: 8px;
-      border: 1px solid var(--border-dark);
-      font-size: 13px;
-      outline: none;
-      background: #ffffff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 10px center;
-      transition: border-color 0.15s;
+    .toolbar .spacer {
+      flex: 1;
+      min-width: 0;
     }
-    .search-input:focus {
-      border-color: var(--primary);
-    }
-    .select-control {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border-dark);
+    input#filter, select.filter-select {
+      padding: 7px 11px;
+      border: 1.5px solid var(--line);
+      border-radius: 20px;
       font-size: 12.5px;
-      color: #1e293b;
-      background: #ffffff;
-      cursor: pointer;
+      background: var(--card);
+      color: var(--ink);
+      flex: none;
+      font-family: var(--body);
       outline: none;
     }
-    .select-control:focus {
-      border-color: var(--primary);
+    select.filter-select {
+      min-width: 140px;
+      cursor: pointer;
+    }
+    input#filter {
+      width: 220px;
+    }
+    input#filter:focus, select.filter-select:focus {
+      border-color: var(--fk-blue);
+    }
+    button.tool-btn {
+      padding: 7px 14px;
+      border: 1.5px solid var(--line);
+      border-radius: 20px;
+      background: var(--card);
+      color: var(--ink);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: none;
+      font-family: var(--body);
+      transition: all 0.15s;
+    }
+    button.tool-btn:hover {
+      border-color: var(--fk-blue);
+    }
+    button.tool-btn.active {
+      background: var(--crate);
+      border-color: var(--crate);
+      color: #fff;
+    }
+    button.btn-primary {
+      background: var(--fk-blue);
+      border: none;
+      color: #ffffff;
+      font-family: var(--display);
+      font-weight: 700;
+      padding: 8px 16px;
+    }
+    button.btn-primary:hover {
+      background: var(--fk-blue-dim);
     }
 
-    /* Table Container */
-    .table-wrap {
-      max-width: 1600px;
-      margin: 16px auto;
-      padding: 0 24px;
-      overflow-x: auto;
+    #tableWrap {
+      overflow: auto;
+      max-height: calc(100vh - 128px);
+      padding: 0 20px 20px;
     }
-    .data-table {
+    table {
+      border-collapse: collapse;
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      font-size: 13px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      font-size: 12.5px;
     }
-    .data-table th {
-      background: #f8fafc;
-      color: #475569;
-      font-weight: 700;
-      font-size: 11.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 10px 14px;
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--paper);
       text-align: left;
-      border-bottom: 1px solid var(--border);
+      padding: 10px 10px 8px;
+      border-bottom: 2px solid var(--ink);
+      font-weight: 600;
+      font-family: var(--display);
+      color: var(--ink);
+      white-space: nowrap;
       cursor: pointer;
       user-select: none;
-      white-space: nowrap;
-      transition: background 0.15s;
     }
-    .data-table th:hover {
-      background: #f1f5f9;
-      color: var(--primary);
+    thead th:hover {
+      color: var(--fk-blue);
     }
-    .data-table th.sorted-asc::after {
-      content: ' ↑';
-      color: var(--primary);
-    }
-    .data-table th.sorted-desc::after {
-      content: ' ↓';
-      color: var(--primary);
-    }
-    .data-table td {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
+    tbody td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 400;
+      max-width: 280px;
+      white-space: normal;
+      overflow-wrap: break-word;
       vertical-align: middle;
-      color: #1e293b;
     }
-    .data-table tr:last-child td {
-      border-bottom: none;
+    tbody tr {
+      border-left: 4px solid transparent;
+      transition: background 0.1s;
     }
-    .data-table tr:hover td {
-      background: #f8fafc;
+    tbody td.nowrap {
+      max-width: none;
+      white-space: nowrap;
+    }
+    tbody tr:hover {
+      background: #ffffff;
+    }
+    tbody tr.sold-out {
+      background: var(--brick-tint);
+      border-left-color: var(--brick);
+    }
+    tbody tr.sold-out:hover {
+      background: #efd6cf;
+    }
+    tbody tr.in-stock {
+      background: var(--crate-tint);
+      border-left-color: var(--crate);
+    }
+    tbody tr.in-stock:hover {
+      background: #d6e5d4;
+    }
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-family: var(--display);
+      font-weight: 600;
+    }
+    td a {
+      color: var(--fk-blue);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    td a:hover {
+      text-decoration: underline;
     }
 
-    /* Table Cell Specifics */
-    .row-index {
-      color: var(--text-muted);
+    .prod-link {
+      color: var(--ink);
       font-weight: 600;
-      font-size: 11.5px;
-      width: 32px;
-    }
-    .prod-cell {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      max-width: 460px;
-    }
-    .prod-img {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      object-fit: contain;
-      background: #f8fafc;
-      border: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .prod-img-placeholder {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      background: #f1f5f9;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      color: #94a3b8;
-      flex-shrink: 0;
-      border: 1px solid var(--border);
-    }
-    .prod-meta {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .prod-title {
-      font-weight: 600;
-      color: #0f172a;
-      text-decoration: none;
       line-height: 1.35;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .prod-title:hover {
-      color: var(--primary);
+    .prod-link:hover {
+      color: var(--fk-blue);
     }
-    .prod-brand {
-      font-size: 10.5px;
+    .brand-tag {
+      font-size: 10px;
       font-weight: 700;
-      color: #64748b;
+      color: var(--stone);
       text-transform: uppercase;
       letter-spacing: 0.03em;
+      margin-bottom: 2px;
     }
-
-    .locality-title {
-      font-weight: 700;
-      color: #0f172a;
-      font-size: 13px;
-    }
-    .store-pill {
-      font-family: ui-monospace, SFMono-Regular, monospace;
-      font-size: 10px;
-      background: #f1f5f9;
-      color: #475569;
-      padding: 1px 5px;
-      border-radius: 4px;
-      margin-top: 2px;
-      display: inline-block;
-    }
-
-    .sla-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      background: #fef08a;
-      color: #854d0e;
-      font-weight: 800;
-      font-size: 11.5px;
-      padding: 2px 7px;
-      border-radius: 10px;
-      white-space: nowrap;
-    }
-
-    .price-val {
-      font-weight: 800;
-      font-size: 14.5px;
-      color: #0f172a;
-      white-space: nowrap;
-    }
-    .mrp-val {
-      font-size: 11.5px;
-      color: #94a3b8;
-      text-decoration: line-through;
-      margin-top: 1px;
-    }
-    .save-pill {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--green);
-      background: var(--green-bg);
-      padding: 1px 5px;
-      border-radius: 4px;
-      display: inline-block;
-      margin-top: 2px;
-      white-space: nowrap;
-    }
-
-    .stock-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    .sla-pill {
+      font-family: var(--display);
       font-size: 11px;
       font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 12px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--ink);
       white-space: nowrap;
     }
-    .stock-in {
-      background: var(--green-bg);
-      color: var(--green);
+    .thumb {
+      height: 36px;
+      width: 36px;
+      object-fit: contain;
+      border-radius: 4px;
+      vertical-align: middle;
+      cursor: zoom-in;
+      background: #ffffff;
+      border: 1px solid var(--line);
     }
-    .stock-out {
-      background: var(--red-bg);
-      color: var(--red);
-    }
-
-    .map-btn {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 11.5px;
-      white-space: nowrap;
+    .thumb-fallback {
+      height: 36px;
+      width: 36px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
       display: inline-flex;
       align-items: center;
-      gap: 3px;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--stone);
+      vertical-align: middle;
     }
-    .map-btn:hover {
+
+    .view-btn {
+      border: 1.5px solid var(--line);
+      background: var(--card);
+      border-radius: 5px;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .view-btn:hover {
+      border-color: var(--fk-blue);
+      transform: scale(1.08);
+    }
+
+    #empty {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--stone);
+      font-family: var(--display);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(31, 27, 22, .55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-card {
+      background: var(--card);
+      border-radius: 4px;
+      width: 490px;
+      max-width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 60px rgba(31,27,22,.4);
+      position: relative;
+    }
+    .modal-card::before {
+      content: "";
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle, transparent 60%, var(--card) 61%);
+    }
+    .modal-head {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 20px 20px 16px;
+      border-bottom: 2px dashed var(--line);
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 2;
+    }
+    .modal-head img {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      object-fit: contain;
+      flex: none;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+    .modal-head .name {
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 14.5px;
+      line-height: 1.3;
+      flex: 1;
+    }
+    .modal-close {
+      cursor: pointer;
+      color: var(--stone);
+      font-size: 14px;
+      line-height: 1;
+      flex: none;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--paper);
+      user-select: none;
+    }
+    .modal-close:hover {
+      background: var(--line);
+      color: var(--ink);
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 16px 20px;
+    }
+    .modal-grid .full {
+      grid-column: 1 / -1;
+    }
+    .modal-field .k {
+      font-family: var(--display);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--stone);
+      margin-bottom: 3px;
+      border-left: 2px solid var(--fk-blue);
+      padding-left: 6px;
+    }
+    .modal-field .v {
+      font-size: 12.5px;
+      line-height: 1.45;
+      word-break: break-word;
+      padding-left: 8px;
+    }
+
+    .modal-section {
+      padding: 14px 20px 18px;
+      border-top: 2px dashed var(--line);
+    }
+    .modal-section .sec-title {
+      font-family: var(--display);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      border-left: 2px solid var(--fk-blue);
+      padding-left: 6px;
+    }
+    .modal-section .sec-sub {
+      font-size: 12px;
+      color: var(--stone);
+      margin: 5px 0 10px 8px;
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      margin-bottom: 4px;
+    }
+    .price-row .store {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .price-row .amount {
+      font-family: var(--display);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      flex: none;
+      white-space: nowrap;
+    }
+    .price-row.best {
+      background: var(--crate-tint);
+    }
+    .price-row.worst {
+      background: var(--brick-tint);
+    }
+    .price-row .amount.best {
+      color: var(--crate);
+    }
+    .price-row .amount.worst {
+      color: var(--brick);
+    }
+    .pill {
+      font-family: var(--display);
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      display: inline-block;
+      width: fit-content;
+      color: #fff;
+    }
+    .pill.best {
+      background: var(--crate);
+    }
+    .pill.worst {
+      background: var(--brick);
+    }
+    .price-row .soldout {
+      color: var(--stone);
+      font-size: 11px;
+    }
+
+    .price-compare {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .price-card {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      padding: 10px 12px;
+      border-radius: 4px;
+    }
+    .price-card.best {
+      background: var(--crate-tint);
+    }
+    .price-card.worst {
+      background: var(--brick-tint);
+    }
+    .price-card .pc-label {
+      font-size: 11.5px;
+      color: var(--stone);
+      margin-top: 3px;
+    }
+    .pc-amount-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+    }
+    .price-card .pc-amount {
+      font-family: var(--display);
+      font-size: 17px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .price-card .pc-amount.best {
+      color: var(--crate);
+    }
+    .price-card .pc-amount.worst {
+      color: var(--brick);
+    }
+    .save-tag {
+      font-family: var(--body);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: var(--crate);
+    }
+
+    .toggle-stores {
+      display: inline-block;
+      cursor: pointer;
+      color: var(--fk-blue);
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 11.5px;
+      margin: 6px 0 0 8px;
+      user-select: none;
+    }
+    .toggle-stores:hover {
+      color: var(--ink);
       text-decoration: underline;
     }
 
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-      font-size: 14px;
-      display: none;
-    }
-
-    @media (max-width: 768px) {
-      header { padding: 10px 14px; }
-      .controls-bar { padding: 10px 14px; top: 50px; }
-      .table-wrap { padding: 0 10px; }
-      .search-input { width: 100%; min-width: 100%; }
-      .select-control { flex: 1; }
+    @media (max-width: 800px) {
+      header { padding: 12px 14px; }
+      .toolbar { gap: 6px; }
+      #tableWrap { padding: 0 10px 14px; }
+      input#filter { width: 100%; }
+      select.filter-select { flex: 1; min-width: 120px; }
     }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="brand-wrap">
-      <div class="brand-logo">
-        <span>⚡ Flipkart Minutes Hunter</span>
-        <span class="brand-badge">LIVE RESULTS</span>
+    <div class="top-row">
+      <div class="title-row">
+        <span class="title-logo">⚡</span>
+        <span class="query-tag" id="titleTag">
+          <span class="q-mark">#</span><span id="queryLabel">Flipkart Minutes</span>
+        </span>
       </div>
-      <span class="query-tag" id="queryTag">Query: -</span>
+      <div id="metaCard"></div>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-primary" id="csvBtn" onclick="exportCSV()">⬇ Export CSV</button>
-      <button class="btn" id="jsonBtn" onclick="copyJSON()">📋 Copy JSON</button>
-      <button class="btn" onclick="window.print()">🖨️ Print</button>
+    <div class="toolbar">
+      <select id="filterStore" class="filter-select">
+        <option value="">All stores</option>
+      </select>
+      <select id="filterStock" class="filter-select">
+        <option value="">All stock</option>
+        <option value="In stock">In stock</option>
+        <option value="Sold out">Sold out</option>
+      </select>
+      <select id="sortSelect" class="filter-select">
+        <option value="price-asc">💵 Price: Low to High</option>
+        <option value="price-desc">💎 Price: High to Low</option>
+        <option value="sla-asc">⚡ SLA: Fastest First</option>
+        <option value="discount-desc">🔥 Highest Discount %</option>
+        <option value="title-asc">🔤 Product: A to Z</option>
+        <option value="store-asc">📍 Store: A to Z</option>
+      </select>
+      <input id="filter" type="text" placeholder="Search product, brand, store, pincode...">
+      <button id="filterVariation" class="tool-btn">Price varies by store</button>
+      <div class="spacer"></div>
+      <button id="download" class="tool-btn btn-primary">Download CSV</button>
+      <button id="copyJson" class="tool-btn">Copy JSON</button>
     </div>
   </header>
 
-  <div class="stats-ribbon">
-    <div class="stat-card">
-      <span class="stat-val" id="statItems">0</span>
-      <span class="stat-lbl">Matching Items</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-val" id="statStores">0</span>
-      <span class="stat-lbl">Dark Stores Found</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-val" id="statMinPrice">-</span>
-      <span class="stat-lbl">Lowest Price</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-val" id="statBestSla">-</span>
-      <span class="stat-lbl">Fastest Delivery</span>
-    </div>
-  </div>
+  <div id="tableWrap"></div>
 
-  <div class="controls-bar">
-    <input type="text" id="searchInput" class="search-input" placeholder="Search products, brand, locality, pincode..." oninput="onFilterChange()" />
-    <select id="localityFilter" class="select-control" onchange="onFilterChange()">
-      <option value="">All Localities</option>
-    </select>
-    <select id="stockFilter" class="select-control" onchange="onFilterChange()">
-      <option value="">All Stock</option>
-      <option value="IN_STOCK">In Stock Only</option>
-      <option value="OUT_OF_STOCK">Out of Stock</option>
-    </select>
-    <select id="sortSelect" class="select-control" onchange="onSortChange()">
-      <option value="price-asc">💵 Price: Low to High</option>
-      <option value="price-desc">💎 Price: High to Low</option>
-      <option value="sla-asc">⚡ SLA: Fastest First</option>
-      <option value="discount-desc">🔥 Highest Discount %</option>
-      <option value="savings-desc">💰 Highest Savings (₹)</option>
-      <option value="title-asc">🔤 Product Name: A to Z</option>
-      <option value="locality-asc">📍 Locality: A to Z</option>
-    </select>
-  </div>
+  <script id="app-script">
+    const tableWrap = document.getElementById('tableWrap');
+    const filterEl = document.getElementById('filter');
+    const storeSel = document.getElementById('filterStore');
+    const stockSel = document.getElementById('filterStock');
+    const sortSel = document.getElementById('sortSelect');
+    const variationBtn = document.getElementById('filterVariation');
 
-  <div class="table-wrap">
-    <table class="data-table" id="dataTable">
-      <thead>
-        <tr>
-          <th style="width: 36px;">#</th>
-          <th style="width: 54px;">Image</th>
-          <th onclick="setSort('locality')">Locality & Store</th>
-          <th onclick="setSort('sla')">SLA</th>
-          <th onclick="setSort('title')">Product Details</th>
-          <th onclick="setSort('price')">Price</th>
-          <th onclick="setSort('mrp')">MRP & Discount</th>
-          <th onclick="setSort('stock')">Stock</th>
-          <th>Location & Map</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-    <div id="emptyState" class="empty-state">
-      <p style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">No products found</p>
-      <p>Try adjusting your search query or filters.</p>
-    </div>
-  </div>
+    const COLUMN_ORDER = [
+      'locality',
+      'liveSla',
+      'title',
+      'brand',
+      'availability',
+      'mrp',
+      'price',
+      'discount',
+      'imageUrl',
+      'mapsUrl'
+    ];
 
-  <script<!-- CSP_NONCE_SCRIPT -->>
+    const COLUMN_LABELS = {
+      locality: 'Store / Locality',
+      liveSla: 'SLA',
+      title: 'Product',
+      brand: 'Brand',
+      availability: 'Stock',
+      mrp: 'MRP (₹)',
+      price: 'Price (₹)',
+      discount: 'Discount %',
+      imageUrl: 'Image',
+      mapsUrl: 'Map',
+      storeId: 'Store ID',
+      pincode: 'Pincode',
+      deliveryLocation: 'Store Address'
+    };
+
+    const DETAIL_COLS = ['locality', 'storeId', 'liveSla', 'pincode', 'brand', 'price', 'mrp', 'discount', 'availability', 'deliveryLocation'];
+    const DETAIL_FULL_WIDTH = new Set(['deliveryLocation']);
+    const NUMERIC_COLS = new Set(['mrp', 'price', 'discount']);
+    const NOWRAP_COLS = new Set(['liveSla', 'availability', 'imageUrl', 'mapsUrl']);
+
+    const label = c => COLUMN_LABELS[c] || c;
+
     let DATA = [];
+    let allRows = [];
+    let renderedRows = [];
     let currentQuery = '';
-    let sortColumn = 'price';
-    let sortAsc = true;
+    let sortCol = null, sortDir = 1; // 1 = asc, -1 = desc
+    let onlyVariation = false;
+    let cheapestByKey = new Map();
 
-    function esc(s) {
-      return String(s || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    const variantKey = r => ((r.title || '') + '__' + (r.brand || '')).trim().toLowerCase();
+
+    function normalizeRow(r) {
+      const avail = (r.availability === 'IN_STOCK' || r.availability === 'In stock') ? 'In stock' : 'Sold out';
+      return {
+        locality: r.locality || '-',
+        storeId: r.storeId || '-',
+        pincode: r.pincode || '-',
+        deliveryLocation: r.deliveryLocation || '',
+        mapsUrl: r.mapsUrl || '',
+        liveSla: r.liveSla || '-',
+        title: r.title || '-',
+        brand: r.brand || '',
+        imageUrl: r.imageUrl || '',
+        productUrl: r.productUrl || '#',
+        price: r.price != null ? Number(r.price) : null,
+        mrp: r.mrp != null ? Number(r.mrp) : null,
+        discount: r.discount != null ? Number(r.discount) : 0,
+        savings: r.savings != null ? Number(r.savings) : 0,
+        availability: avail
+      };
     }
 
     function parseSlaMinutes(sla) {
@@ -500,183 +696,272 @@
       return m ? parseInt(m[1], 10) : 999;
     }
 
-    function initData(items, query) {
-      DATA = items || [];
-      currentQuery = query || '';
-      if (document.getElementById('queryTag')) {
-        document.getElementById('queryTag').textContent = currentQuery ? `Query: "${currentQuery}"` : 'All Results';
+    function priceAcrossStores(row) {
+      const k = variantKey(row);
+      return allRows
+        .filter(r => variantKey(r) === k && r.availability === 'In stock' && r.price != null)
+        .map(r => ({ store: r.locality, price: r.price, stock: r.availability }))
+        .sort((a, b) => a.price - b.price);
+    }
+
+    function computeVariationKeys() {
+      const byKey = new Map();
+      for (const r of allRows) {
+        if (r.availability !== 'In stock' || r.price == null) continue;
+        const k = variantKey(r);
+        const price = r.price;
+        const e = byKey.get(k);
+        if (!e) byKey.set(k, { min: price, max: price, cheapest: r });
+        else {
+          e.min = Math.min(e.min, price);
+          e.max = Math.max(e.max, price);
+          if (price < (e.cheapest.price ?? 999999)) e.cheapest = r;
+        }
+      }
+      cheapestByKey = new Map([...byKey].filter(([, v]) => v.min !== v.max).map(([k, v]) => [k, v.cheapest]));
+      if (variationBtn) {
+        variationBtn.textContent = `Price varies by store (${cheapestByKey.size})`;
+      }
+    }
+
+    function buildPriceSection(prices) {
+      const min = prices[0].price, max = prices[prices.length - 1].price;
+      const toggle = `<span class="toggle-stores">Show all ${prices.length} stores</span>`;
+
+      if (min === max) {
+        return `<div class="modal-section"><div class="sec-title">Price across stores</div>` +
+          `<div class="price-row"><span class="store">${prices.length} stores have the same price</span>` +
+          `<span class="amount">₹${min}</span></div>${toggle}</div>`;
       }
 
-      // Populate locality filter
-      const locMap = {};
-      DATA.forEach(r => {
-        if (r.locality) locMap[r.locality] = (locMap[r.locality] || 0) + 1;
-      });
-      const locSelect = document.getElementById('localityFilter');
-      locSelect.innerHTML = '<option value="">All Localities (' + Object.keys(locMap).length + ')</option>';
-      Object.keys(locMap).sort().forEach(loc => {
-        locSelect.innerHTML += `<option value="${esc(loc)}">${esc(loc)} (${locMap[loc]})</option>`;
-      });
+      const cheapest = prices.filter(p => p.price === min);
+      const restCount = prices.length - cheapest.length;
+      const savings = Math.round(((max - min) / max) * 100);
+      const cheapestLabel = cheapest.length === 1 ? cheapest[0].store : `${cheapest.length} stores`;
 
-      render();
+      return `<div class="modal-section"><div class="sec-title">Price across stores</div>` +
+        `<div class="price-compare">` +
+        `<div class="price-card best">` +
+        `<span class="pill best">cheapest</span>` +
+        `<span class="pc-label">${cheapestLabel}</span>` +
+        `<span class="pc-amount-row">${savings > 0 ? `<span class="save-tag">save ${savings}%</span>` : ''}<span class="pc-amount best">₹${min}</span></span></div>` +
+        `<div class="price-card worst">` +
+        `<span class="pill worst">priciest</span>` +
+        `<span class="pc-label">${restCount} other store${restCount > 1 ? 's' : ''}</span>` +
+        `<span class="pc-amount worst">₹${max}</span></div>` +
+        `</div>${toggle}</div>`;
     }
 
-    function onFilterChange() {
-      render();
+    function openStoreListModal(prices) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      const rows = prices.map(p =>
+        `<div class="price-row"><span class="store">${p.store}${p.stock === 'Sold out' ? ' <span class="soldout">(sold out)</span>' : ''}</span>` +
+        `<span class="amount">₹${p.price}</span></div>`
+      ).join('');
+      modal.innerHTML =
+        `<div class="modal-card" style="width:360px;">` +
+        `<div class="modal-head"><div class="name">All ${prices.length} stores</div>` +
+        `<span class="modal-close">✕</span></div>` +
+        `<div class="modal-section" style="border-top:none;">${rows}</div></div>`;
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      document.body.appendChild(modal);
     }
 
-    function onSortChange() {
-      const val = document.getElementById('sortSelect').value;
-      if (val === 'price-asc') { sortColumn = 'price'; sortAsc = true; }
-      else if (val === 'price-desc') { sortColumn = 'price'; sortAsc = false; }
-      else if (val === 'sla-asc') { sortColumn = 'sla'; sortAsc = true; }
-      else if (val === 'discount-desc') { sortColumn = 'discount'; sortAsc = false; }
-      else if (val === 'savings-desc') { sortColumn = 'savings'; sortAsc = false; }
-      else if (val === 'title-asc') { sortColumn = 'title'; sortAsc = true; }
-      else if (val === 'locality-asc') { sortColumn = 'locality'; sortAsc = true; }
-      render();
-    }
+    function openDetail(row) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
 
-    function setSort(col) {
-      if (sortColumn === col) {
-        sortAsc = !sortAsc;
-      } else {
-        sortColumn = col;
-        sortAsc = true;
+      const fields = DETAIL_COLS.map(c => {
+        let val = row[c] ?? '-';
+        if (c === 'price' && val !== '-') val = `<b>₹${val}</b>`;
+        if (c === 'mrp' && val !== '-') val = `₹${val}`;
+        if (c === 'discount' && val) val = `${val}% OFF`;
+        if (c === 'deliveryLocation' && row.mapsUrl) {
+          val = `${val} <br><a href="${row.mapsUrl}" target="_blank" rel="noopener noreferrer" style="font-weight:700;display:inline-block;margin-top:4px;">📍 Open in Google Maps ↗</a>`;
+        }
+        return `<div class="modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}">` +
+          `<div class="k">${label(c)}</div><div class="v">${val}</div></div>`;
+      }).join('');
+
+      const prices = priceAcrossStores(row);
+      const priceSection = prices.length > 1 ? buildPriceSection(prices) : '';
+
+      const img = row.imageUrl
+        ? `<img src="${row.imageUrl}" alt="${row.title}" onerror="this.style.display='none'">`
+        : `<div style="width:48px;height:48px;border-radius:6px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;">⚡</div>`;
+
+      modal.innerHTML =
+        `<div class="modal-card">` +
+        `<div class="modal-head">${img}` +
+        `<div class="name"><a href="${row.productUrl}" target="_blank" rel="noopener noreferrer" class="prod-link" style="font-size:15px;">${row.title}</a></div>` +
+        `<span class="modal-close">✕</span></div>` +
+        `<div class="modal-grid">${fields}</div>` +
+        priceSection + `</div>`;
+
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      const toggleEl = modal.querySelector('.toggle-stores');
+      if (toggleEl) {
+        toggleEl.addEventListener('click', () => openStoreListModal(prices));
       }
-      render();
+      document.body.appendChild(modal);
     }
 
-    function render() {
-      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
-      const locFilter = document.getElementById('localityFilter').value;
-      const stockFilter = document.getElementById('stockFilter').value;
+    function openImage(src) {
+      if (!src) return;
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;' +
+        'align-items:center;justify-content:center;z-index:100;cursor:zoom-out;';
+      modal.innerHTML = `<img src="${src}" style="max-width:85vw;max-height:85vh;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,.5);background:#fff;padding:8px;">`;
+      modal.addEventListener('click', () => modal.remove());
+      document.body.appendChild(modal);
+    }
 
-      let filtered = DATA.filter(r => {
-        if (locFilter && r.locality !== locFilter) return false;
-        if (stockFilter && r.availability !== stockFilter) return false;
+    function cellValue(row, col) {
+      const v = row[col] ?? '';
+      if (col === 'imageUrl') {
+        return v
+          ? `<img src="${v}" loading="lazy" class="thumb" data-src="${v}" onerror="this.outerHTML='<span class=\\'thumb-fallback\\'>⚡</span>'">`
+          : `<span class="thumb-fallback">⚡</span>`;
+      }
+      if (col === 'title') {
+        const brand = row.brand ? `<div class="brand-tag">${row.brand}</div>` : '';
+        return `${brand}<a href="${row.productUrl}" target="_blank" rel="noopener noreferrer" class="prod-link">${v}</a>`;
+      }
+      if (col === 'liveSla') {
+        return `<span class="sla-pill">⚡ ${v}</span>`;
+      }
+      if (col === 'price') {
+        return v != null ? `₹${v}` : '-';
+      }
+      if (col === 'mrp') {
+        return (v && v > row.price) ? `₹${v}` : '-';
+      }
+      if (col === 'discount') {
+        return v > 0 ? `<span style="color:var(--crate);font-weight:700;">${v}%</span>` : '-';
+      }
+      if (col === 'mapsUrl') {
+        return v ? `<a href="${v}" target="_blank" rel="noopener noreferrer">📍 Map ↗</a>` : '-';
+      }
+      return String(v).replace(/</g, '&lt;');
+    }
+
+    function sortRows(rows) {
+      if (!sortCol) return rows;
+      const numeric = NUMERIC_COLS.has(sortCol);
+      return [...rows].sort((a, b) => {
+        let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+        if (sortCol === 'liveSla') {
+          av = parseSlaMinutes(av);
+          bv = parseSlaMinutes(bv);
+          return (av - bv) * sortDir;
+        }
+        const cmp = numeric ? ((Number(av) || 0) - (Number(bv) || 0)) : String(av).localeCompare(String(bv));
+        return cmp * sortDir;
+      });
+    }
+
+    function render(rows) {
+      rows = sortRows(rows);
+      renderedRows = rows;
+      if (!rows.length) {
+        tableWrap.innerHTML = '<div id="empty">No rows match your filter.</div>';
+        return;
+      }
+      const cols = COLUMN_ORDER.filter(c => c in rows[0]);
+      const head = '<thead><tr><th></th>' + cols.map(c => {
+        const arrow = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+        return `<th data-col="${c}">${label(c)}${arrow}</th>`;
+      }).join('') + '</tr></thead>';
+
+      const body = '<tbody>' + rows.map((r, i) => {
+        const trClass = r.availability === 'Sold out' ? 'sold-out' : 'in-stock';
+        return `<tr class="${trClass}"><td class="nowrap"><button data-idx="${i}" class="view-btn" title="View details">👁</button></td>` +
+          cols.map(c => {
+            const cls = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : ''].filter(Boolean).join(' ');
+            return `<td class="${cls}">${cellValue(r, c)}</td>`;
+          }).join('') + '</tr>';
+      }).join('') + '</tbody>';
+
+      tableWrap.innerHTML = `<table>${head}${body}</table>`;
+
+      tableWrap.querySelectorAll('th[data-col]').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col;
+          sortDir = sortCol === col ? -sortDir : 1;
+          sortCol = col;
+          applyFilter();
+        });
+      });
+
+      tableWrap.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', () => openDetail(renderedRows[Number(btn.dataset.idx)]));
+      });
+
+      tableWrap.querySelectorAll('.thumb').forEach(img => {
+        img.addEventListener('click', () => openImage(img.dataset.src));
+      });
+    }
+
+    function applyFilter() {
+      const q = filterEl.value.trim().toLowerCase();
+      const store = storeSel.value;
+      const stock = stockSel.value;
+      const base = onlyVariation ? [...cheapestByKey.values()] : allRows;
+
+      const filtered = base.filter(r => {
+        if (store && r.locality !== store) return false;
+        if (stock && r.availability !== stock) return false;
         if (!q) return true;
         return (
-          (r.title || '') + ' ' +
-          (r.brand || '') + ' ' +
-          (r.locality || '') + ' ' +
-          (r.pincode || '') + ' ' +
-          (r.storeId || '') + ' ' +
-          (r.deliveryLocation || '')
+          r.title + ' ' +
+          r.brand + ' ' +
+          r.locality + ' ' +
+          r.storeId + ' ' +
+          r.pincode + ' ' +
+          r.deliveryLocation
         ).toLowerCase().includes(q);
       });
 
-      filtered.sort((a, b) => {
-        let va, vb;
-        if (sortColumn === 'price') {
-          va = a.price ?? 999999;
-          vb = b.price ?? 999999;
-        } else if (sortColumn === 'sla') {
-          va = parseSlaMinutes(a.liveSla);
-          vb = parseSlaMinutes(b.liveSla);
-        } else if (sortColumn === 'discount') {
-          va = a.discount || 0;
-          vb = b.discount || 0;
-        } else if (sortColumn === 'savings') {
-          va = a.savings || 0;
-          vb = b.savings || 0;
-        } else if (sortColumn === 'locality') {
-          va = a.locality || '';
-          vb = b.locality || '';
-          return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-        } else {
-          va = a.title || '';
-          vb = b.title || '';
-          return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-        }
-        return sortAsc ? (va - vb) : (vb - va);
-      });
+      render(filtered);
+    }
 
-      // Update Ribbon Stats
-      const storesSet = new Set(filtered.map(r => r.storeId || r.locality));
-      const prices = filtered.map(r => r.price).filter(p => p != null);
+    function updateMetaRibbon() {
+      const storesSet = new Set(allRows.map(r => r.locality));
+      const prices = allRows.map(r => r.price).filter(p => p != null);
       const minPrice = prices.length ? Math.min(...prices) : null;
-      const slas = filtered.map(r => parseSlaMinutes(r.liveSla)).filter(s => s < 999);
-      const bestSla = slas.length ? Math.min(...slas) : null;
+      const slas = allRows.map(r => parseSlaMinutes(r.liveSla)).filter(s => s < 999);
+      const fastestSla = slas.length ? Math.min(...slas) : null;
 
-      document.getElementById('statItems').textContent = filtered.length;
-      document.getElementById('statStores').textContent = storesSet.size;
-      document.getElementById('statMinPrice').textContent = minPrice != null ? `₹${minPrice}` : '-';
-      document.getElementById('statBestSla').textContent = bestSla != null ? `⚡ ${bestSla}m` : '-';
+      const metaEl = document.getElementById('metaCard');
+      metaEl.innerHTML =
+        `<span class="stat"><b>${allRows.length}</b> rows</span>` +
+        `<span class="stat"><b>${storesSet.size}</b> stores</span>` +
+        (minPrice != null ? `<span class="stat">min <b>₹${minPrice}</b></span>` : '') +
+        (fastestSla != null ? `<span class="stat">fastest <b>⚡ ${fastestSla}m</b></span>` : '') +
+        `<span class="stat">${new Date().toLocaleTimeString()}</span>`;
+    }
 
-      const tbody = document.getElementById('tableBody');
-      const empty = document.getElementById('emptyState');
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-
-      let rowsHtml = '';
-      filtered.forEach((r, idx) => {
-        const title = esc(r.title);
-        const brand = esc(r.brand || '');
-        const pUrl = esc(r.productUrl || '#');
-        const price = r.price != null ? `₹${r.price}` : '-';
-        const mrp = (r.mrp && r.mrp > r.price) ? `₹${r.mrp}` : '';
-        const discountPill = r.discount > 0 ? `<div class="save-pill">${r.discount}% OFF (Save ₹${r.savings})</div>` : '';
-        const inStock = r.availability === 'IN_STOCK';
-        const stockBadge = inStock
-          ? '<span class="stock-badge stock-in">● In Stock</span>'
-          : '<span class="stock-badge stock-out">● Out of Stock</span>';
-        const img = r.imageUrl
-          ? `<img src="${esc(r.imageUrl)}" class="prod-img" alt="${title}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="prod-img-placeholder" style="display:none;">⚡</div>`
-          : '<div class="prod-img-placeholder">⚡</div>';
-
-        rowsHtml += `
-          <tr>
-            <td class="row-index">${idx + 1}</td>
-            <td>${img}</td>
-            <td>
-              <div class="locality-title">${esc(r.locality)}</div>
-              <span class="store-pill">${esc(r.storeId)}</span>
-            </td>
-            <td>
-              <span class="sla-badge">⚡ ${esc(r.liveSla || '-')}</span>
-            </td>
-            <td>
-              <div class="prod-cell">
-                <div class="prod-meta">
-                  ${brand ? `<span class="prod-brand">${brand}</span>` : ''}
-                  <a href="${pUrl}" target="_blank" rel="noopener noreferrer" class="prod-title" title="${title}">${title}</a>
-                </div>
-              </div>
-            </td>
-            <td>
-              <div class="price-val">${price}</div>
-            </td>
-            <td>
-              ${mrp ? `<div class="mrp-val">${mrp}</div>` : ''}
-              ${discountPill}
-            </td>
-            <td>${stockBadge}</td>
-            <td>
-              <div style="font-size: 11.5px; color: #475569; max-width: 200px; line-height: 1.3; margin-bottom: 2px;">
-                ${esc(r.deliveryLocation || '')}
-              </div>
-              ${r.mapsUrl ? `<a href="${esc(r.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="map-btn">📍 Map ↗</a>` : ''}
-            </td>
-          </tr>
-        `;
+    function fillStoreOptions() {
+      const stores = [...new Set(allRows.map(r => r.locality).filter(Boolean))].sort();
+      storeSel.innerHTML = '<option value="">All stores (' + stores.length + ')</option>';
+      stores.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        storeSel.appendChild(opt);
       });
-
-      tbody.innerHTML = rowsHtml;
     }
 
     function exportCSV() {
-      if (!DATA.length) return alert('No data to export.');
-      const headers = ['#', 'Store_ID', 'Locality', 'Pincode', 'SLA', 'Brand', 'Title', 'Price', 'MRP', 'Discount_Pct', 'Savings_INR', 'Stock', 'Product_URL', 'Delivery_Address', 'Google_Maps_URL'];
-      const rows = DATA.map((r, i) => [
+      if (!allRows.length) return alert('No data to download.');
+      const headers = ['#', 'Store_Locality', 'Store_ID', 'Pincode', 'SLA', 'Brand', 'Product_Title', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Savings_INR', 'Stock', 'Store_Address', 'Google_Maps_URL', 'Product_URL'];
+      const rows = allRows.map((r, i) => [
         i + 1,
-        `"${r.storeId || ''}"`,
         `"${(r.locality || '').replace(/"/g, '""')}"`,
+        `"${r.storeId || ''}"`,
         `"${r.pincode || ''}"`,
         `"${r.liveSla || ''}"`,
         `"${(r.brand || '').replace(/"/g, '""')}"`,
@@ -686,41 +971,79 @@
         r.discount || 0,
         r.savings || 0,
         `"${r.availability || ''}"`,
-        `"${r.productUrl || ''}"`,
         `"${(r.deliveryLocation || '').replace(/"/g, '""')}"`,
-        `"${r.mapsUrl || ''}"`
+        `"${r.mapsUrl || ''}"`,
+        `"${r.productUrl || ''}"`
       ]);
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `flipkart_minutes_${currentQuery || 'search'}_${Date.now()}.csv`;
+      a.download = `flipkart_minutes_${currentQuery || 'results'}_${Date.now()}.csv`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
     }
 
     function copyJSON() {
-      if (!DATA.length) return alert('No data to copy.');
-      navigator.clipboard.writeText(JSON.stringify(DATA, null, 2)).then(() => {
-        const btn = document.getElementById('jsonBtn');
+      if (!allRows.length) return alert('No data to copy.');
+      navigator.clipboard.writeText(JSON.stringify(allRows, null, 2)).then(() => {
+        const btn = document.getElementById('copyJson');
         const orig = btn.innerText;
         btn.innerText = '✓ Copied!';
         setTimeout(() => btn.innerText = orig, 1500);
       }).catch(e => alert('Failed to copy: ' + e));
     }
 
+    function initData(items, query) {
+      currentQuery = query || '';
+      if (document.getElementById('queryLabel')) {
+        document.getElementById('queryLabel').textContent = currentQuery ? currentQuery : 'Flipkart Minutes';
+      }
+      allRows = (items || []).map(normalizeRow);
+      updateMetaRibbon();
+      fillStoreOptions();
+      computeVariationKeys();
+      applyFilter();
+    }
+
+    // Controls listeners
+    filterEl.addEventListener('input', applyFilter);
+    storeSel.addEventListener('change', applyFilter);
+    stockSel.addEventListener('change', applyFilter);
+    sortSel.addEventListener('change', () => {
+      const v = sortSel.value;
+      if (v === 'price-asc') { sortCol = 'price'; sortDir = 1; }
+      else if (v === 'price-desc') { sortCol = 'price'; sortDir = -1; }
+      else if (v === 'sla-asc') { sortCol = 'liveSla'; sortDir = 1; }
+      else if (v === 'discount-desc') { sortCol = 'discount'; sortDir = -1; }
+      else if (v === 'title-asc') { sortCol = 'title'; sortDir = 1; }
+      else if (v === 'store-asc') { sortCol = 'locality'; sortDir = 1; }
+      applyFilter();
+    });
+
+    variationBtn.addEventListener('click', () => {
+      onlyVariation = !onlyVariation;
+      variationBtn.classList.toggle('active', onlyVariation);
+      applyFilter();
+    });
+
+    document.getElementById('download').addEventListener('click', exportCSV);
+    document.getElementById('copyJson').addEventListener('click', copyJSON);
+
     /* __DATA_INJECTION__ */
 
-    // Try reading from opener if opened via window.open
+    // Fallback: window.opener
     try {
-      if (!DATA.length && window.opener && window.opener.fkResults && window.opener.fkResults.length) {
+      if (!allRows.length && window.opener && window.opener.fkResults && window.opener.fkResults.length) {
         const q = window.opener.document?.getElementById('fk-h-query')?.value?.trim() || '';
         initData(window.opener.fkResults, q);
       }
     } catch(e) {}
 
-    // Try reading hash if loaded as URL
+    // Fallback: URL hash
     try {
-      if (!DATA.length && location.hash && location.hash.length > 2) {
+      if (!allRows.length && location.hash && location.hash.length > 2) {
         const raw = decodeURIComponent(location.hash.slice(1));
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) initData(parsed, '');
