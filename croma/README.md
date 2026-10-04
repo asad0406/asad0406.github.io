@@ -1,6 +1,6 @@
 # ⚡ Croma Mumbai Hunter — Bookmarklet & Pincode Scanner
 
-Search any product across **86+ Mumbai & MMR Pincodes** directly on [Croma.com](https://www.croma.com) with real-time store fulfillment, carrier details, and delivery ETAs.
+Check one product by SKU or Croma product URL across **86+ Mumbai & MMR Pincodes** directly on [Croma.com](https://www.croma.com), with live store fulfillment, carrier details, and delivery ETAs.
 
 ---
 
@@ -11,8 +11,8 @@ Search any product across **86+ Mumbai & MMR Pincodes** directly on [Croma.com](
 - **🖼️ Hero Product Showcase:** Clean thumbnail preview, title, price, SKU badge, and delivery SLA selector.
 - **🟢 Pulsating Status Badges:** Live green status indicators for in-stock stores and human-readable delivery ETAs (e.g. `Oct 5, 1:00 PM (Express)`).
 - **🍞 Non-Intrusive Toast Notifications:** Elegant floating toast banners instead of intrusive browser alerts.
-- **🔎 Pure On-Demand Search:** Does NOT lock onto or auto-detect whatever page is open. Only searches for whatever product title or 6-digit SKU you type.
-- **📊 Complete Product Details on Export:** Exports full CSV and Clipboard reports including SKU, Name, Price, Product URL, Delivery Mode, Pincode, Area, Zone, Store Code, Store Name, Carrier, and Delivery ETA.
+- **🔎 Single-Product Scan:** Enter one 5–7 digit SKU or paste a Croma product URL. On a Croma product page, the SKU is detected automatically.
+- **📊 Complete Product Details on Export:** Exports CSV and clipboard reports with SKU, name, price, product URL, delivery mode, pincode, area, zone, store, carrier, and ETA.
 - **📍 86+ Mumbai & MMR Pincodes:** Comprehensive coverage across South Mumbai, Western Suburbs, Central & Eastern Suburbs, Thane, and Navi Mumbai.
 
 ---
