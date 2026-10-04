@@ -670,15 +670,7 @@
 
     function normalizeRow(r) {
       const avail = (r.stock === 'In stock' || r.inStock === true || r.availability === 'IN_STOCK') ? 'In stock' : 'Sold out';
-      let title = r.name || r.title || r.titles?.title || '-';
-      const sub = (r.quantity || r.subtitle || r.titles?.subtitle || '').trim();
-      if (sub && title !== '-') {
-        const tNorm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const subNorm = sub.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (subNorm && !tNorm.includes(subNorm)) {
-          title = sub.startsWith('(') && sub.endsWith(')') ? `${title} ${sub}` : `${title} (${sub})`;
-        }
-      }
+      const title = (r.name || r.title || r.titles?.title || '-').trim();
 
       return {
         store_locality: r.store_locality || r.locality || '-',

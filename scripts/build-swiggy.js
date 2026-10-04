@@ -259,13 +259,8 @@ function generateHunterCode(stores, tableHtml) {
         if (seen.has(key)) continue;
         seen.add(key);
 
-        // Product Title formatting as requested: include quantity like product page
         const rawName = (v.displayName || d.displayName || '').trim();
         const qty = (v.quantityDescription || '').trim();
-        let fullName = rawName;
-        if (qty && !rawName.toLowerCase().includes(qty.toLowerCase())) {
-          fullName = \`\${rawName} (\${qty})\`;
-        }
 
         const row = {
           store_id: podId || '',
@@ -273,7 +268,7 @@ function generateHunterCode(stores, tableHtml) {
           store_address: resolvedAddr,
           store_pincode: resolvedPin,
           maps_url: maps,
-          name: fullName,
+          name: rawName,
           brand: v.brandName || d.brand || '',
           quantity: qty,
           stock: inStock ? 'In stock' : 'Sold out',
