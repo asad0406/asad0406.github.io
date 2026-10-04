@@ -548,46 +548,57 @@ const FK_HEADERS = {
           return products;
         }
 
-        const MAX_PAGES = 20;          // hard safety cap
-        const seenUrls = new Set();    // dedup tracker — detects API looping same page
-        let nextPageContext = null;
+        const MAX_PAGES = 30;          // hard safety cap
+        const seenUrls = new Set();    // dedup tracker
+        let paginationContextMap = null;
+        let hasMorePages = true;
         let pageNum = 1;
         let storeAdded = false;
         let liveSla = 'Paused';
 
-        while (!abortScan && pageNum <= MAX_PAGES) {
-          const pageUri = '/search?q=' + encodeURIComponent(query) +
-            '&marketplace=HYPERLOCAL' +
-            (pageNum > 1 ? '&page=' + pageNum : '');
+        while (!abortScan && pageNum <= MAX_PAGES && hasMorePages) {
+          const pageUri = '/search?q=' + encodeURIComponent(query) + '&marketplace=HYPERLOCAL';
 
-          const fetchBody = {
-            pageUri,
-            pageContext: nextPageContext || { fetchSeoData: true, networkSpeed: 10000 },
-            requestContext: { type: 'BROWSE_PAGE' }
-          };
+          const pageContext = pageNum === 1
+            ? { fetchSeoData: true, networkSpeed: 10000 }
+            : {
+                paginationContextMap,
+                paginatedFetch: true,
+                pageNumber: pageNum,
+                infinitePage: true,
+                fetchAllPages: false,
+                fetchSeoData: false,
+                networkSpeed: 10000
+              };
 
           const pageRes = await fetch(`${currentHost}/api/4/page/fetch?cacheFirst=false`, {
             method: 'POST',
             credentials: 'include',
             headers: FK_HEADERS,
-            body: JSON.stringify(fetchBody)
+            body: JSON.stringify({
+              pageUri,
+              pageContext,
+              requestContext: { type: 'BROWSE_PAGE' }
+            })
           });
 
           if (pageRes.status !== 200) break;
 
           const pJson = await pageRes.json();
-          const meta = pJson.RESPONSE?.pageData?.trackingContext?.meta || {};
+          const pageData = pJson.RESPONSE?.pageData || {};
+          const meta = pageData.trackingContext?.meta || {};
           const slots = pJson.RESPONSE?.slots || [];
           const rawSla = meta.slaInSec;
           liveSla = rawSla ? `${Math.round(rawSla / 60)}m` : liveSla;
 
-          // Capture nextPageContext; if absent, this is the last page
-          nextPageContext = pJson.RESPONSE?.pageData?.pageContext || null;
+          // Capture pagination tokens
+          paginationContextMap = pageData.paginationContextMap || null;
+          hasMorePages = pageData.hasMorePages ?? false;
 
           const products = extractProducts(slots);
           if (products.length === 0) break; // API returned empty page — done
 
-          // Count truly new products on this page — stop if API is looping same results
+          // Count truly new products on this page — stop if duplicate
           let newOnPage = 0;
           for (const p of products) {
             const val = p.productInfo?.value || {};
@@ -597,7 +608,7 @@ const FK_HEADERS = {
 
             // Build a dedup key from URL or title+price
             const dedupKey = val.smartUrl || val.baseUrl || (title + '|' + (price ?? ''));
-            if (seenUrls.has(dedupKey)) continue; // already seen — API is looping
+            if (seenUrls.has(dedupKey)) continue;
             seenUrls.add(dedupKey);
             newOnPage++;
 
@@ -634,11 +645,11 @@ const FK_HEADERS = {
             tableBody.appendChild(row);
           }
 
-          // If every product on this page was already seen, the API is looping — stop
+          // If every product on this page was already seen, stop
           if (newOnPage === 0) break;
 
-          // Also stop if the API gave no nextPageContext (signals last page)
-          if (!nextPageContext) break;
+          // If no pagination map exists for subsequent pages, stop
+          if (!paginationContextMap && pageNum > 1) break;
 
           // Update counters live after each page
           document.getElementById('fk-sum-stores').textContent = storesWithItems + (storeAdded ? 1 : 0);
@@ -648,7 +659,7 @@ const FK_HEADERS = {
           statusEl.firstElementChild.textContent = `[${i + 1}/${targetStores.length}] ${loc} — page ${pageNum}...`;
 
           pageNum++;
-          if (!abortScan) {
+          if (!abortScan && hasMorePages) {
             await new Promise(r => setTimeout(r, 200)); // small delay between pages
           }
         }
