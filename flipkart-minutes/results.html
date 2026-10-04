@@ -1,118 +1,722 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minutes Hunter Results</title>
-<style>
-  :root { --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #64748b; --line: #e2e8f0; --blue: #2874f0; --green: #059669; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --line: #334155; }
-  }
-  :root[data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --line: #334155; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
-  main { max-width: 960px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 20px; margin: 8px 0 12px; }
-  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-  input, select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
-  input { flex: 1; min-width: 180px; }
-  .stats { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
-  .wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
-  th { font-size: 12px; text-transform: uppercase; color: var(--muted); cursor: pointer; user-select: none; }
-  td.price { font-weight: 700; }
-  .in { color: var(--green); font-weight: 700; }
-  .out { color: #dc2626; font-weight: 700; }
-  .empty { padding: 24px; text-align: center; color: var(--muted); }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>⚡ Flipkart Minutes Hunter — Search Results</title>
+  <style>
+    :root {
+      --primary: #2874f0;
+      --primary-dark: #1a5ac9;
+      --fk-yellow: #ffe500;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --green: #16a34a;
+      --green-bg: #ecfdf5;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding-bottom: 60px;
+    }
+
+    /* Sticky Top Header */
+    header {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .brand-logo {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-badge {
+      background: var(--fk-yellow);
+      color: #713f12;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .query-tag {
+      background: #eff6ff;
+      color: var(--primary);
+      border: 1px solid #bfdbfe;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 14px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--border-dark);
+      background: #ffffff;
+      color: #334155;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      border-color: var(--primary-dark);
+    }
+
+    /* Stats Ribbon */
+    .stats-ribbon {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      padding: 14px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .stat-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .stat-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      position: sticky;
+      top: 57px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      border-top: 1px solid var(--border);
+      padding: 10px 24px;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .search-input {
+      flex: 2;
+      min-width: 240px;
+      padding: 8px 12px 8px 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border-dark);
+      font-size: 13px;
+      outline: none;
+      background: #ffffff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 10px center;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+    .select-control {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-dark);
+      font-size: 12.5px;
+      color: #1e293b;
+      background: #ffffff;
+      cursor: pointer;
+      outline: none;
+    }
+    .select-control:focus {
+      border-color: var(--primary);
+    }
+
+    /* Table Container */
+    .table-wrap {
+      max-width: 1600px;
+      margin: 16px auto;
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .data-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .data-table th:hover {
+      background: #f1f5f9;
+      color: var(--primary);
+    }
+    .data-table th.sorted-asc::after {
+      content: ' ↑';
+      color: var(--primary);
+    }
+    .data-table th.sorted-desc::after {
+      content: ' ↓';
+      color: var(--primary);
+    }
+    .data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      color: #1e293b;
+    }
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    .data-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* Table Cell Specifics */
+    .row-index {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 11.5px;
+      width: 32px;
+    }
+    .prod-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 460px;
+    }
+    .prod-img {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .prod-img-placeholder {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #94a3b8;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .prod-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .prod-title {
+      font-weight: 600;
+      color: #0f172a;
+      text-decoration: none;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .prod-title:hover {
+      color: var(--primary);
+    }
+    .prod-brand {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .locality-title {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 13px;
+    }
+    .store-pill {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 10px;
+      background: #f1f5f9;
+      color: #475569;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    .sla-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #fef08a;
+      color: #854d0e;
+      font-weight: 800;
+      font-size: 11.5px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    .price-val {
+      font-weight: 800;
+      font-size: 14.5px;
+      color: #0f172a;
+      white-space: nowrap;
+    }
+    .mrp-val {
+      font-size: 11.5px;
+      color: #94a3b8;
+      text-decoration: line-through;
+      margin-top: 1px;
+    }
+    .save-pill {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--green);
+      background: var(--green-bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    .stock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+    .stock-in {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+    .stock-out {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .map-btn {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 11.5px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .map-btn:hover {
+      text-decoration: underline;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      header { padding: 10px 14px; }
+      .controls-bar { padding: 10px 14px; top: 50px; }
+      .table-wrap { padding: 0 10px; }
+      .search-input { width: 100%; min-width: 100%; }
+      .select-control { flex: 1; }
+    }
+  </style>
 </head>
 <body>
-<main>
-  <h1>⚡ Minutes Hunter Results</h1>
-  <div class="bar">
-    <input id="filter" type="search" placeholder="Filter by product or locality...">
-    <select id="stock">
-      <option value="all">All stock</option>
-      <option value="IN_STOCK">In stock only</option>
+
+  <header>
+    <div class="brand-wrap">
+      <div class="brand-logo">
+        <span>⚡ Flipkart Minutes Hunter</span>
+        <span class="brand-badge">LIVE RESULTS</span>
+      </div>
+      <span class="query-tag" id="queryTag">Query: -</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" id="csvBtn" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn" id="jsonBtn" onclick="copyJSON()">📋 Copy JSON</button>
+      <button class="btn" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </header>
+
+  <div class="stats-ribbon">
+    <div class="stat-card">
+      <span class="stat-val" id="statItems">0</span>
+      <span class="stat-lbl">Matching Items</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="statStores">0</span>
+      <span class="stat-lbl">Dark Stores Found</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="statMinPrice">-</span>
+      <span class="stat-lbl">Lowest Price</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="statBestSla">-</span>
+      <span class="stat-lbl">Fastest Delivery</span>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <input type="text" id="searchInput" class="search-input" placeholder="Search products, brand, locality, pincode..." oninput="onFilterChange()" />
+    <select id="localityFilter" class="select-control" onchange="onFilterChange()">
+      <option value="">All Localities</option>
+    </select>
+    <select id="stockFilter" class="select-control" onchange="onFilterChange()">
+      <option value="">All Stock</option>
+      <option value="IN_STOCK">In Stock Only</option>
+      <option value="OUT_OF_STOCK">Out of Stock</option>
+    </select>
+    <select id="sortSelect" class="select-control" onchange="onSortChange()">
+      <option value="price-asc">💵 Price: Low to High</option>
+      <option value="price-desc">💎 Price: High to Low</option>
+      <option value="sla-asc">⚡ SLA: Fastest First</option>
+      <option value="discount-desc">🔥 Highest Discount %</option>
+      <option value="savings-desc">💰 Highest Savings (₹)</option>
+      <option value="title-asc">🔤 Product Name: A to Z</option>
+      <option value="locality-asc">📍 Locality: A to Z</option>
     </select>
   </div>
-  <div class="stats" id="stats">Waiting for results. Run a scan in the Minutes Hunter, then click 🌐 View Page.</div>
-  <div class="wrap">
-    <table>
+
+  <div class="table-wrap">
+    <table class="data-table" id="dataTable">
       <thead>
         <tr>
-          <th data-key="storeId">Store ID</th>
-          <th data-key="locality">Locality</th>
-          <th data-key="deliveryLocation">Delivery Location</th>
-          <th data-key="mapsUrl">Map</th>
-          <th data-key="liveSla">SLA</th>
-          <th data-key="title">Product</th>
-          <th data-key="price">Price</th>
-          <th data-key="availability">Stock</th>
-          <th data-key="productUrl">Link</th>
+          <th style="width: 36px;">#</th>
+          <th style="width: 54px;">Image</th>
+          <th onclick="setSort('locality')">Locality & Store</th>
+          <th onclick="setSort('sla')">SLA</th>
+          <th onclick="setSort('title')">Product Details</th>
+          <th onclick="setSort('price')">Price</th>
+          <th onclick="setSort('mrp')">MRP & Discount</th>
+          <th onclick="setSort('stock')">Stock</th>
+          <th>Location & Map</th>
         </tr>
       </thead>
-      <tbody id="rows"></tbody>
+      <tbody id="tableBody"></tbody>
     </table>
-    <div class="empty" id="empty" hidden>No matching items.</div>
+    <div id="emptyState" class="empty-state">
+      <p style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">No products found</p>
+      <p>Try adjusting your search query or filters.</p>
+    </div>
   </div>
-</main>
-<script>
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let data = [];
-  let sortKey = 'price', sortDir = 1;
 
-  try {
-    const hash = location.hash.slice(1);
-    data = hash ? JSON.parse(decodeURIComponent(hash)) : [];
-  } catch (e) {
-    data = [];
-  }
+  <script>
+    let DATA = [];
+    let currentQuery = '';
+    let sortColumn = 'price';
+    let sortAsc = true;
 
-  function render() {
-    const q = document.getElementById('filter').value.trim().toLowerCase();
-    const stock = document.getElementById('stock').value;
-    let rows = data.filter(r =>
-      (stock === 'all' || r.availability === stock) &&
-      (!q || `${r.title} ${r.locality}`.toLowerCase().includes(q))
-    );
-    rows.sort((a, b) => {
-      const av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
-      return (av > bv ? 1 : av < bv ? -1 : 0) * sortDir;
-    });
+    function esc(s) {
+      return String(s || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
 
-    document.getElementById('rows').innerHTML = rows.map(r => `
-      <tr>
-        <td>${esc(r.storeId)}</td>
-        <td>${esc(r.locality)}</td>
-        <td>${esc(r.deliveryLocation)}</td>
-        <td>${r.mapsUrl ? `<a href="${esc(r.mapsUrl)}" target="_blank" rel="noopener">Map</a>` : '-'}</td>
-        <td>⚡ ${esc(r.liveSla)}</td>
-        <td>${esc(r.title)}</td>
-        <td class="price">${r.price ? '₹' + esc(r.price) : '-'}</td>
-        <td class="${r.availability === 'IN_STOCK' ? 'in' : 'out'}">${r.availability === 'IN_STOCK' ? 'In Stock' : 'Out'}</td>
-        <td>${r.productUrl ? `<a href="${esc(r.productUrl)}" target="_blank" rel="noopener">Open</a>` : '-'}</td>
-      </tr>`).join('');
-    document.getElementById('empty').hidden = rows.length > 0;
+    function parseSlaMinutes(sla) {
+      if (!sla) return 999;
+      const m = String(sla).match(/(\d+)\s*m/i);
+      return m ? parseInt(m[1], 10) : 999;
+    }
 
-    const stores = new Set(data.map(r => r.locality)).size;
-    const prices = data.map(r => r.price).filter(Boolean);
-    const min = prices.length ? Math.min(...prices) : null;
-    document.getElementById('stats').textContent = data.length
-      ? `${rows.length} of ${data.length} items · ${stores} stores · min ₹${min}`
-      : 'Waiting for results. Run a scan in the Minutes Hunter, then click 🌐 View Page.';
-  }
+    function initData(items, query) {
+      DATA = items || [];
+      currentQuery = query || '';
+      if (document.getElementById('queryTag')) {
+        document.getElementById('queryTag').textContent = currentQuery ? `Query: "${currentQuery}"` : 'All Results';
+      }
 
-  document.getElementById('filter').addEventListener('input', render);
-  document.getElementById('stock').addEventListener('change', render);
-  document.querySelectorAll('th[data-key]').forEach(th => th.addEventListener('click', () => {
-    const k = th.dataset.key;
-    sortDir = sortKey === k ? -sortDir : 1;
-    sortKey = k;
-    render();
-  }));
-  render();
-</script>
+      // Populate locality filter
+      const locMap = {};
+      DATA.forEach(r => {
+        if (r.locality) locMap[r.locality] = (locMap[r.locality] || 0) + 1;
+      });
+      const locSelect = document.getElementById('localityFilter');
+      locSelect.innerHTML = '<option value="">All Localities (' + Object.keys(locMap).length + ')</option>';
+      Object.keys(locMap).sort().forEach(loc => {
+        locSelect.innerHTML += `<option value="${esc(loc)}">${esc(loc)} (${locMap[loc]})</option>`;
+      });
+
+      render();
+    }
+
+    function onFilterChange() {
+      render();
+    }
+
+    function onSortChange() {
+      const val = document.getElementById('sortSelect').value;
+      if (val === 'price-asc') { sortColumn = 'price'; sortAsc = true; }
+      else if (val === 'price-desc') { sortColumn = 'price'; sortAsc = false; }
+      else if (val === 'sla-asc') { sortColumn = 'sla'; sortAsc = true; }
+      else if (val === 'discount-desc') { sortColumn = 'discount'; sortAsc = false; }
+      else if (val === 'savings-desc') { sortColumn = 'savings'; sortAsc = false; }
+      else if (val === 'title-asc') { sortColumn = 'title'; sortAsc = true; }
+      else if (val === 'locality-asc') { sortColumn = 'locality'; sortAsc = true; }
+      render();
+    }
+
+    function setSort(col) {
+      if (sortColumn === col) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = col;
+        sortAsc = true;
+      }
+      render();
+    }
+
+    function render() {
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const locFilter = document.getElementById('localityFilter').value;
+      const stockFilter = document.getElementById('stockFilter').value;
+
+      let filtered = DATA.filter(r => {
+        if (locFilter && r.locality !== locFilter) return false;
+        if (stockFilter && r.availability !== stockFilter) return false;
+        if (!q) return true;
+        return (
+          (r.title || '') + ' ' +
+          (r.brand || '') + ' ' +
+          (r.locality || '') + ' ' +
+          (r.pincode || '') + ' ' +
+          (r.storeId || '') + ' ' +
+          (r.deliveryLocation || '')
+        ).toLowerCase().includes(q);
+      });
+
+      filtered.sort((a, b) => {
+        let va, vb;
+        if (sortColumn === 'price') {
+          va = a.price ?? 999999;
+          vb = b.price ?? 999999;
+        } else if (sortColumn === 'sla') {
+          va = parseSlaMinutes(a.liveSla);
+          vb = parseSlaMinutes(b.liveSla);
+        } else if (sortColumn === 'discount') {
+          va = a.discount || 0;
+          vb = b.discount || 0;
+        } else if (sortColumn === 'savings') {
+          va = a.savings || 0;
+          vb = b.savings || 0;
+        } else if (sortColumn === 'locality') {
+          va = a.locality || '';
+          vb = b.locality || '';
+          return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        } else {
+          va = a.title || '';
+          vb = b.title || '';
+          return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        return sortAsc ? (va - vb) : (vb - va);
+      });
+
+      // Update Ribbon Stats
+      const storesSet = new Set(filtered.map(r => r.storeId || r.locality));
+      const prices = filtered.map(r => r.price).filter(p => p != null);
+      const minPrice = prices.length ? Math.min(...prices) : null;
+      const slas = filtered.map(r => parseSlaMinutes(r.liveSla)).filter(s => s < 999);
+      const bestSla = slas.length ? Math.min(...slas) : null;
+
+      document.getElementById('statItems').textContent = filtered.length;
+      document.getElementById('statStores').textContent = storesSet.size;
+      document.getElementById('statMinPrice').textContent = minPrice != null ? `₹${minPrice}` : '-';
+      document.getElementById('statBestSla').textContent = bestSla != null ? `⚡ ${bestSla}m` : '-';
+
+      const tbody = document.getElementById('tableBody');
+      const empty = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      let rowsHtml = '';
+      filtered.forEach((r, idx) => {
+        const title = esc(r.title);
+        const brand = esc(r.brand || '');
+        const pUrl = esc(r.productUrl || '#');
+        const price = r.price != null ? `₹${r.price}` : '-';
+        const mrp = (r.mrp && r.mrp > r.price) ? `₹${r.mrp}` : '';
+        const discountPill = r.discount > 0 ? `<div class="save-pill">${r.discount}% OFF (Save ₹${r.savings})</div>` : '';
+        const inStock = r.availability === 'IN_STOCK';
+        const stockBadge = inStock
+          ? '<span class="stock-badge stock-in">● In Stock</span>'
+          : '<span class="stock-badge stock-out">● Out of Stock</span>';
+        const img = r.imageUrl
+          ? `<img src="${esc(r.imageUrl)}" class="prod-img" alt="${title}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="prod-img-placeholder" style="display:none;">⚡</div>`
+          : '<div class="prod-img-placeholder">⚡</div>';
+
+        rowsHtml += `
+          <tr>
+            <td class="row-index">${idx + 1}</td>
+            <td>${img}</td>
+            <td>
+              <div class="locality-title">${esc(r.locality)}</div>
+              <span class="store-pill">${esc(r.storeId)}</span>
+            </td>
+            <td>
+              <span class="sla-badge">⚡ ${esc(r.liveSla || '-')}</span>
+            </td>
+            <td>
+              <div class="prod-cell">
+                <div class="prod-meta">
+                  ${brand ? `<span class="prod-brand">${brand}</span>` : ''}
+                  <a href="${pUrl}" target="_blank" rel="noopener noreferrer" class="prod-title" title="${title}">${title}</a>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="price-val">${price}</div>
+            </td>
+            <td>
+              ${mrp ? `<div class="mrp-val">${mrp}</div>` : ''}
+              ${discountPill}
+            </td>
+            <td>${stockBadge}</td>
+            <td>
+              <div style="font-size: 11.5px; color: #475569; max-width: 200px; line-height: 1.3; margin-bottom: 2px;">
+                ${esc(r.deliveryLocation || '')}
+              </div>
+              ${r.mapsUrl ? `<a href="${esc(r.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="map-btn">📍 Map ↗</a>` : ''}
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = rowsHtml;
+    }
+
+    function exportCSV() {
+      if (!DATA.length) return alert('No data to export.');
+      const headers = ['#', 'Store_ID', 'Locality', 'Pincode', 'SLA', 'Brand', 'Title', 'Price', 'MRP', 'Discount_Pct', 'Savings_INR', 'Stock', 'Product_URL', 'Delivery_Address', 'Google_Maps_URL'];
+      const rows = DATA.map((r, i) => [
+        i + 1,
+        `"${r.storeId || ''}"`,
+        `"${(r.locality || '').replace(/"/g, '""')}"`,
+        `"${r.pincode || ''}"`,
+        `"${r.liveSla || ''}"`,
+        `"${(r.brand || '').replace(/"/g, '""')}"`,
+        `"${(r.title || '').replace(/"/g, '""')}"`,
+        r.price ?? '',
+        r.mrp ?? '',
+        r.discount || 0,
+        r.savings || 0,
+        `"${r.availability || ''}"`,
+        `"${r.productUrl || ''}"`,
+        `"${(r.deliveryLocation || '').replace(/"/g, '""')}"`,
+        `"${r.mapsUrl || ''}"`
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `flipkart_minutes_${currentQuery || 'search'}_${Date.now()}.csv`;
+      a.click();
+    }
+
+    function copyJSON() {
+      if (!DATA.length) return alert('No data to copy.');
+      navigator.clipboard.writeText(JSON.stringify(DATA, null, 2)).then(() => {
+        const btn = document.getElementById('jsonBtn');
+        const orig = btn.innerText;
+        btn.innerText = '✓ Copied!';
+        setTimeout(() => btn.innerText = orig, 1500);
+      }).catch(e => alert('Failed to copy: ' + e));
+    }
+
+    // Try reading hash if loaded as URL
+    try {
+      if (location.hash && location.hash.length > 2) {
+        const raw = decodeURIComponent(location.hash.slice(1));
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) initData(parsed, '');
+        else if (parsed.items) initData(parsed.items, parsed.query || '');
+      }
+    } catch(e) {}
+  </script>
 </body>
 </html>
