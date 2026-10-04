@@ -169,57 +169,57 @@
     }
   }
 
-  // Catalog search with pagination support
-  async function searchCatalog(query, page = 0) {
-    const url = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(query)}:relevance&channelCode=400001&channel=WEB&currentPage=${page}&pageSize=21&fields=FULL`;
-    const res = await fetch(url, { headers: API_HEADERS });
+  // Catalog search fetching ALL matching products across all pagination pages concurrently
+  async function searchCatalogAll(query) {
+    const page0Url = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(query)}:relevance&channelCode=400001&channel=WEB&currentPage=0&pageSize=21&fields=FULL`;
+    const res = await fetch(page0Url, { headers: API_HEADERS });
     if (!res.ok) throw new Error(`Search error ${res.status}`);
-    const data = await res.json();
+    const data0 = await res.json();
+    const rawProds = [...(data0.products || [])];
+    const totalPages = data0.pagination?.totalPages || 1;
+    const totalResults = data0.pagination?.totalResults || rawProds.length;
+
+    if (totalPages > 1) {
+      // Parallel fetch all remaining pages up to 35 pages (~735 products)
+      const maxPages = Math.min(totalPages, 35);
+      const remainingPromises = [];
+      for (let p = 1; p < maxPages; p++) {
+        const pageUrl = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(query)}:relevance&channelCode=400001&channel=WEB&currentPage=${p}&pageSize=21&fields=FULL`;
+        remainingPromises.push(
+          fetch(pageUrl, { headers: API_HEADERS })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => d?.products || [])
+            .catch(() => [])
+        );
+      }
+      const otherPagesProducts = await Promise.all(remainingPromises);
+      for (const prods of otherPagesProducts) {
+        rawProds.push(...prods);
+      }
+    }
+
+    // Deduplicate products by SKU (code)
+    const seen = new Set();
+    const unique = [];
+    for (const p of rawProds) {
+      const sku = String(p.code);
+      if (sku && !seen.has(sku)) {
+        seen.add(sku);
+        unique.push(p);
+      }
+    }
+
     return {
-      products: data.products || [],
-      pagination: data.pagination || { currentPage: page, totalPages: 1, totalResults: (data.products || []).length }
+      products: unique,
+      totalResults: unique.length || totalResults,
+      totalPages
     };
   }
 
   // Multi-product batch SLA query checking both SDEL (Store Express) and HDEL (Warehouse) simultaneously
+  // Safely chunks into batches of 25 products (50 lines) to avoid Croma OMS payload limits
   async function checkBatchSLA(products, pincode) {
     if (!products || !products.length || !pincode) return {};
-
-    const promiseLine = [];
-    let lineId = 1;
-    for (const p of products) {
-      const sku = String(p.code);
-      promiseLine.push({
-        fulfillmentType: "SDEL",
-        itemID: sku,
-        lineId: String(lineId++),
-        reqEndDate: "2500-01-01",
-        reqStartDate: "",
-        requiredQty: "1",
-        shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
-        extn: { widerStoreFlag: "N" }
-      });
-      promiseLine.push({
-        fulfillmentType: "HDEL",
-        itemID: sku,
-        lineId: String(lineId++),
-        reqEndDate: "2500-01-01",
-        reqStartDate: "",
-        requiredQty: "1",
-        shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
-        extn: { widerStoreFlag: "N" }
-      });
-    }
-
-    const payload = {
-      promise: {
-        allocationRuleID: "SYSTEM",
-        checkInventory: "Y",
-        organizationCode: "CROMA",
-        sourcingClassification: "EC",
-        promiseLines: { promiseLine }
-      }
-    };
 
     const skuResults = {};
     for (const p of products) {
@@ -241,58 +241,102 @@
       };
     }
 
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 4500);
-
-    try {
-      const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
-        method: "POST",
-        headers: API_HEADERS,
-        body: JSON.stringify(payload),
-        signal: ctrl.signal
-      });
-      clearTimeout(timer);
-      if (!res || !res.ok) return skuResults;
-      const data = await res.json();
-      const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
-
-      for (const line of lines) {
-        const item = skuResults[String(line.itemID)];
-        if (!item) continue;
-        const assignment = line.assignments?.assignment?.[0];
-        if (!assignment) continue;
-
-        item.available = true;
-        const node = assignment.shipNode || "";
-        const nodeName = STORE_NAMES[node] || (node ? `Hub [${node}]` : "");
-        const dDate = assignment.deliveryDate || "";
-        const carrier = (line.carrierServiceCode || "").replace("Blitz - ", "");
-
-        if (line.fulfillmentType === "SDEL") {
-          item.hasExpress = true;
-          item.expressStore = node;
-          item.expressStoreName = nodeName;
-          item.expressCarrier = carrier;
-          item.expressDate = dDate;
-        } else if (line.fulfillmentType === "HDEL") {
-          item.hasWarehouse = true;
-          item.warehouseHub = node;
-          item.warehouseHubName = nodeName;
-          item.warehouseCarrier = carrier;
-          item.warehouseDate = dDate;
-        }
-
-        if (item.hasExpress) {
-          item.fastestMode = "SDEL";
-          item.fastestDate = item.expressDate;
-        } else if (item.hasWarehouse) {
-          item.fastestMode = "HDEL";
-          item.fastestDate = item.warehouseDate;
-        }
-      }
-    } catch (e) {
-      clearTimeout(timer);
+    const CHUNK_SIZE = 25;
+    const chunks = [];
+    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+      chunks.push(products.slice(i, i + CHUNK_SIZE));
     }
+
+    await Promise.all(chunks.map(async (chunk) => {
+      const promiseLine = [];
+      let lineId = 1;
+      for (const p of chunk) {
+        const sku = String(p.code);
+        promiseLine.push({
+          fulfillmentType: "SDEL",
+          itemID: sku,
+          lineId: String(lineId++),
+          reqEndDate: "2500-01-01",
+          reqStartDate: "",
+          requiredQty: "1",
+          shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
+          extn: { widerStoreFlag: "N" }
+        });
+        promiseLine.push({
+          fulfillmentType: "HDEL",
+          itemID: sku,
+          lineId: String(lineId++),
+          reqEndDate: "2500-01-01",
+          reqStartDate: "",
+          requiredQty: "1",
+          shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
+          extn: { widerStoreFlag: "N" }
+        });
+      }
+
+      const payload = {
+        promise: {
+          allocationRuleID: "SYSTEM",
+          checkInventory: "Y",
+          organizationCode: "CROMA",
+          sourcingClassification: "EC",
+          promiseLines: { promiseLine }
+        }
+      };
+
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4500);
+
+      try {
+        const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
+          method: "POST",
+          headers: API_HEADERS,
+          body: JSON.stringify(payload),
+          signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        if (!res || !res.ok) return;
+        const data = await res.json();
+        const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
+
+        for (const line of lines) {
+          const item = skuResults[String(line.itemID)];
+          if (!item) continue;
+          const assignment = line.assignments?.assignment?.[0];
+          if (!assignment) continue;
+
+          item.available = true;
+          const node = assignment.shipNode || "";
+          const nodeName = STORE_NAMES[node] || (node ? `Hub [${node}]` : "");
+          const dDate = assignment.deliveryDate || "";
+          const carrier = (line.carrierServiceCode || "").replace("Blitz - ", "");
+
+          if (line.fulfillmentType === "SDEL") {
+            item.hasExpress = true;
+            item.expressStore = node;
+            item.expressStoreName = nodeName;
+            item.expressCarrier = carrier;
+            item.expressDate = dDate;
+          } else if (line.fulfillmentType === "HDEL") {
+            item.hasWarehouse = true;
+            item.warehouseHub = node;
+            item.warehouseHubName = nodeName;
+            item.warehouseCarrier = carrier;
+            item.warehouseDate = dDate;
+          }
+
+          if (item.hasExpress) {
+            item.fastestMode = "SDEL";
+            item.fastestDate = item.expressDate;
+          } else if (item.hasWarehouse) {
+            item.fastestMode = "HDEL";
+            item.fastestDate = item.warehouseDate;
+          }
+        }
+      } catch (e) {
+        clearTimeout(timer);
+      }
+    }));
 
     return skuResults;
   }
@@ -503,7 +547,7 @@
       box-shadow: 0 6px 18px rgba(239, 68, 68, 0.5);
     }
 
-    /* Pagination / Catalog Info Bar */
+    /* Catalog Info & Summary Bar */
     #pagination-bar {
       display: none;
       justify-content: space-between;
@@ -514,25 +558,15 @@
       padding: 6px 12px;
       font-size: 11.5px;
     }
-    .page-nav-btn {
-      background: rgba(255, 255, 255, 0.08);
-      color: #f1f5f9;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 3px 9px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .page-nav-btn:hover:not(:disabled) {
-      background: rgba(0, 229, 190, 0.2);
+    .catalog-count-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      background: rgba(0, 229, 190, 0.15);
       color: #00E5BE;
-      border-color: rgba(0, 229, 190, 0.4);
-    }
-    .page-nav-btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
+      border: 1px solid rgba(0, 229, 190, 0.35);
+      border-radius: 12px;
+      padding: 2px 9px;
+      white-space: nowrap;
     }
 
     /* Product Selector & Summary Card */
@@ -958,14 +992,10 @@
         </button>
       </div>
 
-      <!-- Catalog Pagination Bar -->
+      <!-- Catalog Summary Bar -->
       <div id="pagination-bar">
         <div id="search-summary-text">Searching Croma catalog...</div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button class="page-nav-btn" id="btn-prev-page" title="Previous Page">◀ Prev</button>
-          <span id="page-indicator" style="font-weight:700; color:#00E5BE;">Page 1</span>
-          <button class="page-nav-btn" id="btn-next-page" title="Next Page">Next ▶</button>
-        </div>
+        <div class="catalog-count-badge" id="catalog-count-badge">All Loaded</div>
       </div>
 
       <!-- Active Product Card / View Switcher -->
@@ -1075,10 +1105,7 @@
 
   // State Management
   let currentQuery = "";
-  let currentPage = 0;
-  let totalPages = 1;
-  let totalResults = 0;
-  let currentProducts = []; // Array of products on active page
+  let currentProducts = []; // Array of all matching products loaded
   let activeSelectedSKU = "ALL"; // "ALL" or specific SKU
   let activeZone = "ALL";
   let scanMatrix = {}; // { [sku]: { [pincode]: itemResult } }
@@ -1090,9 +1117,7 @@
   const btnScan = shadow.getElementById('btn-scan');
   const paginationBar = shadow.getElementById('pagination-bar');
   const searchSummaryText = shadow.getElementById('search-summary-text');
-  const pageIndicator = shadow.getElementById('page-indicator');
-  const btnPrevPage = shadow.getElementById('btn-prev-page');
-  const btnNextPage = shadow.getElementById('btn-next-page');
+  const catalogCountBadge = shadow.getElementById('catalog-count-badge');
 
   const productImg = shadow.getElementById('product-img');
   const productTitle = shadow.getElementById('product-title');
@@ -1393,7 +1418,6 @@
     // If query changed or no products loaded, query Croma search catalog
     if (q && (q !== currentQuery || currentProducts.length === 0)) {
       currentQuery = q;
-      currentPage = 0;
       btnScan.disabled = true;
       btnScan.className = 'btn-scan';
       btnScan.innerHTML = `
@@ -1401,7 +1425,7 @@
           <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
           <path d="M12 2a10 10 0 0 1 10 10"></path>
         </svg>
-        <span>Searching...</span>
+        <span>Loading...</span>
       `;
 
       if (/^\d{5,7}$/.test(q)) {
@@ -1414,11 +1438,13 @@
           image: "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png",
           url: `https://www.croma.com/p/${q}`
         }];
-        paginationBar.style.display = 'none';
+        paginationBar.style.display = 'flex';
+        searchSummaryText.innerHTML = `Loaded SKU <b style="color:#00E5BE;">[${q}]</b>`;
+        catalogCountBadge.textContent = '1 SKU Ready';
         activeSelectedSKU = q;
       } else {
         try {
-          const res = await searchCatalog(q, currentPage);
+          const res = await searchCatalogAll(q);
           const rawProds = res.products || [];
           if (rawProds.length === 0) {
             showToast(`No products found for "${q}" 🔍`);
@@ -1427,9 +1453,6 @@
             return;
           }
 
-          totalPages = res.pagination?.totalPages || 1;
-          totalResults = res.pagination?.totalResults || rawProds.length;
-
           currentProducts = rawProds.map(p => {
             const rawP = p.price?.value || parseFloat((p.price?.formattedValue || "").replace(/[^\d.]/g, '')) || 0;
             const img = p.images?.find(im => im.imageType === 'PRIMARY')?.url || p.productImage || "";
@@ -1437,19 +1460,17 @@
             return {
               code: String(p.code),
               name: p.name,
-              price: p.price?.formattedValue || "",
+              price: p.price?.formattedValue || (rawP ? `₹${rawP.toLocaleString('en-IN')}` : ""),
               rawPrice: rawP,
               image: img,
               url: pUrl
             };
           });
 
-          // Show Pagination Bar
+          // Show Catalog Summary Bar with full count
           paginationBar.style.display = 'flex';
-          searchSummaryText.textContent = `Found ${totalResults} items for "${q}" (${currentProducts.length} on this page)`;
-          pageIndicator.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-          btnPrevPage.disabled = currentPage <= 0;
-          btnNextPage.disabled = currentPage >= totalPages - 1;
+          searchSummaryText.innerHTML = `Loaded all <b style="color:#00E5BE;">${currentProducts.length}</b> products for "${q}"`;
+          catalogCountBadge.textContent = `${currentProducts.length} Products Ready`;
 
           activeSelectedSKU = currentProducts.length === 1 ? currentProducts[0].code : "ALL";
         } catch (err) {
@@ -1468,6 +1489,9 @@
       return;
     }
 
+    // Determine target products to scan (ALL matching products or specific selected SKU)
+    const prodsToScan = activeSelectedSKU === "ALL" ? currentProducts : (currentProducts.filter(p => p.code === activeSelectedSKU).length ? currentProducts.filter(p => p.code === activeSelectedSKU) : currentProducts);
+
     // Begin real-time multi-SKU batch scanning of all 86 Mumbai pincodes
     isScanning = true;
     abortScan = false;
@@ -1482,16 +1506,16 @@
 
     progressContainer.style.display = 'block';
     scanMatrix = {};
-    currentProducts.forEach(p => { scanMatrix[p.code] = {}; });
+    prodsToScan.forEach(p => { scanMatrix[p.code] = {}; });
 
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning ${currentProducts.length} product(s) across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning ${prodsToScan.length} product(s) across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
 
     const targetPins = [...MUMBAI_PINCODES];
     const total = targetPins.length;
     let completed = 0;
     let totalInStockOccurrences = 0;
 
-    const CONCURRENCY = 5;
+    const CONCURRENCY = 4;
     let index = 0;
 
     async function worker() {
@@ -1503,7 +1527,7 @@
 
         let batchResults = {};
         try {
-          batchResults = await checkBatchSLA(currentProducts, pinItem.pin);
+          batchResults = await checkBatchSLA(prodsToScan, pinItem.pin);
         } catch (e) {
           batchResults = {};
         }
@@ -1512,7 +1536,7 @@
         completed++;
 
         // Store result for each SKU
-        currentProducts.forEach(p => {
+        prodsToScan.forEach(p => {
           const res = batchResults[p.code];
           const entry = {
             pin: pinItem.pin,
@@ -1541,7 +1565,7 @@
         progressBar.style.width = pct + '%';
         statScanned.textContent = `${completed} / ${total}`;
         statAvail.textContent = totalInStockOccurrences;
-        statOos.textContent = (completed * currentProducts.length) - totalInStockOccurrences;
+        statOos.textContent = (completed * prodsToScan.length) - totalInStockOccurrences;
 
         if (completed % 4 === 0 || completed >= total) {
           renderTable();
@@ -1575,22 +1599,6 @@
     if (e.key === 'Enter') runScan();
   };
 
-  // Pagination navigation listeners
-  btnPrevPage.onclick = async () => {
-    if (currentPage > 0 && !isScanning) {
-      currentPage--;
-      currentProducts = [];
-      await runScan();
-    }
-  };
-
-  btnNextPage.onclick = async () => {
-    if (currentPage < totalPages - 1 && !isScanning) {
-      currentPage++;
-      currentProducts = [];
-      await runScan();
-    }
-  };
 
   // Auto-detect SKU if user opens bookmarklet while on a Croma product page
   try {
