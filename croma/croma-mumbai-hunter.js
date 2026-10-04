@@ -1107,7 +1107,6 @@
   let activeZone = "ALL";
   let scanMatrix = {}; // { [sku]: { [pincode]: itemResult } }
   let isScanning = false;
-  let abortScan = false;
 
   // DOM Elements
   const queryInput = shadow.getElementById('query-input');
@@ -1320,15 +1319,6 @@
   chkAvailOnly.onchange = renderTable;
   chkExpressOnly.onchange = renderTable;
 
-  // Scan Controls: Separate startScan and stopScan to avoid accidental self-aborts
-  function stopScan() {
-    if (isScanning) {
-      abortScan = true;
-      btnScan.disabled = true;
-      btnScan.innerHTML = `<span>Stopping...</span>`;
-    }
-  }
-
   // Single-SKU Drilldown Scan Runner across all 86 Mumbai pincodes
   async function startScan() {
     if (isScanning) return; // Guard against concurrent runs
@@ -1453,20 +1443,20 @@
 
     // Begin real-time single-SKU drilldown scanning of all 86 Mumbai pincodes
     isScanning = true;
-    abortScan = false;
-    btnScan.disabled = false;
-    btnScan.className = 'btn-scan btn-scan-stop';
+    btnScan.disabled = true;
+    btnScan.className = 'btn-scan';
     btnScan.innerHTML = `
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-        <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+        <path d="M12 2a10 10 0 0 1 10 10"></path>
       </svg>
-      <span>Stop</span>
+      <span>Scanning...</span>
     `;
 
     progressContainer.style.display = 'block';
     scanMatrix[targetProduct.code] = scanMatrix[targetProduct.code] || {};
 
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">⚡ Scanning [${targetProduct.code}] across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">&#9889; Scanning [${targetProduct.code}] across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
 
     const targetPins = [...MUMBAI_PINCODES];
     const total = targetPins.length;
@@ -1479,7 +1469,7 @@
 
     async function worker() {
       while (true) {
-        if (abortScan || hitRateLimit) break;
+        if (hitRateLimit) break;
         if (index >= targetPins.length) break;
         const pinItem = targetPins[index++];
         if (!pinItem || !pinItem.pin) break;
@@ -1492,13 +1482,11 @@
         } catch (e) {
           if (e.message === "WAF_RATE_LIMIT") {
             hitRateLimit = true;
-            abortScan = true;
             break;
           }
           batchResults = {};
         }
 
-        if (abortScan) break;
         completed++;
 
         const res = (batchResults && batchResults[targetProduct.code]) || {};
@@ -1543,7 +1531,6 @@
       console.warn("Scan loop error:", err);
     } finally {
       isScanning = false;
-      abortScan = false;
       btnScan.disabled = false;
       btnScan.className = 'btn-scan';
       btnScan.innerHTML = `
@@ -1556,15 +1543,13 @@
       if (hitRateLimit) {
         showToast("⚠️ Akamai Rate Limit reached. Please pause a moment or switch network.");
       } else {
-        showToast(completed < total ? `Scan Stopped (${completed}/${total} pincodes)` : `Scan Complete! In-Stock at ${totalInStockOccurrences} of 86 Pincodes ✨`);
+        showToast(completed < total ? `Scan Finished (${completed}/${total} pincodes)` : `Scan Complete! In-Stock at ${totalInStockOccurrences} of 86 Pincodes ✨`);
       }
     }
   }
 
   btnScan.onclick = () => {
-    if (isScanning) {
-      stopScan();
-    } else {
+    if (!isScanning) {
       startScan();
     }
   };
