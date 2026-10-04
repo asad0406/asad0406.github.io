@@ -592,6 +592,9 @@
       <select id="filterStore" class="filter-select">
         <option value="">All stores</option>
       </select>
+      <select id="filterBrand" class="filter-select">
+        <option value="">All brands</option>
+      </select>
       <select id="filterStock" class="filter-select">
         <option value="">All stock</option>
         <option value="In stock">In stock</option>
@@ -600,8 +603,8 @@
       <select id="sortSelect" class="filter-select">
         <option value="price-asc">💵 Price: Low to High</option>
         <option value="price-desc">💎 Price: High to Low</option>
-        <option value="sla-asc">⚡ SLA: Fastest First</option>
         <option value="discount-desc">🔥 Highest Discount %</option>
+        <option value="brand-asc">🏷️ Brand: A to Z</option>
         <option value="title-asc">🔤 Product: A to Z</option>
         <option value="store-asc">📍 Store: A to Z</option>
       </select>
@@ -619,13 +622,13 @@
     const tableWrap = document.getElementById('tableWrap');
     const filterEl = document.getElementById('filter');
     const storeSel = document.getElementById('filterStore');
+    const brandSel = document.getElementById('filterBrand');
     const stockSel = document.getElementById('filterStock');
     const sortSel = document.getElementById('sortSelect');
     const variationBtn = document.getElementById('filterVariation');
 
     const COLUMN_ORDER = [
       'locality',
-      'liveSla',
       'title',
       'brand',
       'availability',
@@ -655,7 +658,7 @@
     const DETAIL_COLS = ['locality', 'storeId', 'liveSla', 'pincode', 'brand', 'price', 'mrp', 'discount', 'availability', 'deliveryLocation'];
     const DETAIL_FULL_WIDTH = new Set(['deliveryLocation']);
     const NUMERIC_COLS = new Set(['mrp', 'price', 'discount']);
-    const NOWRAP_COLS = new Set(['liveSla', 'availability', 'imageUrl', 'mapsUrl']);
+    const NOWRAP_COLS = new Set(['availability', 'imageUrl', 'mapsUrl']);
 
     const label = c => COLUMN_LABELS[c] || c;
 
@@ -908,11 +911,13 @@
     function applyFilter() {
       const q = filterEl.value.trim().toLowerCase();
       const store = storeSel.value;
+      const brand = brandSel.value;
       const stock = stockSel.value;
       const base = onlyVariation ? [...cheapestByKey.values()] : allRows;
 
       const filtered = base.filter(r => {
         if (store && r.locality !== store) return false;
+        if (brand && r.brand !== brand) return false;
         if (stock && r.availability !== stock) return false;
         if (!q) return true;
         return (
@@ -952,6 +957,17 @@
         opt.value = s;
         opt.textContent = s;
         storeSel.appendChild(opt);
+      });
+    }
+
+    function fillBrandOptions() {
+      const brands = [...new Set(allRows.map(r => r.brand).filter(Boolean))].sort();
+      brandSel.innerHTML = '<option value="">All brands (' + brands.length + ')</option>';
+      brands.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b;
+        opt.textContent = b;
+        brandSel.appendChild(opt);
       });
     }
 
@@ -1003,6 +1019,7 @@
       allRows = (items || []).map(normalizeRow);
       updateMetaRibbon();
       fillStoreOptions();
+      fillBrandOptions();
       computeVariationKeys();
       applyFilter();
     }
@@ -1010,13 +1027,14 @@
     // Controls listeners
     filterEl.addEventListener('input', applyFilter);
     storeSel.addEventListener('change', applyFilter);
+    brandSel.addEventListener('change', applyFilter);
     stockSel.addEventListener('change', applyFilter);
     sortSel.addEventListener('change', () => {
       const v = sortSel.value;
       if (v === 'price-asc') { sortCol = 'price'; sortDir = 1; }
       else if (v === 'price-desc') { sortCol = 'price'; sortDir = -1; }
-      else if (v === 'sla-asc') { sortCol = 'liveSla'; sortDir = 1; }
       else if (v === 'discount-desc') { sortCol = 'discount'; sortDir = -1; }
+      else if (v === 'brand-asc') { sortCol = 'brand'; sortDir = 1; }
       else if (v === 'title-asc') { sortCol = 'title'; sortDir = 1; }
       else if (v === 'store-asc') { sortCol = 'locality'; sortDir = 1; }
       applyFilter();
