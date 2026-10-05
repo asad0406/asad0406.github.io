@@ -298,20 +298,10 @@
   const inRegion = (pin, region) =>
     !region.prefixes || region.prefixes.some(p => pin.startsWith(p));
 
-  function scopedPins(regionId, city) {
+  function scopedPins(regionId) {
     const region = REGIONS.find(r => r.id === regionId) || REGIONS[0];
-    return PINS.filter(p => inRegion(p.pin, region) && (!city || p.city === city));
+    return PINS.filter(p => inRegion(p.pin, region));
   }
-
-  const citiesIn = regionId => {
-    const region = REGIONS.find(r => r.id === regionId) || REGIONS[0];
-    const counts = new Map();
-    for (const p of PINS) {
-      if (!inRegion(p.pin, region)) continue;
-      counts.set(p.city, (counts.get(p.city) || 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
-  };
 
   const STORE_NAMES = {
     "A001": "Croma Juhu", "A026": "Croma Fort", "A039": "Croma Sion",
@@ -643,8 +633,6 @@
         </div>
         <div class="srow">
           <div class="pills" id="regions"></div>
-          <span class="vr"></span>
-          <select id="city"></select>
           <label class="chk"><input type="checkbox" id="onlyExpress" /> Express only</label>
         </div>
       </div>
@@ -687,7 +675,7 @@
   const board = shadow.querySelector('.board');
 
   let state = {
-    region: 'mmr', city: '', onlyExpress: false,
+    region: 'mmr', onlyExpress: false,
     product: null, results: new Map(), scanning: false, done: 0, total: 0, throttled: false
   };
 
@@ -715,16 +703,7 @@
     if (active) strip.scrollLeft = Math.max(0, active.offsetLeft - 8);
   }
 
-  function renderCities() {
-    const list = citiesIn(state.region);
-    const keep = list.some(([c]) => c === state.city) ? state.city : '';
-    state.city = keep;
-    $('city').innerHTML = `<option value="">All cities (${list.length})</option>`
-      + list.map(([c, n]) => `<option value="${esc(c)}"${c === keep ? ' selected' : ''}>`
-        + `${esc(c)} (${n})</option>`).join('');
-  }
-
-  function scanTarget() { return scopedPins(state.region, state.city); }
+  function scanTarget() { return scopedPins(state.region); }
 
   function renderScanButton() {
     const n = scanTarget().length;
@@ -734,9 +713,7 @@
     btn.textContent = state.scanning ? 'Scanning…'
       : n === 0 ? 'Nothing in scope'
       : `Scan ${n.toLocaleString('en-IN')} pincode${n === 1 ? '' : 's'}${mins >= 2 ? ` · ~${mins} min` : ''}`;
-    $('where').textContent = state.city
-      ? `${state.city} · ${n.toLocaleString('en-IN')} pincodes`
-      : `${(REGIONS.find(r => r.id === state.region) || {}).name} · ${n.toLocaleString('en-IN')} pincodes`;
+    $('where').textContent = `${(REGIONS.find(r => r.id === state.region) || {}).name} · ${n.toLocaleString('en-IN')} pincodes`;
   }
 
   function best(r) {
@@ -821,10 +798,9 @@
     const btn = e.target.closest('.pill');
     if (!btn || state.scanning) return;
     state.region = btn.dataset.region;
-    renderRegions(); scrollActivePillIntoView(); renderCities(); renderAll();
+    renderRegions(); scrollActivePillIntoView(); renderAll();
   });
 
-  $('city').addEventListener('change', e => { state.city = e.target.value; renderAll(); });
   $('onlyExpress').addEventListener('change', e => { state.onlyExpress = e.target.checked; renderRows(); });
 
   $('btnClose').addEventListener('click', () => host.remove());
@@ -954,7 +930,7 @@
     const region = (REGIONS.find(r => r.id === state.region) || {}).name;
     const lines = [
       `${p.name || ''} — ${p.price?.formattedValue || ''} (SKU ${p.code || ''})`,
-      `${region}${state.city ? ' · ' + state.city : ''}: ships to ${rows.length} of ${state.done} pincodes checked`,
+      `${region}: ships to ${rows.length} of ${state.done} pincodes checked`,
       ''
     ].concat(rows.slice(0, 40).map(r =>
       `${r.pincode}  ${r.area} — ${r.mode === 'SDEL' ? 'store express' : 'warehouse'} ` +
@@ -972,7 +948,6 @@
 
   renderRegions();
   scrollActivePillIntoView();
-  renderCities();
   renderAll();
 
   const pageSku = extractSku(location.pathname + location.search);
