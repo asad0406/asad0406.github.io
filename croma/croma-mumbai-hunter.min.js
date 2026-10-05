@@ -560,7 +560,16 @@
 
     /* sheet --------------------------------------------------------------- */
     .sheet { flex: 1 1 auto; min-height: 180px; overflow: auto; padding: 0 18px; }
-    table { width: 100%; border-collapse: collapse; }
+    /* Fixed layout with declared widths. On auto layout only .pin was
+       constrained, so Area absorbed every spare pixel and left a canyon
+       before Ships from whenever the result cells were short. */
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th:nth-child(1), td:nth-child(1) { width: 78px; }
+    th:nth-child(2), td:nth-child(2) { width: 26%; }
+    th:nth-child(3), td:nth-child(3) { width: auto; }
+    th:nth-child(4), td:nth-child(4) { width: 108px; }
+    th:nth-child(5), td:nth-child(5) { width: 152px; }
+    td { overflow-wrap: anywhere; }
     thead th {
       position: sticky; top: 0; background: #fff; z-index: 1;
       text-align: left; font-size: 11px; font-weight: 600; color: #6B7A8D;
@@ -568,7 +577,7 @@
     }
     tbody td { padding: 7px 8px; border-bottom: 1px solid #F1F4F7; font-size: 12.5px; vertical-align: top; }
     tbody tr:hover { background: #FAFBFC; }
-    .pin { font-weight: 640; font-variant-numeric: tabular-nums; width: 74px; }
+    .pin { font-weight: 640; font-variant-numeric: tabular-nums; }
     .area { font-weight: 550; }
     .city { font-size: 11px; color: #6B7A8D; margin-top: 1px; }
     .node { font-weight: 550; }
