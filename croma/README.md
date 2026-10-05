@@ -1,6 +1,6 @@
 # ⚡ Croma Mumbai Hunter — Bookmarklet & Pincode Scanner
 
-Check one product by SKU or Croma product URL across **all 316 Mumbai & MMR pincodes** directly on [Croma.com](https://www.croma.com), with live store fulfillment, carrier details, and delivery ETAs.
+Check one product by SKU or Croma product URL across any Maharashtra region or city directly on [Croma.com](https://www.croma.com), with live store fulfillment, carrier details, and delivery ETAs.
 
 ---
 
@@ -14,7 +14,7 @@ Check one product by SKU or Croma product URL across **all 316 Mumbai & MMR pinc
 - **🛡️ Throttle-safe:** Paced at 350 ms between requests, with retry and exponential backoff on `403` / `429` / `5xx`. A throttle widens the gap instead of killing the scan.
 - **🔎 Exact-SKU Scan:** Enter a 5–7 digit SKU or paste a Croma product URL. On a Croma product page the SKU is detected automatically. Unknown SKUs are reported rather than silently substituted.
 - **📊 Full CSV / clipboard export:** SKU, name, price, URL, pincode, area, zone, both modes' node + carrier + ETA, and scan timestamp.
-- **📍 316 pincodes across 7 zones:** South Mumbai, Western Suburbs, Central & Eastern, Thane & Navi Mumbai, Thane & Palghar, Navi Mumbai & Raigad, Kalyan & Ambernath.
+- **📍 2,282 Maharashtra pincodes. Region presets (MMR 316, Mumbai 157, Pune 152, Nashik 129, Nagpur 163, All MH 2,282), a city picker, and an area/pincode filter.
 
 ---
 
@@ -25,10 +25,10 @@ Check one product by SKU or Croma product URL across **all 316 Mumbai & MMR pinc
 Create a browser bookmark with this URL. It loads the scanner with a cache-busting timestamp:
 
 ```javascript
-javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@v2.1.5/croma/croma-mumbai-hunter.min.js?t='+Date.now();document.body.appendChild(s);})();
+javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@v2.1.6/croma/croma-mumbai-hunter.min.js?t='+Date.now();document.body.appendChild(s);})();
 ```
 
-> ⚠️ This pins tag `v2.1.5` of the **published** `asad0406.github.io` repo. Edits to the
+> ⚠️ This pins tag `v2.1.6` of the **published** `asad0406.github.io` repo. Edits to the
 > local copy in this folder do **not** reach the bookmarklet until they are copied to
 > `asad0406.github.io/croma/` and a new tag is pushed. Bump the tag in the URL after
 > publishing, or jsDelivr will keep serving the old build from cache.
