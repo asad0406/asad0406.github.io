@@ -645,7 +645,6 @@
           <div class="pills" id="regions"></div>
           <span class="vr"></span>
           <select id="city"></select>
-          <label class="chk"><input type="checkbox" id="onlyStock" /> Deliverable only</label>
           <label class="chk"><input type="checkbox" id="onlyExpress" /> Express only</label>
         </div>
       </div>
@@ -688,7 +687,7 @@
   const board = shadow.querySelector('.board');
 
   let state = {
-    region: 'mmr', city: '', onlyStock: false, onlyExpress: false,
+    region: 'mmr', city: '', onlyExpress: false,
     product: null, results: new Map(), scanning: false, done: 0, total: 0, throttled: false
   };
 
@@ -751,41 +750,34 @@
     return null;
   }
 
+  // Only pincodes the product actually ships to. Everything checked and not
+  // found is reported as a count in the summary, not as a row.
   function visibleRows() {
     return scanTarget().map(p => ({ p, b: best(state.results.get(p.pin)) }))
-      .filter(({ p, b }) => {
-        if (!state.results.has(p.pin)) return !state.onlyStock && !state.onlyExpress;
-        if (state.onlyExpress) return b && b.mode === 'SDEL';
-        if (state.onlyStock) return !!b;
-        return true;
-      });
+      .filter(({ b }) => b && (!state.onlyExpress || b.mode === 'SDEL'));
   }
 
   function renderRows() {
     const rows = visibleRows();
     const tbody = $('rows');
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="empty">`
-        + (state.results.size
-          ? `<b>No pincodes match these filters</b>Clear a filter, or widen the region.`
-          : `<b>Nothing scanned yet</b>Choose a region or city above, then scan.`)
-        + `</td></tr>`;
+      const msg = !state.results.size
+        ? `<b>Nothing scanned yet</b>Choose a region or city above, then scan.`
+        : state.onlyExpress
+          ? `<b>No store express anywhere in this scope</b>Untick Express only to see warehouse dispatch.`
+          : `<b>Not available anywhere in this scope</b>Checked ${state.done} pincodes. Try a wider region.`;
+      tbody.innerHTML = `<tr><td colspan="5" class="empty">${msg}</td></tr>`;
       return;
     }
-    tbody.innerHTML = rows.slice(0, 1200).map(({ p, b }) => {
-      const scanned = state.results.has(p.pin);
-      const cls = !scanned ? 'o' : b ? (b.mode === 'SDEL' ? 'x' : 'w') : 'o';
-      return `<tr>
+    tbody.innerHTML = rows.slice(0, 1200).map(({ p, b }) => `<tr>
         <td class="pin">${esc(p.pin)}</td>
         <td><div class="area">${esc(p.area)}</div><div class="city">${esc(p.city)}</div></td>
-        <td>${b
-          ? `<div class="node"><i class="dot ${cls}"></i>${esc(b.name)} [${esc(b.node)}]</div>`
-            + `<div class="carrier">${esc(b.carrier)}</div>`
-          : `<span class="none"><i class="dot o"></i>${scanned ? 'No node ships here' : 'Not scanned'}</span>`}</td>
-        <td class="col-node">${b ? (b.mode === 'SDEL' ? 'Store express' : 'Warehouse') : '<span class="none">—</span>'}</td>
-        <td class="eta">${b ? esc(formatETA(b.date)) : '<span class="none">—</span>'}</td>
-      </tr>`;
-    }).join('');
+        <td><div class="node"><i class="dot ${b.mode === 'SDEL' ? 'x' : 'w'}"></i>${esc(b.name)} [${esc(b.node)}]</div>
+            <div class="carrier">${esc(b.carrier)}</div></td>
+        <td class="col-node">${b.mode === 'SDEL' ? 'Store express' : 'Warehouse'}</td>
+        <td class="eta">${esc(formatETA(b.date))}</td>
+      </tr>`).join('');
+
   }
 
   function renderAnswer() {
@@ -833,7 +825,6 @@
   });
 
   $('city').addEventListener('change', e => { state.city = e.target.value; renderAll(); });
-  $('onlyStock').addEventListener('change', e => { state.onlyStock = e.target.checked; renderRows(); });
   $('onlyExpress').addEventListener('change', e => { state.onlyExpress = e.target.checked; renderRows(); });
 
   $('btnClose').addEventListener('click', () => host.remove());
