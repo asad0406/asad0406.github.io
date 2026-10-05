@@ -1,7 +1,7 @@
 ﻿/**
  * Croma Mumbai Hunter — Single-SKU Stock & Fulfillment Scanner
  * Designed with Apple / Linear Glassmorphism HUD aesthetics.
- * Scans one product across 86+ Mumbai & MMR pincodes in real-time.
+ * Scans one product across all 316 Mumbai & MMR pincodes in real-time.
  * Evaluates both Store Express (SDEL) and Warehouse Dispatch (HDEL) simultaneously.
  */
 
@@ -14,9 +14,11 @@
     existing.remove();
   }
 
-  // 1. Mumbai & MMR Pincode Database (86 Pincodes across 4 Zones)
+  // 1. Mumbai & MMR Pincode Database (316 pincodes across 7 zones).
+  //    Generated from pincodes_mh.csv (prefixes 400/401/410/421); the original
+  //    86 curated area+zone labels are preserved.
   const MUMBAI_PINCODES = [
-    // South Mumbai
+    // South Mumbai (36 pincodes)
     { pin: "400001", area: "Fort / Colaba / Ballard Estate", zone: "South Mumbai" },
     { pin: "400002", area: "Kalbadevi / Marine Lines", zone: "South Mumbai" },
     { pin: "400003", area: "Mandvi / Masjid Bunder", zone: "South Mumbai" },
@@ -34,19 +36,35 @@
     { pin: "400015", area: "Sewri", zone: "South Mumbai" },
     { pin: "400016", area: "Mahim", zone: "South Mumbai" },
     { pin: "400018", area: "Worli / Century Bhavan", zone: "South Mumbai" },
+    { pin: "400019", area: "Matunga / Mumbai", zone: "South Mumbai" },
     { pin: "400020", area: "Churchgate / Marine Drive", zone: "South Mumbai" },
     { pin: "400021", area: "Nariman Point", zone: "South Mumbai" },
+    { pin: "400023", area: "Hutatma Chowk / Mumbai", zone: "South Mumbai" },
     { pin: "400025", area: "Prabhadevi", zone: "South Mumbai" },
     { pin: "400026", area: "Breach Candy / Cumballa Hill", zone: "South Mumbai" },
     { pin: "400027", area: "Byculla", zone: "South Mumbai" },
     { pin: "400028", area: "Dadar West / Shivaji Park", zone: "South Mumbai" },
+    { pin: "400029", area: "Mumbai Aerodrome / Mumbai", zone: "South Mumbai" },
     { pin: "400030", area: "Worli Sea Face", zone: "South Mumbai" },
     { pin: "400031", area: "Wadala West", zone: "South Mumbai" },
+    { pin: "400032", area: "Sachivalaya / Mumbai", zone: "South Mumbai" },
+    { pin: "400033", area: "Tank Road / Mumbai", zone: "South Mumbai" },
     { pin: "400034", area: "Tardeo / Tulsiwadi", zone: "South Mumbai" },
+    { pin: "400035", area: "M. Gover'S Camp / Mumbai", zone: "South Mumbai" },
     { pin: "400036", area: "Malabar Hill / Kemps Corner", zone: "South Mumbai" },
     { pin: "400037", area: "Antop Hill", zone: "South Mumbai" },
-
-    // Western Suburbs
+    { pin: "400038", area: "Ballard Estate / Mumbai", zone: "South Mumbai" },
+    { pin: "400039", area: "Council Hall / Mumbai", zone: "South Mumbai" },
+    // Western Suburbs (72 pincodes)
+    { pin: "400040", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400041", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400042", area: "Bhandup (East) / Mumbai", zone: "Western Suburbs" },
+    { pin: "400043", area: "Govandi / Mumbai", zone: "Western Suburbs" },
+    { pin: "400044", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400045", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400046", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400047", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400048", area: "Mumbai", zone: "Western Suburbs" },
     { pin: "400049", area: "Juhu / Vile Parle West", zone: "Western Suburbs" },
     { pin: "400050", area: "Bandra West", zone: "Western Suburbs" },
     { pin: "400051", area: "Bandra Kurla Complex (BKC)", zone: "Western Suburbs" },
@@ -68,22 +86,56 @@
     { pin: "400067", area: "Kandivali West / Charkop", zone: "Western Suburbs" },
     { pin: "400068", area: "Dahisar West", zone: "Western Suburbs" },
     { pin: "400069", area: "Andheri East / JB Nagar", zone: "Western Suburbs" },
+    { pin: "400090", area: "Goregaon -W Bagur Nagar / Mumbai", zone: "Western Suburbs" },
+    { pin: "400091", area: "Borivali (West) / Mumbai", zone: "Western Suburbs" },
     { pin: "400092", area: "Borivali West / Shimpoli", zone: "Western Suburbs" },
     { pin: "400093", area: "Chakala / Sahar Airport", zone: "Western Suburbs" },
+    { pin: "400094", area: "Anushakti Nagar / Mumbai", zone: "Western Suburbs" },
     { pin: "400095", area: "Kandivali West / Marve", zone: "Western Suburbs" },
+    { pin: "400096", area: "Seepz / Mumbai", zone: "Western Suburbs" },
     { pin: "400097", area: "Malad East / Dindoshi", zone: "Western Suburbs" },
+    { pin: "400098", area: "Vidya Nagar / Mumbai", zone: "Western Suburbs" },
     { pin: "400099", area: "Sahar Airport / CSIA", zone: "Western Suburbs" },
+    { pin: "400100", area: "Mumbai", zone: "Western Suburbs" },
     { pin: "400101", area: "Kandivali East / Thakur Complex", zone: "Western Suburbs" },
     { pin: "400102", area: "Jogeshwari West / Oshiwara", zone: "Western Suburbs" },
+    { pin: "400103", area: "Boriwali -W Madapeshwar / Mumbai", zone: "Western Suburbs" },
     { pin: "400104", area: "Goregaon West / Bangur Nagar", zone: "Western Suburbs" },
-
-    // Central & Eastern Suburbs
+    { pin: "400105", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400106", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400107", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400108", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400109", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400110", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400111", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400112", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400113", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400114", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400125", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400162", area: "Mumbai / Mumbra", zone: "Western Suburbs" },
+    { pin: "400167", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400201", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400202", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400206", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400207", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400208", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400209", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400210", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400218", area: "Thane / Kamothe", zone: "Western Suburbs" },
+    { pin: "400401", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400410", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400547", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400617", area: "Thane", zone: "Western Suburbs" },
+    { pin: "400700", area: "Mumbai", zone: "Western Suburbs" },
+    { pin: "400901", area: "Mumbai", zone: "Western Suburbs" },
+    // Central & Eastern (23 pincodes)
     { pin: "400017", area: "Dharavi", zone: "Central & Eastern" },
     { pin: "400022", area: "Sion / Chunabhatti", zone: "Central & Eastern" },
     { pin: "400024", area: "Kurla East / Nehru Nagar", zone: "Central & Eastern" },
     { pin: "400070", area: "Kurla West / LBS Road", zone: "Central & Eastern" },
     { pin: "400071", area: "Chembur / RK Studio", zone: "Central & Eastern" },
     { pin: "400072", area: "Saki Naka / Asalpha", zone: "Central & Eastern" },
+    { pin: "400073", area: "Mumbai", zone: "Central & Eastern" },
     { pin: "400074", area: "Chembur East / Mahul", zone: "Central & Eastern" },
     { pin: "400075", area: "Pant Nagar / Ghatkopar East", zone: "Central & Eastern" },
     { pin: "400076", area: "Powai / Hiranandani", zone: "Central & Eastern" },
@@ -92,23 +144,203 @@
     { pin: "400079", area: "Vikhroli West / Park Site", zone: "Central & Eastern" },
     { pin: "400080", area: "Mulund West / LBS Road", zone: "Central & Eastern" },
     { pin: "400081", area: "Mulund East", zone: "Central & Eastern" },
+    { pin: "400082", area: "Mulund Colony / Mumbai", zone: "Central & Eastern" },
     { pin: "400083", area: "Vikhroli East / Kannamwar", zone: "Central & Eastern" },
+    { pin: "400084", area: "Bhatwadi / Mumbai", zone: "Central & Eastern" },
+    { pin: "400085", area: "B.A.R.C. / Mumbai", zone: "Central & Eastern" },
     { pin: "400086", area: "Ghatkopar West / R City Mall", zone: "Central & Eastern" },
+    { pin: "400087", area: "N. T. I. E. / Mumbai", zone: "Central & Eastern" },
     { pin: "400088", area: "Govandi / Trombay / Deonar", zone: "Central & Eastern" },
     { pin: "400089", area: "Tilak Nagar / Chembur", zone: "Central & Eastern" },
-
-    // Thane & Navi Mumbai
+    // Thane & Navi Mumbai (29 pincodes)
     { pin: "400601", area: "Thane Station / Naupada", zone: "Thane & Navi Mumbai" },
+    { pin: "400602", area: "Naupada / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400603", area: "Balkum / Thane", zone: "Thane & Navi Mumbai" },
     { pin: "400604", area: "Thane Teen Hath Naka", zone: "Thane & Navi Mumbai" },
+    { pin: "400605", area: "Kalwa / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400606", area: "J. K. Gram / Thane", zone: "Thane & Navi Mumbai" },
     { pin: "400607", area: "Thane Ghodbunder / The Walk", zone: "Thane & Navi Mumbai" },
+    { pin: "400608", area: "Thane (Ewest) / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400609", area: "Majiwada / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400610", area: "Thane - Apna Bazar / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400611", area: "Thane (W) / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400612", area: "Thane / Mumbra", zone: "Thane & Navi Mumbai" },
+    { pin: "400613", area: "Mumbai", zone: "Thane & Navi Mumbai" },
     { pin: "400614", area: "CBD Belapur / Palm Beach", zone: "Thane & Navi Mumbai" },
+    { pin: "400615", area: "Belapur Node - Sec Iii / Thane", zone: "Thane & Navi Mumbai" },
+    { pin: "400701", area: "Kokan Bhavan / Mumbai", zone: "Thane & Navi Mumbai" },
+    { pin: "400702", area: "Raigad / Uran", zone: "Thane & Navi Mumbai" },
     { pin: "400703", area: "Vashi Sector 17", zone: "Thane & Navi Mumbai" },
+    { pin: "400704", area: "Raigad / Uran", zone: "Thane & Navi Mumbai" },
     { pin: "400705", area: "Vashi Akshar Plaza", zone: "Thane & Navi Mumbai" },
     { pin: "400706", area: "Seawoods Grand Central / Nerul", zone: "Thane & Navi Mumbai" },
+    { pin: "400707", area: "Uran", zone: "Thane & Navi Mumbai" },
     { pin: "400708", area: "Airoli / Mindspace", zone: "Thane & Navi Mumbai" },
+    { pin: "400709", area: "Khoparkhairane / Mumbai", zone: "Thane & Navi Mumbai" },
+    { pin: "400710", area: "Navi Mumbai / Mumbai", zone: "Thane & Navi Mumbai" },
+    { pin: "400713", area: "Mumbai", zone: "Thane & Navi Mumbai" },
     { pin: "401107", area: "Mira Road East", zone: "Thane & Navi Mumbai" },
     { pin: "401202", area: "Vasai West", zone: "Thane & Navi Mumbai" },
-    { pin: "401303", area: "Virar West", zone: "Thane & Navi Mumbai" }
+    { pin: "401303", area: "Virar West", zone: "Thane & Navi Mumbai" },
+    // Thane & Palghar (51 pincodes)
+    { pin: "401100", area: "Mumbai", zone: "Thane & Palghar" },
+    { pin: "401101", area: "Bhayander / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401102", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401103", area: "Palghar / Talasari", zone: "Thane & Palghar" },
+    { pin: "401104", area: "Mira Road / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401105", area: "Bhayader East / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401106", area: "Thane / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401200", area: "Mumbai / Vasai", zone: "Thane & Palghar" },
+    { pin: "401201", area: "Vasai Village / Vasai", zone: "Thane & Palghar" },
+    { pin: "401203", area: "Sopara / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401204", area: "Kudus", zone: "Thane & Palghar" },
+    { pin: "401205", area: "Gokhivare / Vasai", zone: "Thane & Palghar" },
+    { pin: "401206", area: "Kudus", zone: "Thane & Palghar" },
+    { pin: "401207", area: "Papdi / Vasai", zone: "Thane & Palghar" },
+    { pin: "401208", area: "Vasai E / Vasai", zone: "Thane & Palghar" },
+    { pin: "401209", area: "Nallasopara E / Vasai", zone: "Thane & Palghar" },
+    { pin: "401210", area: "Vasai (E) / Vasai", zone: "Thane & Palghar" },
+    { pin: "401214", area: "Mumbai / Vasai", zone: "Thane & Palghar" },
+    { pin: "401301", area: "Agashi / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401302", area: "Arnala / Mumbai", zone: "Thane & Palghar" },
+    { pin: "401304", area: "Mumbai", zone: "Thane & Palghar" },
+    { pin: "401305", area: "Mumbai", zone: "Thane & Palghar" },
+    { pin: "401400", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401401", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401402", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401403", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401404", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401405", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401406", area: "Mumbai / Palghar", zone: "Thane & Palghar" },
+    { pin: "401407", area: "Shirgaon (Thane) / Palghar", zone: "Thane & Palghar" },
+    { pin: "401501", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401502", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401503", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401504", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401505", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401506", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401601", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401602", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401603", area: "Jawhar", zone: "Thane & Palghar" },
+    { pin: "401604", area: "Jawhar", zone: "Thane & Palghar" },
+    { pin: "401605", area: "Palghar / Jawhar", zone: "Thane & Palghar" },
+    { pin: "401606", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401607", area: "Palghar / Talasari", zone: "Thane & Palghar" },
+    { pin: "401608", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401609", area: "Palghar", zone: "Thane & Palghar" },
+    { pin: "401610", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401616", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401701", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401702", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401703", area: "Talasari", zone: "Thane & Palghar" },
+    { pin: "401706", area: "Talasari", zone: "Thane & Palghar" },
+    // Navi Mumbai & Raigad (56 pincodes)
+    { pin: "410005", area: "Kolhapur", zone: "Navi Mumbai & Raigad" },
+    { pin: "410062", area: "Kolhapur", zone: "Navi Mumbai & Raigad" },
+    { pin: "410101", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
+    { pin: "410102", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
+    { pin: "410105", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
+    { pin: "410107", area: "Karjat - Raigarh / Mumbai", zone: "Navi Mumbai & Raigad" },
+    { pin: "410200", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
+    { pin: "410201", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
+    { pin: "410202", area: "Karjat - Raigarh / Khopoli", zone: "Navi Mumbai & Raigad" },
+    { pin: "410203", area: "Karjat - Raigarh / Khopoli", zone: "Navi Mumbai & Raigad" },
+    { pin: "410204", area: "Karjat - Raigarh / Khopoli", zone: "Navi Mumbai & Raigad" },
+    { pin: "410205", area: "Pali / Roha", zone: "Navi Mumbai & Raigad" },
+    { pin: "410206", area: "Khanda Colony / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410207", area: "Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410208", area: "Panvel / Kamothe", zone: "Navi Mumbai & Raigad" },
+    { pin: "410209", area: "Kamothe", zone: "Navi Mumbai & Raigad" },
+    { pin: "410210", area: "Navimumbai / Kamothe", zone: "Navi Mumbai & Raigad" },
+    { pin: "410211", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410213", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410216", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410217", area: "Navi Mumbai / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410218", area: "Kalamboli / Kamothe", zone: "Navi Mumbai & Raigad" },
+    { pin: "410219", area: "Karjat - Raigarh / Kamothe", zone: "Navi Mumbai & Raigad" },
+    { pin: "410220", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
+    { pin: "410221", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410222", area: "Karjat - Raigarh / Panvel", zone: "Navi Mumbai & Raigad" },
+    { pin: "410301", area: "Kamsheth / Khopoli", zone: "Navi Mumbai & Raigad" },
+    { pin: "410302", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410303", area: "Kamsheth / Mumbai", zone: "Navi Mumbai & Raigad" },
+    { pin: "410401", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410402", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410403", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410405", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410406", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410410", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
+    { pin: "410501", area: "Chakan / Poona Chakan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410502", area: "Junnar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410503", area: "Rajgurunagar / Ambegoan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410504", area: "Junnar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410505", area: "Ambegoan / Rajgurunagar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410506", area: "Talegaon Dabhade / Talegaon", zone: "Navi Mumbai & Raigad" },
+    { pin: "410507", area: "Talegaon", zone: "Navi Mumbai & Raigad" },
+    { pin: "410508", area: "Ambegoan / Rajgurunagar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410509", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410510", area: "Rajgurunagar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410511", area: "Junnar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410512", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410513", area: "Rajgurunagar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410514", area: "Junnar", zone: "Navi Mumbai & Raigad" },
+    { pin: "410515", area: "Junnar / Ambegoan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410516", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410520", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
+    { pin: "410613", area: "Pune", zone: "Navi Mumbai & Raigad" },
+    { pin: "410615", area: "Pune", zone: "Navi Mumbai & Raigad" },
+    { pin: "410707", area: "Pune", zone: "Navi Mumbai & Raigad" },
+    { pin: "410708", area: "Pune", zone: "Navi Mumbai & Raigad" },
+    // Kalyan & Ambernath (49 pincodes)
+    { pin: "421001", area: "Mahral / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421002", area: "Kalyan Badlapur Road / Ulhas Nagar / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421003", area: "Kalyan Badlapur Road / Ulhas Nagar / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421004", area: "Vitthalwadi / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421005", area: "Ulhasnagar / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421006", area: "Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421032", area: "Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421051", area: "Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421101", area: "Titwala", zone: "Kalyan & Ambernath" },
+    { pin: "421102", area: "Ambivli / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421103", area: "Titwala / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421201", area: "Tilaknagar (Dombivali) / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421202", area: "Vishnunagar / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421203", area: "Dombivali / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421204", area: "Manpada / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421205", area: "Nabanagar / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421206", area: "Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421300", area: "Mumbai / Bhiwandi", zone: "Kalyan & Ambernath" },
+    { pin: "421301", area: "Kalyan Bunder Road / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421302", area: "Bhiwandi", zone: "Kalyan & Ambernath" },
+    { pin: "421303", area: "Kudus", zone: "Kalyan & Ambernath" },
+    { pin: "421304", area: "Kudus / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421305", area: "Titwala / Bhiwandi", zone: "Kalyan & Ambernath" },
+    { pin: "421306", area: "Kate Mani Vali / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421307", area: "Thane", zone: "Kalyan & Ambernath" },
+    { pin: "421308", area: "Thane / Bhiwandi", zone: "Kalyan & Ambernath" },
+    { pin: "421311", area: "Pimplas/Saravali / Bhiwandi", zone: "Kalyan & Ambernath" },
+    { pin: "421312", area: "Kudus", zone: "Kalyan & Ambernath" },
+    { pin: "421313", area: "Kudus", zone: "Kalyan & Ambernath" },
+    { pin: "421329", area: "Kudus", zone: "Kalyan & Ambernath" },
+    { pin: "421401", area: "Murbad", zone: "Kalyan & Ambernath" },
+    { pin: "421402", area: "Ambegoan / Murbad", zone: "Kalyan & Ambernath" },
+    { pin: "421403", area: "Murbad", zone: "Kalyan & Ambernath" },
+    { pin: "421405", area: "Murbad", zone: "Kalyan & Ambernath" },
+    { pin: "421421", area: "Murbad", zone: "Kalyan & Ambernath" },
+    { pin: "421501", area: "Ambernath / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421502", area: "Ambarnath / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421503", area: "Kulgaon / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421504", area: "Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421505", area: "Jambhul / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421506", area: "Ambernath(E) / Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421507", area: "Mumbai", zone: "Kalyan & Ambernath" },
+    { pin: "421600", area: "Sahapur", zone: "Kalyan & Ambernath" },
+    { pin: "421601", area: "Sahapur", zone: "Kalyan & Ambernath" },
+    { pin: "421602", area: "Igatpuri", zone: "Kalyan & Ambernath" },
+    { pin: "421603", area: "Sahapur", zone: "Kalyan & Ambernath" },
+    { pin: "421604", area: "Mumbai / Sahapur", zone: "Kalyan & Ambernath" },
+    { pin: "421605", area: "Kalyan / Titwala", zone: "Kalyan & Ambernath" },
+    { pin: "421607", area: "Mumbai", zone: "Kalyan & Ambernath" }
   ];
 
   const STORE_NAMES = {
@@ -155,13 +387,43 @@
     "accept": "application/json, text/plain, */*"
   };
 
+  // Rate gate, mirroring croma_api.py: Croma throttles per source IP, so pace
+  // request starts and widen the gap after a throttle rather than aborting.
+  const MIN_GAP_MS = 350;
+  const MAX_GAP_MS = 5000;
+  const MAX_RETRIES = 4;
+  let requestGap = MIN_GAP_MS;
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // Fallback name for a shipNode missing from STORE_NAMES, by code prefix.
+  // A- = retail store, D- = regional DC, E- = online-only allocation hub.
+  function nodeLabel(node) {
+    if (!node) return "";
+    const kind = { D: "Regional Warehouse / DC", E: "E-Commerce Hub" }[node[0]];
+    return kind ? `${kind} (${node})` : `Store [${node}]`;
+  }
+
+  // A throttle means we are already too fast; it never speeds back up in a run.
+  function widenGate() {
+    requestGap = Math.min(requestGap * 2, MAX_GAP_MS);
+  }
+
+  // Croma returns delivery dates with mixed offsets: HDEL as UTC (+00:00), the
+  // SDEL path as IST (+05:30). Date parses the offset, but toLocaleString without
+  // an explicit timeZone renders in the *viewer's* zone -- so the same HDEL slot
+  // read 1:13 PM in Mumbai and 7:43 AM for anyone on UTC. Pin it to IST, which is
+  // what croma.com itself shows.
   function formatDeliveryETA(dateStr, carrier) {
     if (!dateStr) return "-";
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
-      const opts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
-      const formatted = d.toLocaleString('en-IN', opts);
+      const opts = {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+        hour12: true, timeZone: 'Asia/Kolkata'
+      };
+      const formatted = `${d.toLocaleString('en-IN', opts)} IST`;
       return carrier ? `${formatted} (${carrier.replace('Blitz - ', '')})` : formatted;
     } catch (e) {
       return dateStr;
@@ -169,13 +431,15 @@
   }
 
   // Resolve one requested SKU from the Croma catalog.
+  // Exact match only: falling back to products[0] silently reported another
+  // product's stock whenever the requested SKU was not in the result set.
   async function searchProductBySku(query) {
     const page0Url = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(query)}:relevance&channelCode=400001&channel=WEB&currentPage=0&pageSize=5&fields=FULL`;
     const res = await fetch(page0Url, { headers: API_HEADERS });
     if (!res.ok) throw new Error(`Search error ${res.status}`);
     const data0 = await res.json();
     const products = data0.products || [];
-    return { product: products.find(p => String(p.code) === String(query)) || products[0] || null };
+    return { product: products.find(p => String(p.code) === String(query)) || null };
   }
 
   // Single-SKU Drilldown SLA query checking both SDEL (Store Express) and HDEL (Warehouse) simultaneously
@@ -239,24 +503,47 @@
       };
     }
 
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 4000);
+    // Retry throttled requests with backoff instead of killing the run. A single
+    // 429 used to abort the whole scan; across 316 pincodes that is near certain.
+    let res = null;
+    let data = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
+          method: "POST",
+          headers: API_HEADERS,
+          body: JSON.stringify(payload),
+          signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        if (!res) return skuResults;
+
+        if (res.status === 403 || res.status === 429 || res.status >= 500) {
+          widenGate();
+          if (attempt === MAX_RETRIES) throw new Error("WAF_RATE_LIMIT");
+          const retryAfter = parseFloat(res.headers.get("Retry-After"));
+          const waitMs = Number.isFinite(retryAfter)
+            ? retryAfter * 1000
+            : Math.min(1000 * Math.pow(2, attempt) + Math.random() * 400, 15000);
+          await sleep(waitMs);
+          continue;
+        }
+        if (!res.ok) return skuResults;    // 4xx other than throttling: give up quietly
+
+        data = await res.json();
+        break;
+      } catch (e) {
+        clearTimeout(timer);
+        if (e.message === "WAF_RATE_LIMIT") throw e;
+        if (attempt === MAX_RETRIES) return skuResults;   // timeout / network
+        await sleep(Math.min(1000 * Math.pow(2, attempt), 8000));
+      }
+    }
+    if (!data) return skuResults;
 
     try {
-      const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
-        method: "POST",
-        headers: API_HEADERS,
-        body: JSON.stringify(payload),
-        signal: ctrl.signal
-      });
-      clearTimeout(timer);
-      if (!res) return skuResults;
-      if (res.status === 403 || res.status === 429) {
-        throw new Error("WAF_RATE_LIMIT");
-      }
-      if (!res.ok) return skuResults;
-
-      const data = await res.json();
       const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
 
       for (const line of lines) {
@@ -267,7 +554,7 @@
 
         item.available = true;
         const node = assignment.shipNode || "";
-        const nodeName = STORE_NAMES[node] || (node ? `Hub [${node}]` : "");
+        const nodeName = STORE_NAMES[node] || nodeLabel(node);
         const dDate = assignment.deliveryDate || "";
         const carrier = (line.carrierServiceCode || "").replace("Blitz - ", "");
 
@@ -1368,7 +1655,7 @@
     progressContainer.style.display = 'block';
     scanMatrix[targetProduct.code] = scanMatrix[targetProduct.code] || {};
 
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">&#9889; Scanning [${targetProduct.code}] across 86+ Mumbai & MMR pincodes in real-time...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">&#9889; Scanning [${targetProduct.code}] across ${total} Mumbai & MMR pincodes in real-time...</td></tr>`;
 
     const targetPins = [...MUMBAI_PINCODES];
     const total = targetPins.length;
@@ -1389,10 +1676,11 @@
         let batchResults = {};
         try {
           batchResults = (await checkBatchSLA([targetProduct], pinItem.pin)) || {};
-          // Pause between sequential pincode requests to reduce rate-limit pressure.
-          await new Promise(r => setTimeout(r, 250));
+          // Pace request starts; requestGap widens itself if Croma throttles us.
+          await sleep(requestGap);
         } catch (e) {
           if (e.message === "WAF_RATE_LIMIT") {
+            // Only reached after MAX_RETRIES of backoff -- genuinely blocked.
             hitRateLimit = true;
             break;
           }
@@ -1455,7 +1743,7 @@
       if (hitRateLimit) {
         showToast("⚠️ Akamai Rate Limit reached. Please pause a moment or switch network.");
       } else {
-        showToast(completed < total ? `Scan Finished (${completed}/${total} pincodes)` : `Scan Complete! In-Stock at ${totalInStockOccurrences} of 86 Pincodes ✨`);
+        showToast(completed < total ? `Scan Finished (${completed}/${total} pincodes)` : `Scan Complete! In-Stock at ${totalInStockOccurrences} of ${total} Pincodes ✨`);
       }
     }
   }
