@@ -25,10 +25,10 @@ Check one product by SKU or Croma product URL across **all 316 Mumbai & MMR pinc
 Create a browser bookmark with this URL. It loads the scanner with a cache-busting timestamp:
 
 ```javascript
-javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@v2.1.3/croma/croma-mumbai-hunter.min.js?t='+Date.now();document.body.appendChild(s);})();
+javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/asad0406/asad0406.github.io@v2.1.4/croma/croma-mumbai-hunter.min.js?t='+Date.now();document.body.appendChild(s);})();
 ```
 
-> ⚠️ This pins tag `v2.1.3` of the **published** `asad0406.github.io` repo. Edits to the
+> ⚠️ This pins tag `v2.1.4` of the **published** `asad0406.github.io` repo. Edits to the
 > local copy in this folder do **not** reach the bookmarklet until they are copied to
 > `asad0406.github.io/croma/` and a new tag is pushed. Bump the tag in the URL after
 > publishing, or jsDelivr will keep serving the old build from cache.

@@ -396,6 +396,32 @@
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+  // Zone filter chips are built from the pincode data, not hardcoded: the list
+  // grew from 86 pincodes across 4 zones to 316 across 7, and hardcoded chips
+  // silently hid every zone they did not name.
+  const ZONE_LABELS = {
+    "South Mumbai": "South",
+    "Western Suburbs": "Western",
+    "Central & Eastern": "Central/East",
+    "Thane & Navi Mumbai": "Thane/Navi",
+    "Thane & Palghar": "Thane/Palghar",
+    "Navi Mumbai & Raigad": "NaviMum/Raigad",
+    "Kalyan & Ambernath": "Kalyan/Ambernath"
+  };
+
+  const escapeAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+  const ZONE_CHIPS_HTML = (() => {
+    const counts = new Map();
+    for (const p of MUMBAI_PINCODES) counts.set(p.zone, (counts.get(p.zone) || 0) + 1);
+    const chips = [`<span class="zone-chip active" data-zone="ALL">All (${MUMBAI_PINCODES.length})</span>`];
+    for (const [zone, n] of counts) {
+      const label = ZONE_LABELS[zone] || zone;
+      chips.push(`<span class="zone-chip" data-zone="${escapeAttr(zone)}">${escapeAttr(label)} (${n})</span>`);
+    }
+    return chips.join('\n          ');
+  })();
+
   // Fallback name for a shipNode missing from STORE_NAMES, by code prefix.
   // A- = retail store, D- = regional DC, E- = online-only allocation hub.
   function nodeLabel(node) {
@@ -1268,7 +1294,7 @@
         <div class="live-stats-bar">
           <div class="stat-pill" title="Pincodes scanned">
             <span class="stat-lbl">Pins</span>
-            <span class="stat-num cyan" id="stat-scanned">0 / 86</span>
+            <span class="stat-num cyan" id="stat-scanned">0 / ${MUMBAI_PINCODES.length}</span>
           </div>
           <div class="stat-pill green-pill" title="In-Stock fulfillment available">
             <span class="stat-lbl">&#9889; In-Stock</span>
@@ -1291,13 +1317,7 @@
 
       <!-- Filter Controls -->
       <div class="filter-bar">
-        <div class="zone-group" id="zone-chips">
-          <span class="zone-chip active" data-zone="ALL">All (86)</span>
-          <span class="zone-chip" data-zone="South Mumbai">South (28)</span>
-          <span class="zone-chip" data-zone="Western Suburbs">Western (29)</span>
-          <span class="zone-chip" data-zone="Central & Eastern">Central/East (18)</span>
-          <span class="zone-chip" data-zone="Thane & Navi Mumbai">Thane/Navi (11)</span>
-        </div>
+        <div class="zone-group" id="zone-chips">${ZONE_CHIPS_HTML}</div>
         <div class="filter-toggles">
           <label class="filter-toggle">
           <input type="checkbox" id="chk-avail-only" />
@@ -1447,7 +1467,7 @@
     const pMap = scanMatrix[targetSku] || {};
     const scannedPins = Object.keys(pMap).length;
     const availPins = Object.values(pMap).filter(x => x.available).length;
-    statScanned.textContent = `${scannedPins} / 86`;
+    statScanned.textContent = `${scannedPins} / ${MUMBAI_PINCODES.length}`;
     statAvail.textContent = availPins;
     statOos.textContent = scannedPins - availPins;
   }
@@ -1655,7 +1675,9 @@
     progressContainer.style.display = 'block';
     scanMatrix[targetProduct.code] = scanMatrix[targetProduct.code] || {};
 
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">&#9889; Scanning [${targetProduct.code}] across ${total} Mumbai & MMR pincodes in real-time...</td></tr>`;
+    // MUMBAI_PINCODES.length, not `total` -- that is declared a few lines below
+    // and reading it here is a temporal-dead-zone error.
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">&#9889; Scanning [${targetProduct.code}] across ${MUMBAI_PINCODES.length} Mumbai & MMR pincodes in real-time...</td></tr>`;
 
     const targetPins = [...MUMBAI_PINCODES];
     const total = targetPins.length;
