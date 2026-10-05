@@ -1,383 +1,331 @@
-﻿/**
- * Croma Mumbai Hunter — Single-SKU Stock & Fulfillment Scanner
- * Designed with Apple / Linear Glassmorphism HUD aesthetics.
- * Scans one product across all 316 Mumbai & MMR pincodes in real-time.
- * Evaluates both Store Express (SDEL) and Warehouse Dispatch (HDEL) simultaneously.
+/**
+ * Croma Stock Board — SKU fulfilment scanner for Maharashtra
+ *
+ * Scans one SKU across a chosen region or city and reports, per pincode, which
+ * node ships it and when. Store express (SDEL) and warehouse (HDEL) are both
+ * evaluated in a single request per pincode.
  */
 
 (function () {
   'use strict';
 
-  // Clean up any existing instance to ensure fresh state and latest code execution
   const existing = document.getElementById('croma-hunter-root');
-  if (existing) {
-    existing.remove();
-  }
+  if (existing) existing.remove();
 
-  // 1. Mumbai & MMR Pincode Database (316 pincodes across 7 zones).
-  //    Generated from pincodes_mh.csv (prefixes 400/401/410/421); the original
-  //    86 curated area+zone labels are preserved.
-  const MUMBAI_PINCODES = [
-    // South Mumbai (36 pincodes)
-    { pin: "400001", area: "Fort / Colaba / Ballard Estate", zone: "South Mumbai" },
-    { pin: "400002", area: "Kalbadevi / Marine Lines", zone: "South Mumbai" },
-    { pin: "400003", area: "Mandvi / Masjid Bunder", zone: "South Mumbai" },
-    { pin: "400004", area: "Girgaon / Charni Road", zone: "South Mumbai" },
-    { pin: "400005", area: "Colaba / Cuffe Parade", zone: "South Mumbai" },
-    { pin: "400006", area: "Malabar Hill / Walkeshwar", zone: "South Mumbai" },
-    { pin: "400007", area: "Grant Road / Nana Chowk", zone: "South Mumbai" },
-    { pin: "400008", area: "Mumbai Central / Tardeo", zone: "South Mumbai" },
-    { pin: "400009", area: "Chinchbunder / Dongri", zone: "South Mumbai" },
-    { pin: "400010", area: "Mazgaon / Dockyard", zone: "South Mumbai" },
-    { pin: "400011", area: "Jacob Circle / Mahalaxmi", zone: "South Mumbai" },
-    { pin: "400012", area: "Parel / Lalbaug", zone: "South Mumbai" },
-    { pin: "400013", area: "Lower Parel / Delisle Road", zone: "South Mumbai" },
-    { pin: "400014", area: "Dadar East / Wadala", zone: "South Mumbai" },
-    { pin: "400015", area: "Sewri", zone: "South Mumbai" },
-    { pin: "400016", area: "Mahim", zone: "South Mumbai" },
-    { pin: "400018", area: "Worli / Century Bhavan", zone: "South Mumbai" },
-    { pin: "400019", area: "Matunga / Mumbai", zone: "South Mumbai" },
-    { pin: "400020", area: "Churchgate / Marine Drive", zone: "South Mumbai" },
-    { pin: "400021", area: "Nariman Point", zone: "South Mumbai" },
-    { pin: "400023", area: "Hutatma Chowk / Mumbai", zone: "South Mumbai" },
-    { pin: "400025", area: "Prabhadevi", zone: "South Mumbai" },
-    { pin: "400026", area: "Breach Candy / Cumballa Hill", zone: "South Mumbai" },
-    { pin: "400027", area: "Byculla", zone: "South Mumbai" },
-    { pin: "400028", area: "Dadar West / Shivaji Park", zone: "South Mumbai" },
-    { pin: "400029", area: "Mumbai Aerodrome / Mumbai", zone: "South Mumbai" },
-    { pin: "400030", area: "Worli Sea Face", zone: "South Mumbai" },
-    { pin: "400031", area: "Wadala West", zone: "South Mumbai" },
-    { pin: "400032", area: "Sachivalaya / Mumbai", zone: "South Mumbai" },
-    { pin: "400033", area: "Tank Road / Mumbai", zone: "South Mumbai" },
-    { pin: "400034", area: "Tardeo / Tulsiwadi", zone: "South Mumbai" },
-    { pin: "400035", area: "M. Gover'S Camp / Mumbai", zone: "South Mumbai" },
-    { pin: "400036", area: "Malabar Hill / Kemps Corner", zone: "South Mumbai" },
-    { pin: "400037", area: "Antop Hill", zone: "South Mumbai" },
-    { pin: "400038", area: "Ballard Estate / Mumbai", zone: "South Mumbai" },
-    { pin: "400039", area: "Council Hall / Mumbai", zone: "South Mumbai" },
-    // Western Suburbs (72 pincodes)
-    { pin: "400040", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400041", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400042", area: "Bhandup (East) / Mumbai", zone: "Western Suburbs" },
-    { pin: "400043", area: "Govandi / Mumbai", zone: "Western Suburbs" },
-    { pin: "400044", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400045", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400046", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400047", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400048", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400049", area: "Juhu / Vile Parle West", zone: "Western Suburbs" },
-    { pin: "400050", area: "Bandra West", zone: "Western Suburbs" },
-    { pin: "400051", area: "Bandra Kurla Complex (BKC)", zone: "Western Suburbs" },
-    { pin: "400052", area: "Khar West", zone: "Western Suburbs" },
-    { pin: "400053", area: "Andheri West / Lokhandwala", zone: "Western Suburbs" },
-    { pin: "400054", area: "Santacruz West", zone: "Western Suburbs" },
-    { pin: "400055", area: "Santacruz East / Kalina", zone: "Western Suburbs" },
-    { pin: "400056", area: "Vile Parle West (JVPD)", zone: "Western Suburbs" },
-    { pin: "400057", area: "Vile Parle East", zone: "Western Suburbs" },
-    { pin: "400058", area: "Andheri West / Azad Nagar", zone: "Western Suburbs" },
-    { pin: "400059", area: "Andheri East / Marol", zone: "Western Suburbs" },
-    { pin: "400060", area: "Jogeshwari East", zone: "Western Suburbs" },
-    { pin: "400061", area: "Versova / Madh", zone: "Western Suburbs" },
-    { pin: "400062", area: "Goregaon West", zone: "Western Suburbs" },
-    { pin: "400063", area: "Goregaon East / Gokuldham", zone: "Western Suburbs" },
-    { pin: "400064", area: "Malad West / Orlem", zone: "Western Suburbs" },
-    { pin: "400065", area: "Aarey Milk Colony", zone: "Western Suburbs" },
-    { pin: "400066", area: "Borivali East", zone: "Western Suburbs" },
-    { pin: "400067", area: "Kandivali West / Charkop", zone: "Western Suburbs" },
-    { pin: "400068", area: "Dahisar West", zone: "Western Suburbs" },
-    { pin: "400069", area: "Andheri East / JB Nagar", zone: "Western Suburbs" },
-    { pin: "400090", area: "Goregaon -W Bagur Nagar / Mumbai", zone: "Western Suburbs" },
-    { pin: "400091", area: "Borivali (West) / Mumbai", zone: "Western Suburbs" },
-    { pin: "400092", area: "Borivali West / Shimpoli", zone: "Western Suburbs" },
-    { pin: "400093", area: "Chakala / Sahar Airport", zone: "Western Suburbs" },
-    { pin: "400094", area: "Anushakti Nagar / Mumbai", zone: "Western Suburbs" },
-    { pin: "400095", area: "Kandivali West / Marve", zone: "Western Suburbs" },
-    { pin: "400096", area: "Seepz / Mumbai", zone: "Western Suburbs" },
-    { pin: "400097", area: "Malad East / Dindoshi", zone: "Western Suburbs" },
-    { pin: "400098", area: "Vidya Nagar / Mumbai", zone: "Western Suburbs" },
-    { pin: "400099", area: "Sahar Airport / CSIA", zone: "Western Suburbs" },
-    { pin: "400100", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400101", area: "Kandivali East / Thakur Complex", zone: "Western Suburbs" },
-    { pin: "400102", area: "Jogeshwari West / Oshiwara", zone: "Western Suburbs" },
-    { pin: "400103", area: "Boriwali -W Madapeshwar / Mumbai", zone: "Western Suburbs" },
-    { pin: "400104", area: "Goregaon West / Bangur Nagar", zone: "Western Suburbs" },
-    { pin: "400105", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400106", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400107", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400108", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400109", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400110", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400111", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400112", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400113", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400114", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400125", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400162", area: "Mumbai / Mumbra", zone: "Western Suburbs" },
-    { pin: "400167", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400201", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400202", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400206", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400207", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400208", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400209", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400210", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400218", area: "Thane / Kamothe", zone: "Western Suburbs" },
-    { pin: "400401", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400410", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400547", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400617", area: "Thane", zone: "Western Suburbs" },
-    { pin: "400700", area: "Mumbai", zone: "Western Suburbs" },
-    { pin: "400901", area: "Mumbai", zone: "Western Suburbs" },
-    // Central & Eastern (23 pincodes)
-    { pin: "400017", area: "Dharavi", zone: "Central & Eastern" },
-    { pin: "400022", area: "Sion / Chunabhatti", zone: "Central & Eastern" },
-    { pin: "400024", area: "Kurla East / Nehru Nagar", zone: "Central & Eastern" },
-    { pin: "400070", area: "Kurla West / LBS Road", zone: "Central & Eastern" },
-    { pin: "400071", area: "Chembur / RK Studio", zone: "Central & Eastern" },
-    { pin: "400072", area: "Saki Naka / Asalpha", zone: "Central & Eastern" },
-    { pin: "400073", area: "Mumbai", zone: "Central & Eastern" },
-    { pin: "400074", area: "Chembur East / Mahul", zone: "Central & Eastern" },
-    { pin: "400075", area: "Pant Nagar / Ghatkopar East", zone: "Central & Eastern" },
-    { pin: "400076", area: "Powai / Hiranandani", zone: "Central & Eastern" },
-    { pin: "400077", area: "Ghatkopar East", zone: "Central & Eastern" },
-    { pin: "400078", area: "Bhandup West / Neptune Mall", zone: "Central & Eastern" },
-    { pin: "400079", area: "Vikhroli West / Park Site", zone: "Central & Eastern" },
-    { pin: "400080", area: "Mulund West / LBS Road", zone: "Central & Eastern" },
-    { pin: "400081", area: "Mulund East", zone: "Central & Eastern" },
-    { pin: "400082", area: "Mulund Colony / Mumbai", zone: "Central & Eastern" },
-    { pin: "400083", area: "Vikhroli East / Kannamwar", zone: "Central & Eastern" },
-    { pin: "400084", area: "Bhatwadi / Mumbai", zone: "Central & Eastern" },
-    { pin: "400085", area: "B.A.R.C. / Mumbai", zone: "Central & Eastern" },
-    { pin: "400086", area: "Ghatkopar West / R City Mall", zone: "Central & Eastern" },
-    { pin: "400087", area: "N. T. I. E. / Mumbai", zone: "Central & Eastern" },
-    { pin: "400088", area: "Govandi / Trombay / Deonar", zone: "Central & Eastern" },
-    { pin: "400089", area: "Tilak Nagar / Chembur", zone: "Central & Eastern" },
-    // Thane & Navi Mumbai (29 pincodes)
-    { pin: "400601", area: "Thane Station / Naupada", zone: "Thane & Navi Mumbai" },
-    { pin: "400602", area: "Naupada / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400603", area: "Balkum / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400604", area: "Thane Teen Hath Naka", zone: "Thane & Navi Mumbai" },
-    { pin: "400605", area: "Kalwa / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400606", area: "J. K. Gram / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400607", area: "Thane Ghodbunder / The Walk", zone: "Thane & Navi Mumbai" },
-    { pin: "400608", area: "Thane (Ewest) / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400609", area: "Majiwada / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400610", area: "Thane - Apna Bazar / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400611", area: "Thane (W) / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400612", area: "Thane / Mumbra", zone: "Thane & Navi Mumbai" },
-    { pin: "400613", area: "Mumbai", zone: "Thane & Navi Mumbai" },
-    { pin: "400614", area: "CBD Belapur / Palm Beach", zone: "Thane & Navi Mumbai" },
-    { pin: "400615", area: "Belapur Node - Sec Iii / Thane", zone: "Thane & Navi Mumbai" },
-    { pin: "400701", area: "Kokan Bhavan / Mumbai", zone: "Thane & Navi Mumbai" },
-    { pin: "400702", area: "Raigad / Uran", zone: "Thane & Navi Mumbai" },
-    { pin: "400703", area: "Vashi Sector 17", zone: "Thane & Navi Mumbai" },
-    { pin: "400704", area: "Raigad / Uran", zone: "Thane & Navi Mumbai" },
-    { pin: "400705", area: "Vashi Akshar Plaza", zone: "Thane & Navi Mumbai" },
-    { pin: "400706", area: "Seawoods Grand Central / Nerul", zone: "Thane & Navi Mumbai" },
-    { pin: "400707", area: "Uran", zone: "Thane & Navi Mumbai" },
-    { pin: "400708", area: "Airoli / Mindspace", zone: "Thane & Navi Mumbai" },
-    { pin: "400709", area: "Khoparkhairane / Mumbai", zone: "Thane & Navi Mumbai" },
-    { pin: "400710", area: "Navi Mumbai / Mumbai", zone: "Thane & Navi Mumbai" },
-    { pin: "400713", area: "Mumbai", zone: "Thane & Navi Mumbai" },
-    { pin: "401107", area: "Mira Road East", zone: "Thane & Navi Mumbai" },
-    { pin: "401202", area: "Vasai West", zone: "Thane & Navi Mumbai" },
-    { pin: "401303", area: "Virar West", zone: "Thane & Navi Mumbai" },
-    // Thane & Palghar (51 pincodes)
-    { pin: "401100", area: "Mumbai", zone: "Thane & Palghar" },
-    { pin: "401101", area: "Bhayander / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401102", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401103", area: "Palghar / Talasari", zone: "Thane & Palghar" },
-    { pin: "401104", area: "Mira Road / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401105", area: "Bhayader East / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401106", area: "Thane / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401200", area: "Mumbai / Vasai", zone: "Thane & Palghar" },
-    { pin: "401201", area: "Vasai Village / Vasai", zone: "Thane & Palghar" },
-    { pin: "401203", area: "Sopara / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401204", area: "Kudus", zone: "Thane & Palghar" },
-    { pin: "401205", area: "Gokhivare / Vasai", zone: "Thane & Palghar" },
-    { pin: "401206", area: "Kudus", zone: "Thane & Palghar" },
-    { pin: "401207", area: "Papdi / Vasai", zone: "Thane & Palghar" },
-    { pin: "401208", area: "Vasai E / Vasai", zone: "Thane & Palghar" },
-    { pin: "401209", area: "Nallasopara E / Vasai", zone: "Thane & Palghar" },
-    { pin: "401210", area: "Vasai (E) / Vasai", zone: "Thane & Palghar" },
-    { pin: "401214", area: "Mumbai / Vasai", zone: "Thane & Palghar" },
-    { pin: "401301", area: "Agashi / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401302", area: "Arnala / Mumbai", zone: "Thane & Palghar" },
-    { pin: "401304", area: "Mumbai", zone: "Thane & Palghar" },
-    { pin: "401305", area: "Mumbai", zone: "Thane & Palghar" },
-    { pin: "401400", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401401", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401402", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401403", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401404", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401405", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401406", area: "Mumbai / Palghar", zone: "Thane & Palghar" },
-    { pin: "401407", area: "Shirgaon (Thane) / Palghar", zone: "Thane & Palghar" },
-    { pin: "401501", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401502", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401503", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401504", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401505", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401506", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401601", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401602", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401603", area: "Jawhar", zone: "Thane & Palghar" },
-    { pin: "401604", area: "Jawhar", zone: "Thane & Palghar" },
-    { pin: "401605", area: "Palghar / Jawhar", zone: "Thane & Palghar" },
-    { pin: "401606", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401607", area: "Palghar / Talasari", zone: "Thane & Palghar" },
-    { pin: "401608", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401609", area: "Palghar", zone: "Thane & Palghar" },
-    { pin: "401610", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401616", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401701", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401702", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401703", area: "Talasari", zone: "Thane & Palghar" },
-    { pin: "401706", area: "Talasari", zone: "Thane & Palghar" },
-    // Navi Mumbai & Raigad (56 pincodes)
-    { pin: "410005", area: "Kolhapur", zone: "Navi Mumbai & Raigad" },
-    { pin: "410062", area: "Kolhapur", zone: "Navi Mumbai & Raigad" },
-    { pin: "410101", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
-    { pin: "410102", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
-    { pin: "410105", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
-    { pin: "410107", area: "Karjat - Raigarh / Mumbai", zone: "Navi Mumbai & Raigad" },
-    { pin: "410200", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
-    { pin: "410201", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
-    { pin: "410202", area: "Karjat - Raigarh / Khopoli", zone: "Navi Mumbai & Raigad" },
-    { pin: "410203", area: "Karjat - Raigarh / Khopoli", zone: "Navi Mumbai & Raigad" },
-    { pin: "410204", area: "Karjat - Raigarh / Khopoli", zone: "Navi Mumbai & Raigad" },
-    { pin: "410205", area: "Pali / Roha", zone: "Navi Mumbai & Raigad" },
-    { pin: "410206", area: "Khanda Colony / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410207", area: "Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410208", area: "Panvel / Kamothe", zone: "Navi Mumbai & Raigad" },
-    { pin: "410209", area: "Kamothe", zone: "Navi Mumbai & Raigad" },
-    { pin: "410210", area: "Navimumbai / Kamothe", zone: "Navi Mumbai & Raigad" },
-    { pin: "410211", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410213", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410216", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410217", area: "Navi Mumbai / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410218", area: "Kalamboli / Kamothe", zone: "Navi Mumbai & Raigad" },
-    { pin: "410219", area: "Karjat - Raigarh / Kamothe", zone: "Navi Mumbai & Raigad" },
-    { pin: "410220", area: "Karjat - Raigarh", zone: "Navi Mumbai & Raigad" },
-    { pin: "410221", area: "Kamothe / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410222", area: "Karjat - Raigarh / Panvel", zone: "Navi Mumbai & Raigad" },
-    { pin: "410301", area: "Kamsheth / Khopoli", zone: "Navi Mumbai & Raigad" },
-    { pin: "410302", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410303", area: "Kamsheth / Mumbai", zone: "Navi Mumbai & Raigad" },
-    { pin: "410401", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410402", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410403", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410405", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410406", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410410", area: "Kamsheth", zone: "Navi Mumbai & Raigad" },
-    { pin: "410501", area: "Chakan / Poona Chakan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410502", area: "Junnar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410503", area: "Rajgurunagar / Ambegoan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410504", area: "Junnar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410505", area: "Ambegoan / Rajgurunagar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410506", area: "Talegaon Dabhade / Talegaon", zone: "Navi Mumbai & Raigad" },
-    { pin: "410507", area: "Talegaon", zone: "Navi Mumbai & Raigad" },
-    { pin: "410508", area: "Ambegoan / Rajgurunagar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410509", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410510", area: "Rajgurunagar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410511", area: "Junnar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410512", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410513", area: "Rajgurunagar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410514", area: "Junnar", zone: "Navi Mumbai & Raigad" },
-    { pin: "410515", area: "Junnar / Ambegoan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410516", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410520", area: "Ambegoan", zone: "Navi Mumbai & Raigad" },
-    { pin: "410613", area: "Pune", zone: "Navi Mumbai & Raigad" },
-    { pin: "410615", area: "Pune", zone: "Navi Mumbai & Raigad" },
-    { pin: "410707", area: "Pune", zone: "Navi Mumbai & Raigad" },
-    { pin: "410708", area: "Pune", zone: "Navi Mumbai & Raigad" },
-    // Kalyan & Ambernath (49 pincodes)
-    { pin: "421001", area: "Mahral / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421002", area: "Kalyan Badlapur Road / Ulhas Nagar / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421003", area: "Kalyan Badlapur Road / Ulhas Nagar / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421004", area: "Vitthalwadi / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421005", area: "Ulhasnagar / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421006", area: "Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421032", area: "Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421051", area: "Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421101", area: "Titwala", zone: "Kalyan & Ambernath" },
-    { pin: "421102", area: "Ambivli / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421103", area: "Titwala / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421201", area: "Tilaknagar (Dombivali) / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421202", area: "Vishnunagar / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421203", area: "Dombivali / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421204", area: "Manpada / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421205", area: "Nabanagar / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421206", area: "Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421300", area: "Mumbai / Bhiwandi", zone: "Kalyan & Ambernath" },
-    { pin: "421301", area: "Kalyan Bunder Road / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421302", area: "Bhiwandi", zone: "Kalyan & Ambernath" },
-    { pin: "421303", area: "Kudus", zone: "Kalyan & Ambernath" },
-    { pin: "421304", area: "Kudus / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421305", area: "Titwala / Bhiwandi", zone: "Kalyan & Ambernath" },
-    { pin: "421306", area: "Kate Mani Vali / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421307", area: "Thane", zone: "Kalyan & Ambernath" },
-    { pin: "421308", area: "Thane / Bhiwandi", zone: "Kalyan & Ambernath" },
-    { pin: "421311", area: "Pimplas/Saravali / Bhiwandi", zone: "Kalyan & Ambernath" },
-    { pin: "421312", area: "Kudus", zone: "Kalyan & Ambernath" },
-    { pin: "421313", area: "Kudus", zone: "Kalyan & Ambernath" },
-    { pin: "421329", area: "Kudus", zone: "Kalyan & Ambernath" },
-    { pin: "421401", area: "Murbad", zone: "Kalyan & Ambernath" },
-    { pin: "421402", area: "Ambegoan / Murbad", zone: "Kalyan & Ambernath" },
-    { pin: "421403", area: "Murbad", zone: "Kalyan & Ambernath" },
-    { pin: "421405", area: "Murbad", zone: "Kalyan & Ambernath" },
-    { pin: "421421", area: "Murbad", zone: "Kalyan & Ambernath" },
-    { pin: "421501", area: "Ambernath / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421502", area: "Ambarnath / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421503", area: "Kulgaon / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421504", area: "Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421505", area: "Jambhul / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421506", area: "Ambernath(E) / Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421507", area: "Mumbai", zone: "Kalyan & Ambernath" },
-    { pin: "421600", area: "Sahapur", zone: "Kalyan & Ambernath" },
-    { pin: "421601", area: "Sahapur", zone: "Kalyan & Ambernath" },
-    { pin: "421602", area: "Igatpuri", zone: "Kalyan & Ambernath" },
-    { pin: "421603", area: "Sahapur", zone: "Kalyan & Ambernath" },
-    { pin: "421604", area: "Mumbai / Sahapur", zone: "Kalyan & Ambernath" },
-    { pin: "421605", area: "Kalyan / Titwala", zone: "Kalyan & Ambernath" },
-    { pin: "421607", area: "Mumbai", zone: "Kalyan & Ambernath" }
+  const PIN_DB = {
+    "AAMBAD": "431121:CHIKALTHANA|431204:AMBAD BAZAR|431205:GEVRAI|431209:PARTUR",
+    "ACHALPUR": "444717:AKOT|444723:ACHALPUR|444724:ACHALPUR|444725:ACHALPUR|444727:ACHALPUR|444728:ACHALPUR|444804:ACHALPUR|444805:ACHALPUR|444806:ACHALPUR|444807:ACHALPUR|444808:ACHALPUR|444809:ACHALPUR|444810:CHANDUR BAZAR",
+    "AHIRI": "442703:AHIRI|442704:AHIRI|442705:AHIRI|442709:AHIRI|442710:AHIRI",
+    "AHMADPUR": "413514:AHMADPUR|413515:AHMADPUR|413523:AHMADPUR",
+    "AHMEDNAGAR": "402601:AHMEDNAGAR|414001:AHMEDNAGAR CITY|414002:BHINGAR|414003:SAVEI BHUTKAR WADI|414004:VEHICLE RESEARCH&DEV.|414005:KEDGAON|414006:AHMEDNAGAR|414011:AHMEDNAGAR|414107:AHMEDNAGAR|414108:AHMEDNAGAR|414109:AHMEDNAGAR|414110:MIRC S.O.|414111:MIDC INDUSTIRAL AREA|414201:AHMEDNAGAR|414578:AHMEDNAGAR|414601:JEUR S.O.",
+    "AJRA": "416504:AJRA|416505:AJRA|416507:AJRA|416508:AJRA|416509:AJRA|416527:AJRA|416552:AJRA",
+    "AKAALKOT": "413216:AKAALKOT|413217:AKAALKOT|413218:AKAALKOT|413219:AKAALKOT|413220:AKAALKOT|413226:AKAALKOT|413227:AKAALKOT|413603:AKAALKOT",
+    "AKOLA": "444001:AKOLA|444002:AKOLA|444003:AKOLA|444004:AKOLA|444005:AKOLA|444006:AKOLA|444104:AKOLA|444109:BALAPUR|444302:BALAPUR|444308:BALAPUR|444309:BALAPUR|444311:BALAPUR|444401:AKOLA|444407:KARANJA - WARDHA|444502:BALAPUR",
+    "AKOLE": "422601:AKOLE|422604:AKOLE|422610:AKOLE",
+    "AKOT": "444101:AKOT|444103:SANGRAMPUR|444108:SANGRAMPUR|444111:AKOT|444112:AKOT|444113:AKOT|444114:AKOT|444115:AKOT|444116:AKOT|444117:AKOT|444118:AKOT|444119:AKOT|444120:AKOT|444121:AKOT|444122:AKOT|444123:AKOT|444124:AKOT|444125:AKOT|444126:AKOT|444129:AKOT|444718:AKOT",
+    "ALEPHATA": "411412:PUNE|412410:PARNER|412411:JUNNAR|412412:JUNNAR|422602:JUNNAR|422620:SANGAMNER",
+    "ALIBAGH": "402106:PALI|402108:ALIBAGH|402125:ROHA|402126:PALI|402201:ALIBAGH|402202:ALIBAGH|402203:ALIBAGH|402204:ALIBAGH|402205:ALIBAGH|402206:ALIBAGH|402207:ALIBAGH|402208:ALIBAGH|402209:ALIBAGH|402225:ALIBAGH",
+    "AMALNER": "425104:JALGAON|425105:AMALNER|425106:AMALNER|425401:AMALNER|425402:AMALNER|425420:AMALNER|425435:SHAHADA|425437:SHAHADA",
+    "AMBAJOGAI": "431517:AMBAJOGAI|431519:AMBAJOGAI|431523:AMBAJOGAI|431524:AMBAJOGAI|431525:AMBAJOGAI|431526:AMBAJOGAI",
+    "AMBEGOAN": "410503:RAJGURUNAGAR|410509:AMBEGOAN|410512:AMBEGOAN|410515:JUNNAR|410516:AMBEGOAN|410520:AMBEGOAN|412405:RAJGURUNAGAR|412406:RAJGURUNAGAR|412407:AMBEGOAN|412408:AMBEGOAN",
+    "AMGAON": "441902:AMGAON|441916:AMGAON|441917:AMGAON|441918:AMGAON|441919:AMGAON|441920:AMGAON",
+    "AMRAVATI": "444601:AMRAVATI|444602:AMRAVATI|444603:AMRAVATI|444604:AMRAVATI|444605:AMRAVATI|444606:AMRAVATI|444607:AMRAVATI|444608:AMRAVATI|444609:AMRAVATI|444701:AMRAVATI|444801:AMRAVATI|444900:AMRAVATI|444901:AMRAVATI",
+    "ARJUNI MORGAON": "441701:ARJUNI MORGAON|441702:ARJUNI MORGAON|441703:ARJUNI MORGAON|441805:ARJUNI MORGAON",
+    "ARNI": "445103:ARNI|445104:ARNI|445105:ARNI|445106:ARNI|445107:ARNI",
+    "ARVI": "442201:ARVI|442204:KARANJA - WASHIM|442312:HINGANGHAT",
+    "ATPADI": "413306:ATPADI|413313:ATPADI|413314:ATPADI|415301:ATPADI|415306:ATPADI|415308:ATPADI|415315:ATPADI|415345:ATPADI",
+    "AURANGABAD": "415570:AURANGABAD|431002:BHUIWADA|431004:BEGUMPURA|431005:AHINSANAGAR|431010:SATARA PARISAR|431100:AURANGABAD|431105:AURANGABAD|431133:BAJAJ NAGAR|431136:MIDC WALUJ",
+    "AUSA": "413510:KALLAM|413516:AUSA|413520:AUSA",
+    "BABULGAON": "445101:YAVATMAL",
+    "BARAMATI": "413102:BARAMATI|413104:BARAMATI|413105:DAUND|413110:PHALTAN|413115:BARAMATI|413116:BARAMATI|413117:BARAMATI|413125:BARAMATI|413126:BARAMATI|413127:BARAMATI|413128:BARAMATI|413129:BARAMATI|413130:BARAMATI|413133:BARAMATI MIDC",
+    "BARSI": "413250:BARSI|413401:BARSI|413402:BARSI|413403:BARSI|413404:BARSI|413409:BARSI|413411:BARSI|413412:MOHOL",
+    "BASMAT": "431512:BASMAT|431701:BASMAT|431750:BASMAT",
+    "BEED": "413122:INDAPUR|413249:PATODA|414205:BEED|414206:BEED|431122:NAGAR ROAD|431153:CHIKALTHANA",
+    "BHADRAVATI": "442501:BHADRAVATI|442503:BHADRAVATI|442902:BHADRAVATI",
+    "BHANDARA": "441904:BHANDARA|441906:BHANDARA|441921:BHANDARA|441922:BHANDARA|441923:BHANDARA|441924:BHANDARA|441928:BHANDARA|441930:BHANDARA",
+    "BHARTHI VIDHYA PETH, PUNE": "411046:KATRAJ",
+    "BHIWANDI": "421300:MUMBAI|421302:BHIWANDI|421305:TITWALA|421308:THANE|421311:PIMPLAS/SARAVALI|431302:THANE",
+    "BHOKAR": "431713:BHOKAR|431801:BHOKAR",
+    "BHOPKHEL, PUNE": "411031:CME",
+    "BHOR": "412107:WELHE|412113:WELHE|412205:SHIRWAL|412206:BHOR|412212:WELHE|412213:WELHE",
+    "BHUM": "413503:BHUM|413504:BHUM|413525:KALAMB|413526:BHUM|413534:BHUM|413535:BHUM|413536:BHUM|413537:BHUM",
+    "BHUSAWAL": "425201:BHUSAWAL SHIVAJI NAGAR|425203:BHUSAWAL ORDNANCE FACTORY|425204:NASHIRABAD|425301:BHUSAWAL|425302:BHUSAWAL|425304:BHUSAWAL|425305:BHUSAWAL|425307:BHUSAWAL|425308:BHUSAWAL|425309:NASHIRABAD|425310:BHUSAWAL|425311:MALKAPUR|425501:BHUSAWAL|425503:BHUSAWAL|425517:BHUSAWAL|425518:BHUSAWAL|425519:BHUSAWAL|425520:BHUSAWAL|425521:BHUSAWAL|425522:BHUSAWAL|425523:BHUSAWAL|425524:BHUSAWAL",
+    "BRAHMAPURI": "441205:BRAHMAPURI|441206:BRAHMAPURI",
+    "BULDANA": "443001:BULDANA|443002:URAN|443105:MALKAPUR|443108:JAFRABAD|443201:BULDANA|444301:BULDANA|444307:KHAMGAON",
+    "BUND GARDEN, KOREGAOPARK, PUNE": "411001:GPO",
+    "BUTIBORI": "441108:UMRED|441114:KAMTHI|441122:WARDHA",
+    "CHAKUR": "413513:CHAKUR|413529:CHAKUR|413581:CHAKUR",
+    "CHALISGAON": "424101:CHALISGAON|424102:CHALISGAON|424106:CHALISGAON|424107:PAROLA|424108:CHALISGAON|424110:NANDGAON|424112:NANDGAON|424114:NANDGAON|424116:NANDGAON|424117:NANDGAON|424119:AURANGABAD",
+    "CHAMURSI": "442603:CHAMURSI|442604:CHAMURSI|442708:CHAMURSI",
+    "CHANDRAPUR": "442401:CHANDRAPUR|442402:CHANDRAPUR|442403:CHANDRAPUR|442404:CHANDRAPUR|442405:CHANDRAPUR|442406:CHANDRAPUR|442502:CHANDRAPUR|442505:CHANDRAPUR|442506:CHANDRAPUR|442507:CHANDRAPUR|442701:GONDPIPARI|442901:CHANDRAPUR|442909:CHANDRAPUR|442910:CHANDRAPUR|442911:CHANDRAPUR",
+    "CHANDUR BAZAR": "444704:CHANDUR BAZAR|444707:CHANDUR BAZAR|444720:CHANDUR BAZAR|444721:CHANDUR BAZAR|444722:CHANDUR BAZAR|444726:ACHALPUR|444811:CHANDUR BAZAR|444812:CHANDUR BAZAR|444905:CHANDUR BAZAR",
+    "CHIKALI, PUNE": "411062:TALAWADE",
+    "CHIKALTHANA": "431001:ADALAT ROAD|431003:BHAGWAN HOMEOPATHY COLL.|431006:CHIKALTHANA MIDC|431007:AIRPORT|431008:AURANGABAD|431009:GARKHEDA|431119:SOYGAON|431154:SHENDRA MIDC|431201:JALNA|431210:MUKUNDWADI",
+    "CHIMUR": "442903:CHIMUR|442904:CHIMUR",
+    "CHIPLUN": "415601:POPHALI|415602:SHIRGOAN|415603:ALORE|415604:KHERDI|415605:CHIPLUN|415606:SAWARDA|415628:CHIPLUN|415641:CHIPLUN|415701:CHIPLUN|415718:CHIPLUN|415722:CHIPLUN",
+    "CHOPDA": "425107:CHOPDA|425108:CHOPDA|425303:CHOPDA|425434:SHAHADA",
+    "CHUFULA": "412203:YAVAT|412204:YAVAT|412214:YAVAT",
+    "DAMANGAON": "444709:DAMANGAON|444710:DAMANGAON|444711:DAMANGAON|444712:DAMANGAON|444714:DAMANGAON|444715:DAMANGAON|444716:DAMANGAON|444904:DAMANGAON|444909:WARUD",
+    "DAPOLI": "415201:MAHAD|415202:MAHAD|415203:MAHAD|415208:SRIVARDHAN|415214:SRIVARDHAN|415706:GUHAGAR|415712:DAPOLI|415713:DAPOLI|415714:DAPOLI|415716:DAPOLI|415717:DAPOLI|415720:DAPOLI",
+    "DARWHA": "445110:DARWHA|445202:DARWHA",
+    "DARYAPUR": "444705:DARYAPUR|444706:DARYAPUR|444713:DAMANGAON|444802:DARYAPUR|444803:DARYAPUR",
+    "DAUND": "412211:SHIRUR|412215:MAHAD|412219:DAUND|413801:DAUND|413802:DAUND|414701:DAUND|414702:DAUND|414703:DAUND|414709:DAUND",
+    "DEGLUR": "431717:DEGLUR|431718:DEGLUR|431719:DEGLUR|431723:DEGLUR|431724:DEGLUR|431725:DEGLUR|431726:DEGLUR|431727:DEGLUR|431739:DEGLUR|431740:DEGLUR|431741:DEGLUR",
+    "DEOLGAON RAJA": "431208:DEOLGAON RAJA|443203:DEOLGAON RAJA|443204:DEOLGAON RAJA|443205:DEOLGAON RAJA|443206:DEOLGAON RAJA|443207:DEOLGAON RAJA|443208:DEOLGAON RAJA|443211:DEOLGAON RAJA|443308:DEOLGAON RAJA",
+    "DESAIGANJ": "441207:DESAIGANJ|441208:DESAIGANJ|441217:DESAIGANJ|441803:DESAIGANJ",
+    "DEVGARH": "416610:DEVGARH|416611:TALEBAZAR|416612:DEVGARH|416613:KANKAVALI|416615:DEVGARH|416623:DEVGARH|416630:DEVGARH|416710:DEVGARH|416803:DEVGARH|416804:DEVGARH|416805:DEVGARH|416806:DEVGARH|416807:DEVGARH|416811:DEVGARH",
+    "DHARMABAD": "431711:DHARMABAD|431728:DHARMABAD|431730:DHARMABAD|431731:DHARMABAD|431732:DHARMABAD|431733:DHARMABAD|431808:DHARMABAD|431809:DHARMABAD",
+    "DHARNI": "444702:DHARNI|444703:DHARNI|444719:DHARNI|444813:DHARNI|444814:DHARNI|444815:DHARNI|444816:DHARNI|444817:DHARNI|444818:DHARNI|444819:DHARNI|444820:DHARNI|444821:DHARNI|444822:DHARNI|444823:DHARNI|444824:DHARNI|444825:DHARNI|444826:DHARNI|444827:DHARNI",
+    "DHULE": "424001:DHULE|424002:DHULE DEOPUR|424003:DHULE STATION ROAD|424004:DHULE MARKETYARD|424005:DHULE VIDYANAGAR|424006:DHULE MIDC|424026:DHULE|424027:DHULE|424113:NANDGAON|424301:DHULE|424302:SAKRI|424307:DHULE|424308:DHULE|424309:DHULE|424311:DHULE|424312:DHULE|424313:DHULE|424315:DHULE|424316:DHULE|424318:DHULE",
+    "DIGRAS": "444404:DIGRAS|445203:DIGRAS",
+    "DINDORI": "422202:NASHIK|422205:NIPHAD|422208:NASHIK|422215:NASHIK",
+    "FURSUNGI ROAD, PUNE": "411028:HADAPSAR",
+    "GADCHANDUR": "442706:AHIRI|442905:CHANDRAPUR|442908:CHANDRAPUR|442916:WANI - YAVATMAL|442917:CHANDRAPUR",
+    "GADHINGLAJ": "416220:GADHINGLAJ|416501:GADHINGLAJ|416502:GADHINGLAJ|416503:GADHINGLAJ|416506:GADHINGLAJ|416526:GADHINGLAJ|416536:OROS BUDRUK|416551:GADHINGLAJ",
+    "GANGAKHER": "431514:GANGAKHER|431521:GANGAKHER|431532:GANGAKHER|431533:GANGAKHER|431534:GANGAKHER|431536:GANGAKHER",
+    "GANGAPUR": "423702:GANGAPUR|431109:GANGAPUR|431110:GANGAPUR",
+    "GARGOTI": "416208:GARGOTI|416209:GARGOTI|416210:GARGOTI|416211:GARGOTI|416212:GARGOTI|416218:GARGOTI|416219:GARGOTI|416221:GARGOTI|416222:GARGOTI|416223:GARGOTI|416224:GARGOTI|416225:GARGOTI|416231:GARGOTI|416235:GARGOTI",
+    "GARHCHIROLI": "442605:GARHCHIROLI",
+    "GEVRAI": "431127:GEVRAI|431130:GEVRAI|431143:GEVRAI|431212:GEVRAI",
+    "GHATANJI": "445108:GHATANJI|445109:GHATANJI|445301:GHATANJI|445306:GHATANJI|445323:GHATANJI",
+    "GONDIA": "441601:GONDIA|441602:GONDIA|441603:GONDIA|441604:GONDIA|441605:GONDIA|441606:GONDIA|441607:GONDIA|441608:GONDIA|441609:GONDIA|441611:GONDIA|441612:GONDIA|441613:GONDIA|441614:GONDIA|441801:TIRORA",
+    "GONDPIPARI": "441226:GONDPIPARI|441227:GONDPIPARI|441228:GONDPIPARI|442700:GONDPIPARI|442702:GONDPIPARI|442707:CHAMURSI|442918:GONDPIPARI",
+    "GUHAGAR": "415631:GUHAGAR|415633:GUHAGAR|415634:GUHAGAR|415702:CHIPLUN|415703:GUHAGAR|415704:GUHAGAR|415705:GUHAGAR|415707:GUHAGAR|415719:GUHAGAR|415724:GUHAGAR|415726:SANGMESHWAR|415728:GUHAGAR|415729:GUHAGAR",
+    "HIMAYAT NAGAR": "431802:HIMAYAT NAGAR|431803:HIMAYAT NAGAR",
+    "HINGANGHAT": "442105:HINGANGHAT|442301:HINGANGHAT|442304:HINGANGHAT|442305:HINGANGHAT|442307:HINGANGHAT|442308:HINGANGHAT|442309:HINGANGHAT|442310:HINGANGHAT|442311:HINGANGHAT|445677:HINGANGHAT",
+    "HINGOLI": "431513:HINGOLI|431531:GANGAKHER|431702:HINGOLI|431705:HINGOLI",
+    "IGATPURI": "421602:IGATPURI|422402:IGATPURI|422403:IGATPURI|422404:IGATPURI|422405:IGATPURI",
+    "INDAPUR": "413106:INDAPUR|413114:INDAPUR|413120:INDAPUR|413121:INDAPUR|413123:INDAPUR|413124:INDAPUR|413132:INDAPUR|413210:AAMBAD|413211:AAMBAD|413212:INDAPUR",
+    "ISLAMPUR": "415302:ISLAMPUR|415313:ISLAMPUR|415401:ISLAMPUR|415403:ISLAMPUR|415404:ISLAMPUR|415406:ISLAMPUR|415407:ISLAMPUR|415408:ISLAMPUR|415409:ISLAMPUR|415410:ISLAMPUR|415411:ISLAMPUR|415412:ISLAMPUR|415413:ISLAMPUR|415414:ISLAMPUR|415417:SHAHUWADI|415418:SHAHUWADI|416302:ISLAMPUR|416313:ISLAMPUR|416320:ISLAMPUR|416321:ISLAMPUR|416322:ISLAMPUR",
+    "JAFRABAD": "431206:JAFRABAD|443106:JAFRABAD|443107:JAFRABAD",
+    "JALGAON": "425001:JALGAON CITY|425002:MOHADI ROAD|425003:JALGAON M I D C|425004:N M UNIVERCITY|425101:JALGAON|425102:NASHIRABAD|425103:JALGAON|425116:JALGAON|425117:JALGAON|425118:JALGAON|425119:JALGAON|425120:JALGAON|425121:JALGAON|425122:JALGAON|425123:JALGAON|425124:JALGAON|425125:JALGAON|425126:JALGAON|425128:JALGAON|425129:JALGAON|425130:JALGAON|425131:JALGAON|425132:JALGAON|425133:JALGAON|425134:JALGAON|425135:JALGAON|425136:JALGAON|425202:NASHIRABAD",
+    "JALNA": "431200:JALNA|431202:JALNA|431203:OLD JALNA|431213:JALNA|431214:JALNA|431215:JALNA",
+    "JAMKHED": "413201:JAMKHED|413204:JAMKHED|413205:JAMKHED|413230:JAMKHED|413231:JAMKHED|413232:JAMKHED|413233:JAMKHED|413234:JAMKHED|413235:JAMKHED|413236:JAMKHED|413237:JAMKHED|413238:JAMKHED|413239:JAMKHED|414202:ASHTI|414203:ASHTI|414207:BEED|414208:ASHTI",
+    "JAMNER": "424205:JAMNER|424206:JAMNER|424207:JAMNER|424208:JAMNER|424209:JAMNER|424210:JAMNER|425114:JAMNER|425211:NASHIRABAD",
+    "JATH": "416402:JATH|416403:JATH|416404:JATH|416405:JATH|416411:JATH|416412:JATH|416413:JATH",
+    "JAWHAR": "401603:JAWHAR|401604:JAWHAR|401605:PALGHAR",
+    "JINTUR": "431508:JINTUR|431509:JINTUR|431510:JINTUR",
+    "JUNNAR": "410502:JUNNAR|410504:JUNNAR|410511:JUNNAR|410514:JUNNAR|412401:JUNNAR|412409:JUNNAR|412413:JUNNAR|412415:JUNNAR",
+    "KAIJ": "431123:KAIJ|431124:KAIJ|431518:KALLAM",
+    "KALAMB": "445401:YAVATMAL|445402:HINGANGHAT",
+    "KALLAM": "413507:KALLAM|413528:KALLAM|413582:KALLAM",
+    "KALVAN": "422211:NASHIK|422219:KALVAN|423101:NIPHAD|423102:MALEGAON|423304:SAKRI|423502:NASHIK",
+    "KAMOTHE": "400218:THANE|410208:PANVEL|410209:KAMOTHE|410210:NAVIMUMBAI|410218:KALAMBOLI|410219:KARJAT - RAIGARH",
+    "KAMSHETH": "410302:KAMSHETH|410401:KAMSHETH|410402:KAMSHETH|410403:KAMSHETH|410405:KAMSHETH|410406:KAMSHETH|410410:KAMSHETH",
+    "KAMTHI": "440705:KAMTHI|441001:KAMTHI|441002:KAMTHI|441008:KAMTHI|441102:BHANDARA|441109:KAMTHI|441111:NAGPUR|441113:KAMTHI|441116:KAMTHI|441404:KAMTHI|441405:KAMTHI|441407:KAMTHI|441409:KAMTHI",
+    "KANDAHAR": "431646:BASMAT|431706:KANDAHAR|431707:KANDAHAR|431708:KANDAHAR|431714:KANDAHAR|431742:KANDAHAR|431746:KANDAHAR",
+    "KANKAVALI": "416601:KANKAVALI|416602:KANKAVALI|416607:KANKAVALI|416609:KANKAVALI|416618:KANKAVALI|416620:KALSULI|416621:KANKAVALI|416622:KANKAVALI|416628:OROS BUDRUK|416632:JAMBHAVADE|416703:KANKAVALI|416801:KANKAVALI|416802:KANKAVALI|416809:KANKAVALI|416810:KANKAVALI|416813:URAN",
+    "KANNAD": "431102:KANNAD|431103:KANNAD|431104:KANNAD|431115:KANNAD|431139:PAITHAN|431146:KANNAD|431147:KANNAD",
+    "KARAD": "415103:KARAD|415104:KALE|415105:KARAD|415106:MASUR|415108:KARAD|415109:CHAREGAON|415110:KARAD CITY|415111:KARAD|415112:KARAD|415114:KARAD|415115:KARAD|415118:KOREGOAN|415119:KARAD|415120:KARAD|415122:WING+YERAVALE|415124:VIDYANAGAR (SAIDAPUR)|415209:KARAD|415210:KARAD|415539:KARAD",
+    "KARANJA - WASHIM": "442205:KARANJA - WASHIM|442206:KARANJA - WASHIM|442207:KARANJA - WASHIM|444105:KARANJA - WARDHA|444110:KARANJA - WARDHA",
+    "KARJAT - AHMADNAGAR": "414401:KARJAT - AHMADNAGAR|414402:KARJAT - AHMADNAGAR|414403:KARJAT - AHMADNAGAR|414404:KARJAT - AHMADNAGAR|414405:KARJAT - AHMADNAGAR|414410:KARJAT - AHMADNAGAR",
+    "KARJAT - RAIGARH": "410101:KARJAT - RAIGARH|410102:KARJAT - RAIGARH|410105:KARJAT - RAIGARH|410200:KARJAT - RAIGARH|410201:KARJAT - RAIGARH|410220:KARJAT - RAIGARH",
+    "KARMALA": "413202:KARMALA|413203:KARJAT - AHMADNAGAR|413206:KARMALA|413251:KARMALA|413505:KARMALA|413551:SHIRUR ANANTPAL",
+    "KATUL": "441103:KATUL|441302:KATUL|441305:KATUL|441306:KATUL|441502:KATUL|441503:KATUL|441504:KATUL",
+    "KHAMGAON": "444203:KHAMGAON|444303:KHAMGAON|444304:SANGRAMPUR|444306:KHAMGAON|444312:NANDURA",
+    "KHED": "415621:KHED|415622:KHED|415640:KHED|415708:KHED|415709:KHED|415710:KHED|415711:KHED|415715:KHED|415721:CHIPLUN|415727:KHED|415730:KHED",
+    "KHOPOLI": "410202:KARJAT - RAIGARH|410203:KARJAT - RAIGARH|410204:KARJAT - RAIGARH|410301:KAMSHETH",
+    "KINWAT": "431804:KINWAT|431805:MAHUR|431810:KINWAT|431811:KINWAT|431812:KINWAT|431813:KINWAT|431814:KINWAT",
+    "KOLHAPUR": "410005:KOLHAPUR|410062:KOLHAPUR|416001:RAILWAY STATION AREA|416002:KOLHAPUR CITY|416003:BUDHWAR PETH|416004:SHIVAJI UNIVERSITY|416005:MAHADIK VIHIR|416006:KASABA BAWADA|416007:KOLAMBA|416008:RAJARAMPURI 1ST -6TH LANE|416009:FULEWADI/RANKALA|416010:FULEWADI/RANKALA|416011:KOLHAPUR|416012:SHIVAJI PETH|416013:GIRGAON|416014:KOLHAPUR|416015:KOLHAPUR|416019:KOLHAPUR|416022:KOLHAPUR|416034:KOLHAPUR|416109:HATKALAGADE|416110:SANGLI|416111:KUMBHOJ|416112:TALASANDE|416113:WARNANAGAR|416114:KODOLI|416115:ICHALKARANJI|416116:KOLHAPUR|416117:KOLHAPUR|416118:MANGAON|416119:GANDHINAGAR|416121:MIRAJ|416122:SHIROLI|416123:KOLHAPUR|416125:KOLHAPUR|416127:KOLHAPUR|416129:KABNUR|416130:KOLHAPUR|416143:MIRAJ|416145:SANGLI|416146:SANGLI|416202:KOLHAPUR|416203:KOLHAPUR|416204:KOLHAPUR|416205:KOLHAPUR|416206:KOLHAPUR|416207:KOLHAPUR|416216:KOLHAPUR|416217:KOLHAPUR|416227:KOLHAPUR|416228:KOLHAPUR|416229:BHUYE|416230:KOLHAPUR|416232:KOLHAPUR|416234:GOKUL SHIRGAON MIDC|416236:KOLHAPUR",
+    "KOREGOAN": "415010:KOREGOAN|415017:KOREGOAN|415021:KOREGOAN|415107:KOREGOAN|415116:KOREGOAN|415117:KOREGOAN|415501:KOREGAON|415503:PHALTAN|415504:WAGHOLI|415511:KOREGOAN|415524:WAGHOLI|415525:WAGHOLI",
+    "KUDUS": "401204:KUDUS|401206:KUDUS|421303:KUDUS|421312:KUDUS|421313:KUDUS|421329:KUDUS",
+    "KUHI": "441104:KUHI|441202:KUHI|441204:KUHI|441210:KUHI",
+    "KURKHERA": "441209:KUHI|442606:KURKHERA|442608:KURKHERA",
+    "KURUDWADI": "413208:AAMBAD|413209:AAMBAD|413223:AAMBAD|413252:AAMBAD|413502:BARSI",
+    "LANJA": "415643:LANJA|415801:SAKHARPA|415802:SHIPOSHI|415803:PALI|415805:DEVGARH|415807:SANGMESHWAR|416701:LANJA|416702:RAJAPUR|416704:LANJA|416705:LANJA|416709:DEVGARH|416712:DEVDHE|416713:BHOO",
+    "LATUR": "413511:AMBAJOGAI|413512:LATUR|413527:RENAPUR|413531:AUSA|413901:LATUR|431522:LATUR",
+    "LOHARA": "413602:LOHARA|413608:LOHARA|413612:LOHARA|413613:LOHARA|413614:LOHARA",
+    "LONAND": "412102:LONAND|412304:LONAND|412305:LONAND|412306:LONAND|412312:LONAND|415521:LONAND|415526:LONAND",
+    "LONI": "413711:RAHURI|413712:SHIRDI|413713:SHIRDI|413714:SANGAMNER|413736:SANGAMNER|413738:SANGAMNER",
+    "MAHAD": "402101:MAHAD|402102:MAHAD|402115:JUI BUDRUK|402301:AMBIVALI|402302:MAHAD|402303:MAHAD|402305:ACHLOLI|402306:MAHAD|402307:MAHAD|402309:KAMBLE TARFE|415213:MAHAD",
+    "MAHUR": "431721:MAHUR|445205:MAHUR|445232:MAHUR",
+    "MALEGAON": "423103:MALEGAON|423105:MALEGAON CAMP|423108:MALEGAON|423110:MALEGAON|423201:DABHADI|423202:MALEGAON|423203:MALEGAON CITY|423204:MALEGAON|423205:MALEGAON|423206:MALEGAON|423207:MALEGAON|423208:MALEGAON|423209:MALEGAON|423210:MALEGAON|423211:MALEGAON|423212:CHANDANPURI|423213:MALEGAON",
+    "MALKAPUR": "425127:JALGAON|425312:MALKAPUR|425313:MALKAPUR|425314:MALKAPUR|425315:MALKAPUR|425316:MALKAPUR|425317:MALKAPUR|425318:MALKAPUR|425319:MALKAPUR|425320:MALKAPUR|425321:MALKAPUR|425322:MALKAPUR|425323:MALKAPUR|425324:MALKAPUR|425325:MALKAPUR|425326:MALKAPUR|425327:MALKAPUR|425336:MALKAPUR|443101:MALKAPUR|443102:MALKAPUR|443103:MALKAPUR|443104:MALKAPUR|443109:MALKAPUR|443110:MALKAPUR|443111:MALKAPUR|443112:MALKAPUR",
+    "MALSIRAS": "413101:MALSIRAS|413103:MALSIRAS|413107:MALSIRAS|413108:MALSIRAS|413109:MALSIRAS|413111:MALSIRAS|413112:MALSIRAS|413113:MALSIRAS|413118:MALSIRAS|413119:MALSIRAS|413310:MALSIRAS|413311:MALSIRAS|413312:MALSIRAS|415509:MALSIRAS",
+    "MALWAN": "416523:MALWAN|416525:KANKAVALI|416605:CHOUKE|416606:MALVAN|416608:MASURA|416614:AACHARE|416616:KANKAVALI|416624:MALWAN|416625:MALWAN|416626:MALWAN",
+    "MANGAON": "402103:LONERE|402104:MANGOAN|402112:MANGAON|402117:MANGAON|402118:MANGAON|402120:MULSHI|402122:MANGAON|402123:MANGAON|402308:PALI",
+    "MANGRUL PIR": "444402:MANGRUL PIR|444403:MOHARI|444405:MANGRUL PIR|444406:MANGRUL PIR|444409:MANGRUL PIR|444410:MANGRUL PIR|444441:MANGRUL PIR|444442:MANGRUL PIR|444445:MANGRUL PIR",
+    "MANJLEGAON": "431129:MANJLEGAON|431131:MANJLEGAON|431140:MANJLEGAON|431141:MANJLEGAON|431142:MANJLEGAON|431144:MANJLEGAON|431145:MANJLEGAON|431507:MANJLEGAON",
+    "MANWAT": "431505:MANWAT|431506:MANWAT|431538:MANWAT|431541:MANWAT",
+    "MEHEKAR": "443202:MEHEKAR|443209:DEOLGAON RAJA|443301:MEHEKAR|443302:MEHEKAR|443303:MEHEKAR|443304:MEHEKAR|443305:MEHEKAR|443306:MEHEKAR|443307:MEHEKAR",
+    "MIRAJ": "416401:MIRAJ|416407:MIRAJ|416409:MIRAJ|416410:MIRAJ|416418:MIRAJ|416420:MIRAJ|416421:MIRAJ|416422:MIRAJ|416428:SANGLI",
+    "MOHARI": "441905:TUMSAR|441909:BHANDARA|441914:TUMSAR",
+    "MOHOL": "413213:MOHOL|413214:MOHOL|413222:MOHOL|413240:MOHOL|413241:MOHOL|413242:MOHOL|413243:MOHOL|413244:MOHOL|413245:MOHOL|413246:MOHOL|413248:MOHOL|413253:MOHOL|413301:MOHOL|413324:MOHOL|413410:MOHOL|413413:MOHOL|413416:MOHOL",
+    "MUDKHED": "431744:MUDKHED|431745:MUDKHED|431806:MUDKHED|431807:NAYAGAON KHAIRGAON",
+    "MUKHER": "431715:MUKHER|431716:MUKHER|431815:KINWAT",
+    "MUL": "441224:MUL|441225:MUL",
+    "MULSHI": "402121:MULSHI|412042:MULSHI|412108:MULSHI|412111:YAVAT|412112:MULSHI|412115:MULSHI|412120:MULSHI",
+    "MUMBAI": "400001:MUMBAI G.P.O.|400002:KALBADEVI|400003:MANDVI|400004:GIRGOAN|400005:COLABA|400006:MALABAR HILL|400007:GRANT ROAD|400008:MUMBAI CENTRAL|400009:CHINCH BUNDER|400010:MAZAGOAN|400011:JACOB CIRCLE|400012:PAREL|400013:DELISLE ROAD|400014:DADAR (CENTRAL RAILWAY)|400015:SEWREE|400016:MAHIM|400017:SHIRGAON (THANE)|400018:WORLI|400019:MATUNGA|400020:MARINE LINES|400021:NARIMAN POINT|400022:SION|400023:HUTATMA CHOWK|400024:NEHRU NAGAR|400025:PRABHADEVI|400026:CUMBALLA HILL|400027:VICTORIA GARDEN|400028:BHAVANISHANKAR ROAD|400029:MUMBAI AERODROME|400030:P. M. G.|400031:WADALA|400032:SACHIVALAYA|400033:TANK ROAD|400034:TULSIWADI|400035:M. GOVER'S CAMP|400036:AUGUST KRANTI MARG|400037:ANTOP HILL|400038:BALLARD ESTATE|400039:COUNCIL HALL|400040:MUMBAI|400041:MUMBAI|400042:BHANDUP (EAST)|400043:GOVANDI|400044:MUMBAI|400045:MUMBAI|400046:MUMBAI|400047:MUMBAI|400048:MUMBAI|400049:JOGESHWARI|400050:BANDRA WEST|400051:BANDRA EAST|400052:KHAR WEST|400053:LINK ROAD|400054:SANTACRUZ (WEST)|400055:SANTACRUZ (EAST)|400056:VILE PARLE (WEST)|400057:VILE PARLE (EAST)|400058:ANDHERI (WEST)|400059:MAROL|400060:GOREGOAN|400061:VERSOVA|400062:GOREGAON WEST|400063:GOREGOAN (EAST)|400064:MALAD WEST|400065:AAREY MILK COLONY|400066:BORIVILI EAST|400067:KANDIVALI|400068:DAHISAR|400069:ANDHERI (EAST)|400070:KURLA|400071:CHEMBUR|400072:SAKI NAKA|400073:MUMBAI|400074:FERTILISER COLONY|400075:PANT NAGAR|400076:I. I. T. POWAI|400077:GHATKOPAR|400078:BHANDUP|400079:VIKHROLI|400080:MULUND (W)|400081:MULUND (EAST)|400082:MULUND COLONY|400083:TAGORE NAGAR|400084:BHATWADI|400085:B.A.R.C.|400086:GHATKOPAR (W)|400087:N. T. I. E.|400088:TELECOM F. DEONAR|400089:TILAK NAGAR|400090:GOREGAON -W BAGUR NAGAR|400091:BORIVALI (WEST)|400092:BORIVALI (WEST)|400093:M. I. D. C.|400094:ANUSHAKTI NAGAR|400095:MALWANI|400096:SEEPZ|400097:MALAD-E|400098:VIDYA NAGAR|400099:SAHARA ROAD|400100:MUMBAI|400101:KANDIVALI E|400102:JOGESHWARI (W)|400103:BORIWALI -W MADAPESHWAR|400104:GOREGAON WEST|400105:MUMBAI|400106:MUMBAI|400107:MUMBAI|400108:MUMBAI|400109:MUMBAI|400110:MUMBAI|400111:MUMBAI|400112:MUMBAI|400113:MUMBAI|400114:MUMBAI|400125:MUMBAI|400167:MUMBAI|400401:MUMBAI|400410:MUMBAI|400547:MUMBAI|400613:MUMBAI|400614:BELAPUR|400700:MUMBAI|400701:KOKAN BHAVAN|400703:VASHI|400705:KRISHI BAZAR|400706:NERUL|400708:AIROLI|400709:KHOPARKHAIRANE|400710:NAVI MUMBAI|400713:MUMBAI|400901:MUMBAI|401100:MUMBAI|401101:BHAYANDER|401104:MIRA ROAD|401105:BHAYADER EAST|401106:THANE|401107:MIRA ROAD|401203:SOPARA|401301:AGASHI|401302:ARNALA|401303:VIRAR|401304:MUMBAI|401305:MUMBAI|410107:KARJAT - RAIGARH|410303:KAMSHETH|421001:MAHRAL|421002:KALYAN BADLAPUR ROAD / ULHAS NAGAR|421003:KALYAN BADLAPUR ROAD / ULHAS NAGAR|421004:VITTHALWADI|421005:ULHASNAGAR|421006:MUMBAI|421032:MUMBAI|421051:MUMBAI|421102:AMBIVLI|421103:TITWALA|421201:TILAKNAGAR (DOMBIVALI)|421202:VISHNUNAGAR|421203:DOMBIVALI|421204:MANPADA|421205:NABANAGAR|421206:MUMBAI|421301:KALYAN BUNDER ROAD|421304:KUDUS|421306:KATE MANI VALI|421501:AMBERNATH|421502:AMBARNATH|421503:KULGAON|421504:MUMBAI|421505:JAMBHUL|421506:AMBERNATH(E)|421507:MUMBAI|421607:MUMBAI",
+    "MUMBRA": "400162:MUMBAI|400612:THANE",
+    "MURBAD": "421401:MURBAD|421402:AMBEGOAN|421403:MURBAD|421405:MURBAD|421421:MURBAD",
+    "MURTIJAPUR": "444102:MURTIJAPUR|444106:MURTIJAPUR|444107:MURTIJAPUR",
+    "MURUD": "402401:ROHA|402406:SRIVARDHAN",
+    "NAGPUR": "440001:NAGPUR GPO|440002:NAYAPURA|440003:AJNI|440004:BEZONBAGH|440005:KACHORE NAGAR|440006:SEMINARY HILLS|440007:VAYUSENA NAGAR|440008:BAGADGANJ|440009:DIGHORI NAKA|440010:GANDHI NAGAR|440011:AMBHAZARI|440012:CONGRESS NAGAR|440013:KATOL ROAD|440014:JARIPATKA|440015:NARENDRA NAGAR|440016:INDUSTRIAL AREA|440017:PANCHASHEEL NAGAR|440018:GANJPETH|440019:C.R.P.F. NAGPUR|440020:NEERI|440021:A D PROJECT|440022:LAXMI NAGAR|440023:WADI|440024:AYODHYA NAGAR|440025:UJWAL NAGAR|440026:UPPALWADI|440027:VISHAWKARMA NAGAR|440028:MIDC|440029:NADT|440030:MANKAPUR|440031:NAGPUR|440032:MAHAL|440033:CIVIL LINES|440034:NAGPUR|440035:NAGPUR|440036:JAITALA|440037:NAGPUR|440038:NAGPUR|440104:NAGPUR|440531:NAGPUR|441110:NAGPUR|441123:NAGPUR|441125:NAGPUR|441501:NAGPUR",
+    "NANDED": "431601:NANDED|431602:YESHWANT NAGAR|431603:DHANEGAON|431604:GADIPURA|431605:ASHOK NAGAR|431606:VISHNUPURI|431704:NANDED",
+    "NANDGAON": "423104:YEOLA|423106:NANDGAON|423116:NIPHAD|424109:NANDGAON|424115:NANDGAON",
+    "NANDGAON KHANDESHWAR": "444708:NANDGAON KHANDESHWAR",
+    "NANDURA": "443401:NANDURA|443404:NANDURA|443405:NANDURA|443406:NANDURA|443407:NANDURA",
+    "NANDURBAR": "425411:SHAHADA|425412:SHAHADA|425416:NAVAPUR|425429:SINDKHEDA|425443:TALODA|425445:SHAHADA|425449:NANDURBAR|425450:NANDURBAR|425451:NANDURBAR|425453:NANDURBAR",
+    "NARKHED": "441301:WARUD|441303:NARKHED|441304:NARKHED",
+    "NASHIK": "422001:BHADRAKALI|422002:GANGAPUR ROAD|422003:PANCHAVATI|422004:NASHIK|422005:D'SOUZA COLONY BHOSLA MI|422006:NASHIK|422007:ITI|422008:SATPUR TOWNSHIP|422009:CIDCO COLONY|422010:AMBAD A.S.|422011:DWARKA|422012:ASHOK NAGAR|422013:GANGAPUR ROAD|422101:NASHIK|422102:SINNAR|422105:NASHIK|422106:NASHIK|422107:NASHIK|422108:NASHIK|422111:SINNAR|422201:NASHIK|422203:NASHIK|422204:NASHIK|422206:NASHIK|422207:NASHIK|422212:NASHIK|422213:NASHIK|422214:NASHIK|422216:NASHIK|422217:NASHIK|422220:NASHIK|422221:NASHIK|422222:NASHIK|422401:NASHIK|422501:NASHIK|422502:NASHIK|422503:NASHIK|422509:NASHIK",
+    "NAVAPUR": "425417:NAVAPUR|425418:NAVAPUR|425426:NAVAPUR",
+    "NAYAGAON KHAIRGAON": "431709:NAYAGAON KHAIRGAON|431710:NAYAGAON KHAIRGAON|431722:NAYAGAON KHAIRGAON|431734:NAYAGAON KHAIRGAON|431735:NAYAGAON KHAIRGAON|431736:NAYAGAON KHAIRGAON|431737:NAYAGAON KHAIRGAON|431738:NAYAGAON KHAIRGAON",
+    "NER": "445102:NER|445201:NER|445210:NER",
+    "NEVASA": "413725:NEVASA|414105:RAHURI|414602:NEVASA|414603:NEVASA|414604:NEVASA|414605:NEVASA|414606:NEVASA|414607:RAHURI|414608:NEVASA|414609:NEVASA",
+    "NILANGA": "413521:NILANGA|413522:NILANGA|413530:NILANGA|413607:NILANGA",
+    "NIPHAD": "422209:NIPHAD|422301:NIPHAD|422302:NIPHAD|422303:NIPHAD|422304:NIPHAD|422305:NIPHAD|422306:NIPHAD|422307:NIPHAD|422308:NIPHAD|423111:NIPHAD|423114:NIPHAD|423117:NIPHAD",
+    "OROS BUDRUK": "416520:ORAS|416521:OROS BUDRUK|416522:MALWAN|416524:OROS BUDRUK|416528:PINGULI|416534:OROS BUDRUK|416537:OROS BUDRUK|416538:OROS BUDRUK|416550:KUDAL MIDC|416603:KASAL|416604:KATTA|416812:SINDHUDURG NAGARI",
+    "OSMANABAD": "413405:OSMANABAD|413501:OSMANABAD|413508:KALLAM|413509:OSMANABAD|413565:OSMANABAD|413566:OSMANABAD|413567:OSMANABAD|413568:OSMANABAD|413569:OSMANABAD|413570:OSMANABAD|413571:OSMANABAD|413572:OSMANABAD|413573:OSMANABAD|413574:OSMANABAD|413575:OSMANABAD|413576:OSMANABAD|413577:OSMANABAD|413579:OSMANABAD|413580:OSMANABAD",
+    "PACHORA": "424103:PACHORA|424104:CHALISGAON|424105:PACHORA|424111:NANDGAON|424201:PACHORA|424202:PACHORA|425115:PACHORA|431150:PACHORA",
+    "PAITHAN": "431107:PAITHAN|431108:PAITHAN|431137:PAITHAN|431138:PAITHAN|431148:PAITHAN",
+    "PALGHAR": "401102:PALGHAR|401400:PALGHAR|401401:PALGHAR|401402:PALGHAR|401403:PALGHAR|401404:PALGHAR|401405:PALGHAR|401406:MUMBAI|401407:SHIRGAON (THANE)|401501:PALGHAR|401502:PALGHAR|401504:PALGHAR|401505:PALGHAR|401506:PALGHAR|401609:PALGHAR",
+    "PALI": "402107:KAMOTHE",
+    "PANDHARKAWADA": "445302:PANDHARKAWADA|445308:PANDHARKAWADA|445310:PANDHARKAWADA|445311:PANDHARKAWADA|445322:PANDHARKAWADA",
+    "PANDHARPUR": "413302:PANDHARPUR|413303:PANDHARPUR|413304:PANDHARPUR|413305:PANDHARPUR|413315:PANDHARPUR|413316:PANDHARPUR|413317:PANDHARPUR|413318:PANDHARPUR|413319:PANDHARPUR",
+    "PANVEL": "410206:KHANDA COLONY|410207:PANVEL|410211:KAMOTHE|410213:KAMOTHE|410216:KAMOTHE|410217:NAVI MUMBAI|410221:KAMOTHE|410222:KARJAT - RAIGARH",
+    "PARBHANI": "431401:PARBHANI|431402:PARBHANI|431406:PARBHANI|431407:PARBHANI|431537:MANWAT|431539:PARBHANI|431540:PARBHANI",
+    "PARLI VAIJNATH": "431128:PARLI VAIJNATH|431515:PARLI VAIJNATH|431516:PARLI VAIJNATH|431520:PARLI VAIJNATH|431527:PARLI VAIJNATH|431528:PARLI VAIJNATH|431529:PARLI VAIJNATH|431530:PARLI VAIJNATH",
+    "PARNER": "414103:AHMEDNAGAR|414104:PARNER|414301:PARNER|414302:PARNER|414303:PARNER|414304:PARNER|414305:PARNER|414306:SHIRUR|414307:SHIRUR",
+    "PAROLA": "425109:PAROLA|425110:PACHORA|425111:PAROLA|425112:JALGAON|425113:PAROLA",
+    "PARSEONI": "441101:PARSEONI|441107:PARSEONI|441112:PARSEONI",
+    "PARTUR": "431207:PARTUR|431211:PARTUR|431501:PARTUR|431504:PARTUR",
+    "PATAN": "415204:PATAN|415205:PATAN|415206:PATAN|415207:PATAN|415211:PATAN|415212:PATAN|415520:PATAN",
+    "PATHARDI": "414102:SHEVGAON|414106:AHMEDNAGAR|414113:SHEVGAON",
+    "PATODA": "413207:ASHTI|413229:JAMKHED|414204:PATODA|431125:BEED|431126:BEED",
+    "PATUR": "444501:PATUR|444503:PATUR|444511:PATUR|444512:PATUR",
+    "PAUNI": "441903:PAUNI|441908:PAUNI|441910:PAUNI",
+    "PETH AREA, PUNE": "411002:PUNE CITY",
+    "PHALTAN": "412103:PHALTAN|415522:PHALTAN|415523:PHALTAN|415528:PHALTAN|415537:PHALTAN",
+    "PHULAMBRI": "431101:PHULAMBRI|431111:PHULAMBRI|431134:PHULAMBRI|431151:PHULAMBRI",
+    "PIMPRI, PUNE": "411017:KALEWADI",
+    "POONA CHAKAN": "410501:CHAKAN|412105:CHIMBALI",
+    "PUNE": "410613:PUNE|410615:PUNE|410707:PUNE|410708:PUNE|411003:KHADKI|411004:ERANDAWANE|411005:SHIVAJI NAGAR|411006:YERAWADA|411007:AUND|411008:PASHAN|411009:PARVARI|411010:SSC BOARD|411011:SOMWAR PETH|411012:DAPODI|411013:HADAPSAR|411015:VISHRANTWADI|411016:MODEL COLONY|411018:PIMPRI|411019:PHULE NAGAR|411020:RANGE HILLS|411021:SUS ROAD|411022:AZAD NAGAR|411023:SHUVANE|411024:KHADAKWASLA|411025:PUNE|411026:BHOSARI|411027:SANGHAVI OLD & NEW|411029:KOTHRUD|411030:SADASHIV PETH|411032:VIDYA NAGAR|411033:CHINCHWAD|411034:KASAEWADI|411035:AKURDI|411036:MUNDWA|411037:BIBEWADI|411038:PAUD ROAD|411039:BHOSARI GAON|411040:WANAWADI|411041:VADGAON DHAYARI|411042:BHAVANI PETH|411043:DHANKAWADI|411044:NIGDI|411045:BANNER|411047:LOHAGAON|411048:KONDWA|411049:PUNE|411050:PUNE|411051:SINGHGAD ROAD|411052:KARVE NAGAR|411053:SB ROAD|411054:PUNE|411055:PUNE|411056:PUNE|411057:HINJEWADI|411058:WARJE|411060:MOHAMADWADI|411061:PIMPLE GURAV|411099:PUNE|411100:PUNE|411105:PUNE|411107:PUNE|411111:PUNE|411125:PUNE|411201:PUNE|411208:PUNE|411220:PUNE|411230:PUNE|411406:PUNE|411501:PUNE|411925:PUNE|412001:PUNE|412114:CHIKALI GAON|412307:MANJIRI|412308:FURSUNGI|412309:PUNE",
+    "PURNA": "431511:PURNA|431720:PURNA",
+    "PUSAD": "445204:PUSAD|445208:PUSAD|445209:PUSAD|445214:PUSAD|445215:PUSAD|445216:PUSAD|445217:PUSAD",
+    "RAHURI": "413704:RAHURI|413705:RAHURI|413706:RAHURI|413716:RAHURI|413722:RAHURI",
+    "RAJGURUNAGAR": "410505:AMBEGOAN|410508:AMBEGOAN|410510:RAJGURUNAGAR|410513:RAJGURUNAGAR|412402:AMBEGOAN|412403:RAJGURUNAGAR|412404:AMBEGOAN",
+    "RAMTEK": "441105:PARSEONI|441106:RAMTEK|441400:RAMTEK|441401:RAMTEK|441402:RAMTEK|441403:RAMTEK|441406:KAMTHI|441408:KAMTHI",
+    "RANJANGAON": "412209:RANJANGAON GANPATI|412210:SHIRUR|412218:RANJANGAON|412220:RANJANGAON MIDC|412223:RANJANGAON|412224:RANJANGAON|412225:RANJANGAON",
+    "RATNAGIRI": "415612:RATNAGIRI CITY|415613:GUHAGAR|415614:JAIGAD|415615:GANPATIPULE|415616:PAWAS|415617:KOTAWADE|415618:RATNAGIRI|415619:HATHKHAMBA|415620:RATNAGIRI|415626:RATNAGIRI|415627:RATNAGIRI|415629:SIHRGAON|415630:RATNAGIRI|415639:NACHANE|415806:LANJA|416707:RATNAGIRI",
+    "RAVER": "425306:RAVER|425502:RAVER|425504:RAVER|425505:RAVER|425506:RAVER|425507:RAVER|425508:RAVER|425509:RAVER|425510:RAVER|425511:RAVER|425512:RAVER|425513:RAVER|425514:RAVER|425515:RAVER|425516:RAVER",
+    "RISOD": "444504:RISOD|444506:RISOD",
+    "ROHA": "402100:MAHAD|402109:ROHA|402111:ROHA|402116:ROHA|402124:ROHA|402304:ROHA|410205:PALI",
+    "SADAK ARJUNI": "441806:SADAK ARJUNI|441807:SADAK ARJUNI|441808:SADAK ARJUNI|441901:AMGAON",
+    "SAHAPUR": "421600:SAHAPUR|421601:SAHAPUR|421603:SAHAPUR|421604:MUMBAI",
+    "SAKOLI": "441802:SAKOLI|441804:SAKOLI|441809:SAKOLI|441810:SAKOLI|441811:SAKOLI",
+    "SAKRI": "423302:SAKRI|423303:SAKRI|423305:SAKRI|424303:SAKRI|424304:SAKRI|424305:SAKRI|424306:SAKRI|424310:SAKRI|424314:DHULE|424317:DHULE|425430:SHAHADA",
+    "SANGAMNER": "422603:AKOLE|422605:SANGAMNER|422608:SANGAMNER|422611:SANGAMNER|422615:SANGAMNER|422617:SANGAMNER|422619:SANGAMNER|422621:SANGAMNER|422622:SANGAMNER",
+    "SANGLI": "415415:SHAHUWADI|416101:JAISINGPUR|416102:NANDNI|416103:SHIROL|416104:NARSOBAWADI|416105:MIRAJ|416106:KURUNDWAD|416107:MIRAJ|416108:MIRAJ|416120:MIRAJ|416132:SANGLI|416134:UDGAON|416137:SANGLI|416138:SANGLI|416144:MIRAJ|416301:ASHTA|416304:BUDHGAON|416305:DIGRAJ KASABA|416306:KAVLAPUR|416315:SANGLI|416406:MADHAVNAGAR|416414:BHARTI VIDYAPETH|416415:VISHRAM BAUGH|416416:SANGLI|416417:KAVATHE PIRAN|416423:MIRAJ|416425:MIRAJ|416426:SANGLI|416429:SANGLI|416435:SANGLI|416436:KUPWAD|416437:SUBHASH NAGAR",
+    "SANGMESHWAR": "415607:KUMBHARKHANI|415608:SANGMESHWAR|415609:SANGMESHWAR|415610:SANGMESHWAR|415611:AMBED BUDRUK|415637:SANGMESHWAR|415804:MARAL",
+    "SANGOLA": "413307:SANGOLA|413308:SANGOLA|413309:SANGOLA|413322:SANGOLA",
+    "SANGRAMPUR": "443402:DHARNI|443403:NANDURA|444200:SANGRAMPUR|444201:SANGRAMPUR|444202:SANGRAMPUR|444204:SANGRAMPUR|444305:SANGRAMPUR",
+    "SASWAD": "412104:SASWAD|412301:SASWAD|412302:PURANDAR|412303:JEJURI",
+    "SATANA": "422110:SINNAR|423301:MALEGAON|423501:MALEGAON",
+    "SATARA": "415001:SATARA|415002:SATARA CITY|415003:SANGAM NAGAR|415004:MIDC|415005:SATARA|415011:SATARA|415012:SATARA|415013:SATARA|415014:SATARA|415015:SATARA|415016:SATARA|415019:KOREGOAN|415020:SATARA|415022:SATARA|415518:SATARA|415519:SATARA",
+    "SAWANTWADI": "416510:SAWANTWADI|416513:SAWANTWADI|416515:TULAS|416516:VENGURLA|416517:SAWANTWADI|416518:SAWANTWADI|416519:SAWANTWADI|416529:TALVADE|416530:SAWANTWADI|416532:SAWANTWADI|416539:SAWANTWADI|416540:SAWANTWADI|416541:SAWANTWADI|416542:SAWANTWADI|416544:SAWANTWADI|416549:SAWANTWADI",
+    "SELU": "431106:SELU|431502:SELU|431503:SELU",
+    "SENGAON": "431542:SENGAON|431703:BABULGAON",
+    "SHAHADA": "425409:SHAHADA|425410:SHAHADA|425414:NANDURBAR|425422:SHAHADA|425423:SHAHADA|425424:SHAHADA|425431:SHAHADA|425432:SHAHADA|425433:SHAHADA|425436:SHAHADA|425438:SHAHADA|425440:TALODA|425444:SHAHADA|425447:SHAHADA|425448:NANDURBAR",
+    "SHAHUWADI": "415101:SHAHUWADI|415402:SHAHUWADI|415405:SHAHUWADI|415416:SHAHUWADI|416201:KOLHAPUR|416213:SHAHUWADI|416214:SHAHUWADI|416215:SHAHUWADI",
+    "SHEVGAON": "414112:SHEVGAON|414501:SHEVGAON|414502:SHEVGAON|414503:PAITHAN|414504:GEVRAI|414505:SHEVGAON|414506:SHEVGAON",
+    "SHIRDI": "413708:SHIRDI|413719:SHIRDI|413732:SHIRDI|423107:RAHATA|423109:SHIRDI CITY|423113:NIPHAD|423601:KOPERGOAN|423602:SHIRDI|423603:VAIJAPUR|423604:SHIRDI|423605:SHIRDI|423607:SHIRDI",
+    "SHIRUR ANANTPAL": "413524:CHAKUR|413538:SHIRUR ANANTPAL|413539:SHIRUR ANANTPAL|413540:SHIRUR ANANTPAL|413541:SHIRUR ANANTPAL|413542:SHIRUR ANANTPAL|413543:SHIRUR ANANTPAL|413544:SHIRUR ANANTPAL|413545:SHIRUR ANANTPAL|413546:SHIRUR ANANTPAL|413547:SHIRUR ANANTPAL|413548:SHIRUR ANANTPAL|413549:SHIRUR ANANTPAL|413550:SHIRUR ANANTPAL|413552:SHIRUR ANANTPAL|413553:SHIRUR ANANTPAL|413554:SHIRUR ANANTPAL|413555:SHIRUR ANANTPAL|413556:SHIRUR ANANTPAL|413557:SHIRUR ANANTPAL|413558:SHIRUR ANANTPAL|413559:SHIRUR ANANTPAL|413560:SHIRUR ANANTPAL|413561:SHIRUR ANANTPAL|413562:SHIRUR ANANTPAL|413563:SHIRUR ANANTPAL|413564:SHIRUR ANANTPAL",
+    "SHIRWAL": "412310:SHIRWAL|412311:SHIRWAL|412501:SHIRWAL|412502:SHIRWAL|412507:SHIRWAL|412801:SHIRWAL|412802:AHIRE",
+    "SHRIGONDA": "413701:SHRIGONDA|413702:SHIRUR|413703:SHIRUR|413726:SHRIGONDA|413727:SHRIGONDA|413728:SHRIGONDA|414101:SHRIGONDA",
+    "SHRIMPUR": "413707:SHRIMPUR|413709:SHRIMPUR|413710:SHRIMPUR|413715:SHRIMPUR|413717:SHRIMPUR|413718:SHRIMPUR|413720:SHRIMPUR|413721:SHRIMPUR|413723:SHRIMPUR|413724:SHRIMPUR|413737:SHRIMPUR|413739:SHRIMPUR",
+    "SILLOD": "431112:SILLOD|431113:SILLOD|431114:BHOKARDAN|431132:BHOKARDAN|431135:SILLOD",
+    "SINDEWAHI": "441212:SINDEWAHI|441215:SINDEWAHI|441221:SINDEWAHI|441222:MUL|441223:SINDEWAHI",
+    "SINDKHEDA": "425403:SINDKHEDA|425404:SINDKHEDA|425405:SINDKHEDA|425406:SINDKHEDA|425407:SINDKHEDA|425408:SINDKHEDA|425421:CHOPDA|425427:SINDKHEDA|425428:SINDKHEDA|425446:SHAHADA",
+    "SINNAR": "422103:SINNAR|422104:SINNAR|422109:SINNAR|422112:SINNAR|422113:SINNAR|422210:SINNAR|422606:SINNAR|422607:SINNAR",
+    "SIRONCHA": "442504:AHIRI",
+    "SOLAPUR": "413001:CITY CENTRE AREA|413002:CIVIL RLY LINE AREA|413003:HOTGIRI ROAD MIDC|413004:SOUTH CITY ZONE|413005:CITY EAST ZONE|413006:MODI CIRCLE / ASHOK CHOWK|413007:JAYPAL CHOWK|413008:SOLAPUR|413009:SOLAPUR|413010:SOLAPUR|413215:SOLAPUR|413221:SOLAPUR|413224:SOLAPUR|413225:SOLAPUR|413228:SOLAPUR|413254:SOLAPUR|413255:CHINCHOLI MIDC",
+    "SOYGAON": "424203:SOYGAON|424204:SOYGAON|431117:SOYGAON|431118:SOYGAON|431120:SOYGAON",
+    "SRIVARDHAN": "402105:SRIVARDHAN|402110:SRIVARDHAN|402113:SRIVARDHAN|402114:SRIVARDHAN|402402:SRIVARDHAN|402403:SRIVARDHAN|402404:SRIVARDHAN|402405:SRIVARDHAN|402416:SRIVARDHAN|415225:SRIVARDHAN",
+    "TALASARI": "401103:PALGHAR|401503:TALASARI|401601:TALASARI|401602:TALASARI|401606:TALASARI|401607:PALGHAR|401608:TALASARI|401610:TALASARI|401616:TALASARI|401701:TALASARI|401702:TALASARI|401703:TALASARI|401706:TALASARI",
+    "TALEGAON": "410506:TALEGAON DABHADE|410507:TALEGAON|412101:TALEGAON|412106:VADGAON|412109:DEHU",
+    "TALEGAON WARDHA": "442202:WARUD|442203:KARANJA - WASHIM|444408:KARANJA - WARDHA|444902:TIWSA|444903:TIWSA",
+    "TALODA": "425413:TALODA|425415:TALODA|425419:TALODA|425425:NAVAPUR|425439:TALODA|425441:TALODA|425442:TALODA|425452:NANDURBAR",
+    "TASGAON": "416303:TASGAON|416307:TASGAON|416308:TASGAON|416310:TASGAON|416311:TASGAON|416312:TASGAON|416314:VITA|416316:ISLAMPUR|416317:ISLAMPUR|416319:ISLAMPUR|416408:TASGAON|416419:MIRAJ",
+    "THANE": "400201:THANE|400202:THANE|400206:THANE|400207:THANE|400208:THANE|400209:THANE|400210:THANE|400601:THANE|400602:NAUPADA|400603:BALKUM|400604:WAGLE INDL ESTATE|400605:KALWA|400606:J. K. GRAM|400607:CHITALSAR MANPADA|400608:THANE (EWEST)|400609:MAJIWADA|400610:THANE - APNA BAZAR|400611:THANE (W)|400615:BELAPUR NODE - SEC III|400617:THANE|421307:THANE",
+    "TIRORA": "441911:TIRORA",
+    "TITWALA": "421101:TITWALA|421605:KALYAN",
+    "TULJAPUR": "413406:TULJAPUR|413506:TULJAPUR|413601:TULJAPUR|413615:TULJAPUR|413616:TULJAPUR|413623:TULJAPUR|413624:TULJAPUR",
+    "TUMSAR": "441216:DESAIGANJ|441907:TUMSAR|441912:TUMSAR|441913:TUMSAR|441915:TUMSAR",
+    "UDGIR": "413517:UDGIR|413518:UDGIR|413519:UDGIR|413532:UDGIR|413533:UDGIR",
+    "UMARGA": "413604:UMARGA|413605:UMARGA|413606:UMARGA",
+    "UMARKHED": "431712:UMARKHED|431743:UMARKHED|445206:UMARKHED|445207:UMARKHED|445211:UMARKHED|445212:UMARKHED|445213:UMARKHED|445230:MAHUR",
+    "UMRED": "441115:KAMTHI|441201:UMRED|441203:UMRED|441213:UMRED|441214:UMRED",
+    "URAN": "400702:RAIGAD|400704:RAIGAD|400707:URAN",
+    "VADGAON SHERI, PUNE": "411014:VIMAN NAGAR",
+    "VADUJ": "415023:VADUJ|415312:VADUJ|415502:VADUJ|415505:VADUJ|415506:VADUJ|415507:VADUJ|415508:VADUJ|415510:VADUJ|415512:VADUJ|415527:VADUJ|415538:VADUJ|415540:VADUJ",
+    "VAIJAPUR": "423701:VAIJAPUR|423703:VAIJAPUR|423704:VAIJAPUR|431116:VAIJAPUR",
+    "VASAI": "401200:MUMBAI|401201:VASAI VILLAGE|401202:BASSEIN ROAD|401205:GOKHIVARE|401207:PAPDI|401208:VASAI E|401209:NALLASOPARA E|401210:VASAI (E)|401214:MUMBAI",
+    "VITA": "415102:VITA|415303:VITA|415304:KARAD|415305:VITA|415307:VITA|415309:VITA|415310:VITA|415311:VITA|416309:VITA",
+    "WAGHOLI": "412207:WAGHOLI|412208:SANASWADI|412216:FULGAON|412217:WAGHOLI",
+    "WAI": "412803:WAI|412804:WAI|412805:WAI|412806:WAI|412903:WAI|415513:PACHWAD|415514:WAI|415515:WAGHOLI|415516:WAI|415517:WAGHOLI|415529:PHALTAN|415530:WAI|415531:WAI|415532:WAI|415536:WAI",
+    "WANI - YAVATMAL": "442915:WANI - YAVATMAL|445303:PANDHARKAWADA|445304:WANI - YAVATMAL|445305:WANI - YAVATMAL|445307:WANI - YAVATMAL|445309:PANDHARKAWADA|445319:PANDHARKAWADA",
+    "WARDHA": "441117:WARDHA|441118:WARDHA|441121:WARDHA|442001:WARDHA|442002:WARDHA|442003:WARDHA|442004:WARDHA|442005:WARDHA|442006:WARDHA|442101:WARDHA|442102:WARDHA|442103:WARDHA|442104:WARDHA|442106:WARDHA|442107:WARDHA|442108:WARDHA|442109:WARDHA|442110:WARDHA|442111:WARDHA|442112:WARDHA|442302:WARDHA|442303:WARDHA|442306:WARDHA",
+    "WARORA": "442906:WARORA|442907:WARORA|442912:WARORA|442913:WARORA|442914:WARORA",
+    "WARUD": "444906:WARUD|444907:WARUD|444908:WARUD|444910:WARUD|444911:WARUD|444912:WARUD|444913:WARUD|444914:WARUD|444915:WARUD|444921:WARUD",
+    "WASHIM": "444505:WASHIM|444507:WASHIM|444508:WASHIM|444509:WASHIM|444510:WASHIM",
+    "YAVAT": "412110:YAVAT|412201:WAGHOLI|412202:YAVAT",
+    "YAVATMAL": "445001:YAVATMAL|445002:YAVATMAL|445003:YAVATMAL",
+    "YEOLA": "422218:YEOLA|423401:YEOLA|423402:YEOLA|423403:YEOLA"
+  };
+  // ---------------------------------------------------------------- data ----
+
+  // Region presets mirror find_croma_stock.py. Pincode prefixes, not city
+  // names: the postal data's CITY column is the post-office district, so it has
+  // no "Navi Mumbai" or "Kalyan" rows at all.
+  const REGIONS = [
+    { id: 'mmr',    name: 'MMR',     prefixes: ['400', '401', '410', '421'] },
+    { id: 'mumbai', name: 'Mumbai',  prefixes: ['400'] },
+    { id: 'pune',   name: 'Pune',    prefixes: ['411', '412'] },
+    { id: 'nashik', name: 'Nashik',  prefixes: ['422', '423'] },
+    { id: 'nagpur', name: 'Nagpur',  prefixes: ['440', '441'] },
+    { id: 'mh',     name: 'All Maharashtra', prefixes: null }
   ];
 
-  const STORE_NAMES = {
-    "A001": "Croma - Juhu",
-    "A009": "Croma - Belapur",
-    "A013": "Croma - Mulund West",
-    "A026": "Croma - Fort",
-    "A035": "Croma - R City Mall",
-    "A039": "Croma - Sion",
-    "A041": "Croma - Oberoi Mall",
-    "A074": "Croma - Breach Candy",
-    "A092": "Croma - Kandivali Mahavir Nagar",
-    "A119": "Croma - Prabhadevi",
-    "A127": "Croma - Andheri West",
-    "A133": "Croma - Vashi Akshar Plaza",
-    "A140": "Croma - Bhandup West",
-    "A141": "Croma - Seawoods Mall",
-    "A147": "Croma - Borivali West",
-    "A153": "Croma - Malad Infiniti Mall",
-    "A174": "Croma - Chembur RK Studio",
-    "A175": "Croma - Thane Ghodbunder",
-    "A178": "Croma - Kurla LBS Road",
-    "A285": "Croma - Kandivali MG Road",
-    "A401": "Croma - Thane The Walk",
-    "A493": "Croma - Powai",
-    "A525": "Croma - Borivali East MG Road",
-    "A660": "Croma - Goregaon SV Road",
-    "A728": "Croma - Thane Teen Hath Naka",
-    "A729": "Croma - Vile Parle East",
-    "A736": "Croma - Santacruz West",
-    "A749": "Croma - Oberoi Skycity Mall",
-    "A999": "Edge by Croma - Ghatkopar",
-    "D054": "Croma Central Hub (D054)",
-    "D056": "Croma Regional Hub (D056)",
-    "E009": "Croma Central Hub (Bhiwandi)",
-    "E056": "Croma Regional Hub (E056)"
+  const PINS = [];
+  for (const city of Object.keys(PIN_DB)) {
+    for (const entry of PIN_DB[city].split('|')) {
+      const cut = entry.indexOf(':');
+      PINS.push({ pin: entry.slice(0, cut), area: entry.slice(cut + 1), city: city });
+    }
+  }
+  PINS.sort((a, b) => a.pin < b.pin ? -1 : 1);
+
+  const inRegion = (pin, region) =>
+    !region.prefixes || region.prefixes.some(p => pin.startsWith(p));
+
+  function scopedPins(regionId, city, areaQuery) {
+    const region = REGIONS.find(r => r.id === regionId) || REGIONS[0];
+    const q = (areaQuery || '').trim().toUpperCase();
+    return PINS.filter(p =>
+      inRegion(p.pin, region) &&
+      (!city || p.city === city) &&
+      (!q || p.area.toUpperCase().includes(q) || p.pin.includes(q))
+    );
+  }
+
+  const citiesIn = regionId => {
+    const region = REGIONS.find(r => r.id === regionId) || REGIONS[0];
+    const counts = new Map();
+    for (const p of PINS) {
+      if (!inRegion(p.pin, region)) continue;
+      counts.set(p.city, (counts.get(p.city) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
   };
+
+  const STORE_NAMES = {
+    "A001": "Croma Juhu", "A026": "Croma Fort", "A039": "Croma Sion",
+    "A119": "Croma Prabhadevi", "A127": "Croma Andheri West",
+    "A153": "Croma Infiniti Malad", "D054": "Croma Central Hub",
+    "D056": "Croma Regional Hub, Bhiwandi"
+  };
+
+  // ------------------------------------------------------------ transport ----
 
   const API_HEADERS = {
     "client_id": "CROMA-WEB-APP",
@@ -387,1558 +335,651 @@
     "accept": "application/json, text/plain, */*"
   };
 
-  // Rate gate, mirroring croma_api.py: Croma throttles per source IP, so pace
-  // request starts and widen the gap after a throttle rather than aborting.
-  const MIN_GAP_MS = 350;
-  const MAX_GAP_MS = 5000;
-  const MAX_RETRIES = 4;
+  // Croma throttles per source IP. Pace request starts and widen the gap after a
+  // throttle rather than aborting the run.
+  const MIN_GAP_MS = 350, MAX_GAP_MS = 5000, MAX_RETRIES = 4;
   let requestGap = MIN_GAP_MS;
-
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const widenGate = () => { requestGap = Math.min(requestGap * 2, MAX_GAP_MS); };
 
-  // Zone filter chips are built from the pincode data, not hardcoded: the list
-  // grew from 86 pincodes across 4 zones to 316 across 7, and hardcoded chips
-  // silently hid every zone they did not name.
-  const ZONE_LABELS = {
-    "South Mumbai": "South",
-    "Western Suburbs": "Western",
-    "Central & Eastern": "Central/East",
-    "Thane & Navi Mumbai": "Thane/Navi",
-    "Thane & Palghar": "Vasai/Palghar",
-    "Navi Mumbai & Raigad": "Panvel/Raigad",
-    "Kalyan & Ambernath": "Kalyan/Amb"
+  const IST_OPTS = {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    hour12: true, timeZone: 'Asia/Kolkata'
   };
 
-  const escapeAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  // HDEL returns UTC, SDEL returns IST, some fields carry no offset at all.
+  // Render everything in IST, which is what croma.com shows.
+  function formatETA(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleString('en-IN', IST_OPTS);
+  }
 
-  const ZONE_CHIPS_HTML = (() => {
-    const counts = new Map();
-    for (const p of MUMBAI_PINCODES) counts.set(p.zone, (counts.get(p.zone) || 0) + 1);
-    const chips = [`<span class="zone-chip active" data-zone="ALL">All (${MUMBAI_PINCODES.length})</span>`];
-    for (const [zone, n] of counts) {
-      const label = ZONE_LABELS[zone] || zone;
-      chips.push(`<span class="zone-chip" data-zone="${escapeAttr(zone)}">${escapeAttr(label)} (${n})</span>`);
-    }
-    return chips.join('\n          ');
-  })();
-
-  // Fallback name for a shipNode missing from STORE_NAMES, by code prefix.
-  // A- = retail store, D- = regional DC, E- = online-only allocation hub.
   function nodeLabel(node) {
-    if (!node) return "";
-    const kind = { D: "Regional Warehouse / DC", E: "E-Commerce Hub" }[node[0]];
-    return kind ? `${kind} (${node})` : `Store [${node}]`;
+    if (!node) return '';
+    if (STORE_NAMES[node]) return STORE_NAMES[node];
+    const kind = { D: 'Regional warehouse', E: 'Online-only hub' }[node[0]];
+    return kind ? kind : 'Store';
   }
 
-  // A throttle means we are already too fast; it never speeds back up in a run.
-  function widenGate() {
-    requestGap = Math.min(requestGap * 2, MAX_GAP_MS);
+  async function searchProductBySku(sku) {
+    const url = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(sku)}:relevance&channelCode=400001&channel=WEB&currentPage=0&pageSize=5&fields=FULL`;
+    const res = await fetch(url, { headers: API_HEADERS });
+    if (!res.ok) throw new Error(`Croma search failed (${res.status})`);
+    const data = await res.json();
+    // Exact match only. Falling back to the top hit reported another product's
+    // stock whenever the requested SKU was absent.
+    return (data.products || []).find(p => String(p.code) === String(sku)) || null;
   }
 
-  // Croma returns delivery dates with mixed offsets: HDEL as UTC (+00:00), the
-  // SDEL path as IST (+05:30). Date parses the offset, but toLocaleString without
-  // an explicit timeZone renders in the *viewer's* zone -- so the same HDEL slot
-  // read 1:13 PM in Mumbai and 7:43 AM for anyone on UTC. Pin it to IST, which is
-  // what croma.com itself shows.
-  function formatDeliveryETA(dateStr, carrier) {
-    if (!dateStr) return "-";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      const opts = {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-        hour12: true, timeZone: 'Asia/Kolkata'
-      };
-      const formatted = `${d.toLocaleString('en-IN', opts)} IST`;
-      return carrier ? `${formatted} (${carrier.replace('Blitz - ', '')})` : formatted;
-    } catch (e) {
-      return dateStr;
-    }
+  function extractSku(input) {
+    const s = (input || '').trim();
+    if (/^\d{4,8}$/.test(s)) return s;
+    const url = s.match(/\/p\/(\d+)/);
+    if (url) return url[1];
+    const param = s.match(/(?:sku|code|productId)=(\d+)/i);
+    if (param) return param[1];
+    const loose = s.match(/(?<!\w)(\d{5,7})(?!\w)/);
+    return loose ? loose[1] : null;
   }
 
-  // Resolve one requested SKU from the Croma catalog.
-  // Exact match only: falling back to products[0] silently reported another
-  // product's stock whenever the requested SKU was not in the result set.
-  async function searchProductBySku(query) {
-    const page0Url = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(query)}:relevance&channelCode=400001&channel=WEB&currentPage=0&pageSize=5&fields=FULL`;
-    const res = await fetch(page0Url, { headers: API_HEADERS });
-    if (!res.ok) throw new Error(`Search error ${res.status}`);
-    const data0 = await res.json();
-    const products = data0.products || [];
-    return { product: products.find(p => String(p.code) === String(query)) || null };
-  }
-
-  // Single-SKU Drilldown SLA query checking both SDEL (Store Express) and HDEL (Warehouse) simultaneously
-  // Protected with WAF Circuit Breaker to prevent Akamai rate-limiting
-  async function checkBatchSLA(products, pincode) {
-    if (!products || !products.length || !pincode) return {};
-
-    const promiseLine = [];
-    let lineId = 1;
-    for (const p of products) {
-      const sku = String(p.code);
-      promiseLine.push({
-        fulfillmentType: "SDEL",
-        itemID: sku,
-        lineId: String(lineId++),
-        reqEndDate: "2500-01-01",
-        reqStartDate: "",
-        requiredQty: "1",
-        shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
-        extn: { widerStoreFlag: "N" }
-      });
-      promiseLine.push({
-        fulfillmentType: "HDEL",
-        itemID: sku,
-        lineId: String(lineId++),
-        reqEndDate: "2500-01-01",
-        reqStartDate: "",
-        requiredQty: "1",
-        shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
-        extn: { widerStoreFlag: "N" }
-      });
-    }
-
+  // One POST carries both modes as separate promise lines, so checking store
+  // express and warehouse costs the same single request as either alone.
+  async function checkPincode(sku, pincode) {
+    const line = (id, type) => ({
+      fulfillmentType: type, itemID: String(sku), lineId: String(id),
+      reqEndDate: "2500-01-01", reqStartDate: "", requiredQty: "1",
+      shipToAddress: { zipCode: String(pincode), extn: { irlAddressLine1: "", irlAddressLine2: "" } },
+      extn: { widerStoreFlag: "N" }
+    });
     const payload = {
       promise: {
-        allocationRuleID: "SYSTEM",
-        checkInventory: "Y",
-        organizationCode: "CROMA",
+        allocationRuleID: "SYSTEM", checkInventory: "Y", organizationCode: "CROMA",
         sourcingClassification: "EC",
-        promiseLines: { promiseLine }
+        promiseLines: { promiseLine: [line(1, 'SDEL'), line(2, 'HDEL')] }
       }
     };
 
-    const skuResults = {};
-    for (const p of products) {
-      skuResults[String(p.code)] = {
-        sku: String(p.code),
-        available: false,
-        hasExpress: false,
-        hasWarehouse: false,
-        expressStore: "",
-        expressStoreName: "",
-        expressCarrier: "",
-        expressDate: "",
-        warehouseHub: "",
-        warehouseHubName: "",
-        warehouseCarrier: "",
-        warehouseDate: "",
-        fastestDate: "",
-        fastestMode: ""
-      };
-    }
-
-    // Retry throttled requests with backoff instead of killing the run. A single
-    // 429 used to abort the whole scan; across 316 pincodes that is near certain.
-    let res = null;
     let data = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 8000);
       try {
-        res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
-          method: "POST",
-          headers: API_HEADERS,
-          body: JSON.stringify(payload),
-          signal: ctrl.signal
+        const res = await fetch("https://api.croma.com/inventory/oms/v2/tms/details-pwa/", {
+          method: "POST", headers: API_HEADERS, body: JSON.stringify(payload), signal: ctrl.signal
         });
         clearTimeout(timer);
-        if (!res) return skuResults;
-
         if (res.status === 403 || res.status === 429 || res.status >= 500) {
           widenGate();
-          if (attempt === MAX_RETRIES) throw new Error("WAF_RATE_LIMIT");
-          const retryAfter = parseFloat(res.headers.get("Retry-After"));
-          const waitMs = Number.isFinite(retryAfter)
-            ? retryAfter * 1000
-            : Math.min(1000 * Math.pow(2, attempt) + Math.random() * 400, 15000);
-          await sleep(waitMs);
+          if (attempt === MAX_RETRIES) throw new Error('THROTTLED');
+          const ra = parseFloat(res.headers.get('Retry-After'));
+          await sleep(Number.isFinite(ra) ? ra * 1000
+            : Math.min(1000 * Math.pow(2, attempt) + Math.random() * 400, 15000));
           continue;
         }
-        if (!res.ok) return skuResults;    // 4xx other than throttling: give up quietly
-
+        if (!res.ok) return null;
         data = await res.json();
         break;
       } catch (e) {
         clearTimeout(timer);
-        if (e.message === "WAF_RATE_LIMIT") throw e;
-        if (attempt === MAX_RETRIES) return skuResults;   // timeout / network
+        if (e.message === 'THROTTLED') throw e;
+        if (attempt === MAX_RETRIES) return null;
         await sleep(Math.min(1000 * Math.pow(2, attempt), 8000));
       }
     }
-    if (!data) return skuResults;
+    if (!data) return null;
 
-    try {
-      const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
-
-      for (const line of lines) {
-        const item = skuResults[String(line.itemID)];
-        if (!item) continue;
-        const assignment = line.assignments?.assignment?.[0];
-        if (!assignment) continue;
-
-        item.available = true;
-        const node = assignment.shipNode || "";
-        const nodeName = STORE_NAMES[node] || nodeLabel(node);
-        const dDate = assignment.deliveryDate || "";
-        const carrier = (line.carrierServiceCode || "").replace("Blitz - ", "");
-
-        if (line.fulfillmentType === "SDEL") {
-          item.hasExpress = true;
-          item.expressStore = node;
-          item.expressStoreName = nodeName;
-          item.expressCarrier = carrier;
-          item.expressDate = dDate;
-        } else if (line.fulfillmentType === "HDEL") {
-          item.hasWarehouse = true;
-          item.warehouseHub = node;
-          item.warehouseHubName = nodeName;
-          item.warehouseCarrier = carrier;
-          item.warehouseDate = dDate;
-        }
-
-        if (item.hasExpress) {
-          item.fastestMode = "SDEL";
-          item.fastestDate = item.expressDate;
-        } else if (item.hasWarehouse) {
-          item.fastestMode = "HDEL";
-          item.fastestDate = item.warehouseDate;
-        }
-      }
-      return skuResults;
-    } catch (e) {
-      clearTimeout(timer);
-      if (e.message === "WAF_RATE_LIMIT") throw e;
-      return skuResults;
+    const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
+    const out = { express: null, warehouse: null };
+    for (const l of lines) {
+      const a = l.assignments?.assignment?.[0];
+      if (!a) continue;   // an echoed line with no assignment is not fulfillable
+      const slot = {
+        node: a.shipNode || '',
+        name: nodeLabel(a.shipNode || ''),
+        carrier: (l.carrierServiceCode || '').replace('Blitz - ', ''),
+        date: a.deliveryDate || ''
+      };
+      if (l.fulfillmentType === 'SDEL') out.express = slot;
+      else if (l.fulfillmentType === 'HDEL') out.warehouse = slot;
     }
+    return out;
   }
 
-  // Inject UI Root
+  // ------------------------------------------------------------------ ui ----
+
   const host = document.createElement('div');
   host.id = 'croma-hunter-root';
   document.body.appendChild(host);
-
   const shadow = host.attachShadow({ mode: 'open' });
 
-  // Clean Light Theme Stylesheet
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
   const style = document.createElement('style');
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+    :host { all: initial; }
+    * { box-sizing: border-box; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    .scrim {
+      position: fixed; inset: 0; z-index: 2147483646;
+      background: rgba(18, 32, 51, .34);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #122033;
     }
+    .board {
+      background: #fff; width: min(1120px, 100%); max-height: min(760px, 100%);
+      display: flex; flex-direction: column;
+      border-radius: 10px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(18, 32, 51, .28);
+    }
+    .board.min { max-height: none; }
+    .board.min .scope, .board.min .answer, .board.min .sheet, .board.min .foot { display: none; }
 
-    #modal {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      width: min(1040px, calc(100vw - 40px));
-      height: min(760px, calc(100vh - 40px));
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
-      z-index: 2147483647;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      color: #1e293b;
-      font-size: 13px;
-      animation: fadeIn 0.2s ease-out;
+    /* masthead ------------------------------------------------------------ */
+    .mast {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 18px; border-bottom: 2px solid #122033;
     }
-    #modal.minimized { height: auto; }
+    .mark {
+      width: 26px; height: 26px; border-radius: 4px; flex: none;
+      background: #D33A2C; color: #fff; font-weight: 700; font-size: 13px;
+      display: grid; place-items: center; letter-spacing: -.02em;
+    }
+    .mast h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+    .mast .where { font-size: 12px; color: #6B7A8D; margin-top: 1px; }
+    .mast .spacer { flex: 1; }
+    .iconbtn {
+      border: 1px solid #E3E7EC; background: #fff; border-radius: 6px;
+      width: 28px; height: 28px; cursor: pointer; color: #6B7A8D; font-size: 14px;
+      display: grid; place-items: center;
+    }
+    .iconbtn:hover { background: #F3F5F8; color: #122033; }
+    .iconbtn:focus-visible, .pill:focus-visible, select:focus-visible,
+    input:focus-visible, button:focus-visible { outline: 2px solid #D33A2C; outline-offset: 1px; }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-6px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* product identity ---------------------------------------------------- */
+    .ident { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .ident .nm {
+      font-size: 13px; font-weight: 600; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; max-width: 340px;
     }
+    .ident .pr { font-size: 14px; font-weight: 680; font-variant-numeric: tabular-nums; }
+    .ident .sk { font-size: 11px; color: #6B7A8D; font-variant-numeric: tabular-nums; }
 
-    /* ── Header ── */
-    #header {
-      background: #ffffff;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #e2e8f0;
-      cursor: grab;
-      user-select: none;
+    /* query + scope ------------------------------------------------------- */
+    .scope { padding: 14px 18px; border-bottom: 1px solid #E3E7EC; display: grid; gap: 10px; }
+    .qrow { display: flex; gap: 8px; }
+    .qrow input {
+      flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 9px 12px;
+      border: 1px solid #D7DDE5; border-radius: 7px; color: #122033; background: #fff;
     }
-    #header:active { cursor: grabbing; }
-
-    .brand-wrap {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .logo-badge {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #0f7c90, #0e9aa7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 6px rgba(15, 124, 144, 0.25);
-    }
-    .brand-title {
-      font-weight: 700;
-      font-size: 15px;
-      letter-spacing: -0.3px;
-      color: #1e293b;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .brand-pill {
-      background: #f0fdfa;
-      color: #0f766e;
-      font-size: 9.5px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      letter-spacing: 0.5px;
-      border: 1px solid #99f6e4;
-    }
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .ctrl-btn {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      color: #94a3b8;
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      transition: all 0.15s;
-    }
-    .ctrl-btn:hover {
-      background: #f1f5f9;
-      color: #475569;
-      border-color: #cbd5e1;
-    }
-    .ctrl-btn.close:hover {
-      background: #fef2f2;
-      color: #dc2626;
-      border-color: #fecaca;
-    }
-
-    /* ── Body ── */
-    #body {
-      padding: 12px 16px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    /* ── Search Bar ── */
-    .search-bar {
-      display: flex;
-      gap: 8px;
-    }
-    .search-input-wrap {
-      position: relative;
-      flex: 1;
-    }
-    .search-icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #94a3b8;
-      pointer-events: none;
-    }
-    input[type="text"] {
-      width: 100%;
-      background: #ffffff;
-      border: 1.5px solid #e2e8f0;
-      color: #1e293b;
-      padding: 9px 14px 9px 36px;
-      border-radius: 10px;
-      font-size: 13px;
-      outline: none;
-      transition: all 0.15s;
-    }
-    input[type="text"]:focus {
-      border-color: #0f7c90;
-      box-shadow: 0 0 0 3px rgba(15, 124, 144, 0.1);
-    }
-    input[type="text"]::placeholder {
-      color: #94a3b8;
-    }
-
-    .btn-scan {
-      background: #0f7c90;
-      color: #ffffff;
-      border: none;
-      padding: 0 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 1px 3px rgba(15, 124, 144, 0.3);
-      transition: all 0.15s;
+    .qrow input::placeholder { color: #95A3B3; }
+    .go {
+      font: inherit; font-size: 13px; font-weight: 620; padding: 9px 18px;
+      background: #D33A2C; color: #fff; border: 0; border-radius: 7px; cursor: pointer;
       white-space: nowrap;
     }
-    .btn-scan:hover:not(:disabled) {
-      background: #0e6b7d;
-      box-shadow: 0 2px 8px rgba(15, 124, 144, 0.35);
-    }
-    .btn-scan:disabled {
-      background: #e2e8f0;
-      color: #94a3b8;
-      cursor: wait;
-      box-shadow: none;
-    }
+    .go:hover { background: #B82F23; }
+    .go[disabled] { background: #C3CBD5; cursor: default; }
 
-    /* ── Product Info Strip ── */
-    .hero-strip {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
+    .srow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .lbl { font-size: 11px; color: #6B7A8D; width: 42px; flex: none; }
+    .pills { display: flex; gap: 4px; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
+    .pills::-webkit-scrollbar { height: 4px; }
+    .pills::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
+    .pill {
+      flex: 0 0 auto; white-space: nowrap; cursor: pointer;
+      border: 1px solid #E3E7EC; background: #fff; color: #44546A;
+      font: inherit; font-size: 12px; padding: 4px 11px; border-radius: 6px;
     }
-    .prod-thumb-wrap {
-      width: 40px;
-      height: 40px;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 3px;
-      flex-shrink: 0;
-    }
-    .prod-thumb {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      border-radius: 5px;
-    }
-    .prod-thumb-fallback {
-      display: none;
-      color: #0f7c90;
-      font: 700 9px 'JetBrains Mono', monospace;
-      letter-spacing: 0.4px;
-    }
-    .prod-details {
-      flex: 1;
-      min-width: 0;
-    }
-    .prod-headline {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .prod-title {
-      font-weight: 700;
-      font-size: 13.5px;
-      color: #1e293b;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-    }
-    .prod-price {
-      font-size: 14px;
-      font-weight: 800;
-      color: #0f766e;
-      letter-spacing: -0.3px;
-      white-space: nowrap;
-    }
-    .prod-subline {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 3px;
-    }
-    .catalog-summary {
-      font-size: 11px;
-      color: #94a3b8;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .catalog-count-badge {
-      font-size: 10px;
-      font-weight: 700;
-      background: #f0fdfa;
-      color: #0f766e;
-      border: 1px solid #99f6e4;
-      border-radius: 8px;
-      padding: 1px 6px;
-      white-space: nowrap;
-    }
+    .pill .n { color: #95A3B3; font-variant-numeric: tabular-nums; margin-left: 5px; }
+    .pill:hover { border-color: #C3CBD5; background: #F7F8FA; }
+    .pill[aria-pressed="true"] { background: #122033; border-color: #122033; color: #fff; }
+    .pill[aria-pressed="true"] .n { color: #9FB0C4; }
 
-    /* ── Live Stats Badges ── */
-    .live-stats-bar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
+    select, .filter {
+      font: inherit; font-size: 12px; padding: 5px 9px; border: 1px solid #D7DDE5;
+      border-radius: 6px; background: #fff; color: #122033; max-width: 220px;
     }
-    .stat-pill {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 4px 12px;
-      min-width: 56px;
-    }
-    .stat-pill.green-pill {
-      background: #f0fdf4;
-      border-color: #bbf7d0;
-    }
-    .stat-pill.red-pill {
-      background: #fef2f2;
-      border-color: #fecaca;
-    }
-    .stat-lbl {
-      font-size: 9px;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .green-pill .stat-lbl { color: #16a34a; }
-    .red-pill .stat-lbl { color: #dc2626; }
-    .stat-num {
-      font-size: 14px;
-      font-weight: 800;
-      color: #1e293b;
-      font-family: 'JetBrains Mono', monospace;
-      line-height: 1.2;
-    }
-    .stat-num.cyan { color: #0f7c90; }
-    .green-pill .stat-num { color: #16a34a; }
-    .red-pill .stat-num { color: #dc2626; }
+    .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #44546A; cursor: pointer; }
 
-    /* ── Progress Bar ── */
-    .progress-wrap {
-      display: none;
-      background: #e2e8f0;
-      border-radius: 3px;
-      height: 3px;
-      overflow: hidden;
-    }
-    .progress-bar-fill {
-      background: linear-gradient(90deg, #0f7c90, #0e9aa7);
-      height: 100%;
-      width: 0%;
-      transition: width 0.15s ease;
-    }
+    /* answer -------------------------------------------------------------- */
+    .answer { padding: 16px 18px 0; }
+    .headline { font-size: 21px; font-weight: 620; letter-spacing: -.015em; line-height: 1.25; }
+    .headline .q { font-variant-numeric: tabular-nums; }
+    .headline.idle { color: #6B7A8D; font-weight: 500; font-size: 15px; }
+    .sub { margin-top: 5px; font-size: 12px; color: #6B7A8D; display: flex; gap: 14px; flex-wrap: wrap; }
+    .sub b { font-weight: 600; color: #122033; font-variant-numeric: tabular-nums; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .dot.x { background: #0E7C5A; } .dot.w { background: #2563A8; } .dot.o { background: #C3CBD5; }
+    .track { height: 2px; background: #EEF1F4; margin-top: 12px; }
+    .track i { display: block; height: 100%; background: #D33A2C; width: 0; transition: width .2s linear; }
 
-    /* ── Filter Bar ── */
-    .filter-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+    /* sheet --------------------------------------------------------------- */
+    .sheet { flex: 1; overflow: auto; padding: 0 18px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      position: sticky; top: 0; background: #fff; z-index: 1;
+      text-align: left; font-size: 11px; font-weight: 600; color: #6B7A8D;
+      padding: 10px 8px 7px; border-bottom: 1px solid #E3E7EC; white-space: nowrap;
     }
-    .zone-group {
-      display: flex;
-      gap: 4px;
-      /* Chips must never be squeezed: with 7 zones they used to shrink below
-         their text and wrap mid-label. Scroll the strip instead. */
-      min-width: 0;
-      overflow-x: auto;
-      scrollbar-width: thin;
-      padding-bottom: 2px;
-    }
-    .zone-group::-webkit-scrollbar { height: 4px; }
-    .zone-group::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
-    .zone-chip {
-      flex: 0 0 auto;
-      white-space: nowrap;
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      color: #64748b;
-      padding: 3px 10px;
-      border-radius: 16px;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.12s;
-    }
-    .zone-chip:hover {
-      background: #e2e8f0;
-      color: #334155;
-    }
-    .zone-chip.active {
-      background: #0f7c90;
-      border-color: #0f7c90;
-      color: #ffffff;
-      font-weight: 600;
-    }
-    .filter-toggles {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .filter-toggle {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11.5px;
-      color: #64748b;
-      cursor: pointer;
-      user-select: none;
-    }
-    .filter-toggle input {
-      accent-color: #0f7c90;
-      cursor: pointer;
-      width: 14px;
-      height: 14px;
-    }
+    tbody td { padding: 9px 8px; border-bottom: 1px solid #F1F4F7; font-size: 12.5px; vertical-align: top; }
+    tbody tr:hover { background: #FAFBFC; }
+    .pin { font-weight: 640; font-variant-numeric: tabular-nums; width: 74px; }
+    .area { font-weight: 550; }
+    .city { font-size: 11px; color: #6B7A8D; margin-top: 1px; }
+    .node { font-weight: 550; }
+    .carrier { font-size: 11px; color: #6B7A8D; margin-top: 1px; }
+    .eta { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 550; }
+    .none { color: #95A3B3; font-weight: 400; }
+    .empty { padding: 44px 8px; text-align: center; color: #6B7A8D; font-size: 13px; }
+    .empty b { display: block; color: #122033; font-size: 14px; margin-bottom: 4px; font-weight: 600; }
 
-    /* ── Table ── */
-    .table-container {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
+    /* foot ---------------------------------------------------------------- */
+    .foot {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 18px; border-top: 1px solid #E3E7EC; background: #FAFBFC;
     }
-    .table-container::-webkit-scrollbar {
-      width: 5px;
+    .legend { font-size: 11px; color: #6B7A8D; display: flex; gap: 14px; }
+    .foot .spacer { flex: 1; }
+    .ghost {
+      font: inherit; font-size: 12px; font-weight: 550; padding: 6px 13px; cursor: pointer;
+      border: 1px solid #D7DDE5; background: #fff; border-radius: 6px; color: #122033;
     }
-    .table-container::-webkit-scrollbar-track {
-      background: #f8fafc;
-    }
-    .table-container::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    .table-container::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-    thead {
-      position: sticky;
-      top: 0;
-      background: #f8fafc;
-      z-index: 10;
-    }
-    th {
-      font-size: 10.5px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #64748b;
-      padding: 8px 12px;
-      border-bottom: 1px solid #e2e8f0;
-      white-space: nowrap;
-    }
-    td {
-      padding: 8px 12px;
-      border-bottom: 1px solid #f1f5f9;
-      font-size: 12.5px;
-      color: #334155;
-      vertical-align: middle;
-    }
-    tr:hover td {
-      background: #f0fdfa;
-    }
-    .pincode-cell {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 700;
-      font-size: 12.5px;
-      color: #0f7c90;
-    }
+    .ghost:hover { background: #F3F5F8; }
+    .note { font-size: 12px; color: #D33A2C; }
 
-    /* ── Badges ── */
-    .badge-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 6px;
-      white-space: nowrap;
+    .toast {
+      position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);
+      background: #122033; color: #fff; font-size: 12.5px; padding: 9px 16px;
+      border-radius: 7px; opacity: 0; pointer-events: none; transition: all .2s;
     }
-    .badge-status.avail {
-      background: #dcfce7;
-      color: #16a34a;
-      border: 1px solid #bbf7d0;
-    }
-    .badge-status.oos {
-      background: #fef2f2;
-      color: #dc2626;
-      border: 1px solid #fecaca;
-    }
-    .badge-express {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      background: #f0fdfa;
-      color: #0f766e;
-      border: 1px solid #99f6e4;
-      border-radius: 5px;
-      padding: 2px 6px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-    .badge-warehouse {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      background: #eff6ff;
-      color: #2563eb;
-      border: 1px solid #bfdbfe;
-      border-radius: 5px;
-      padding: 2px 6px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-    .pulse-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: #16a34a;
-    }
+    .toast.on { opacity: 1; transform: translate(-50%, 0); }
 
-    /* ── Footer ── */
-    #footer {
-      padding: 8px 16px 10px;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #f8fafc;
-    }
-    .footer-note {
-      font-size: 11px;
-      color: #94a3b8;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .btn-action-group {
-      display: flex;
-      gap: 6px;
-    }
-    .btn-act {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      color: #475569;
-      padding: 5px 12px;
-      border-radius: 8px;
-      font-size: 11.5px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      transition: all 0.15s;
-    }
-    .btn-act:hover {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
-      color: #1e293b;
-    }
-    .btn-act.primary {
-      background: #f0fdfa;
-      border-color: #99f6e4;
-      color: #0f766e;
-    }
-    .btn-act.primary:hover {
-      background: #0f7c90;
-      border-color: #0f7c90;
-      color: #ffffff;
-    }
-
-    /* ── Toast ── */
-    #toast {
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-10px);
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-left: 3px solid #0f7c90;
-      color: #1e293b;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.2s ease-out;
-      z-index: 1000;
-      white-space: nowrap;
-    }
-    #toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
     @media (max-width: 760px) {
-      #modal { top: 8px; right: 8px; width: calc(100vw - 16px); height: calc(100dvh - 16px); border-radius: 12px; }
-      #body { padding: 10px 10px 0; gap: 8px; }
-      .hero-strip { flex-wrap: wrap; gap: 8px; padding: 9px; }
-      .prod-details { flex-basis: calc(100% - 56px); }
-      .live-stats-bar { width: 100%; justify-content: stretch; }
-      .stat-pill { flex: 1; }
-      .filter-bar { align-items: stretch; flex-direction: column; }
-      .zone-group { overflow-x: auto; padding-bottom: 3px; }
-      .zone-chip { flex: 0 0 auto; }
-      .filter-toggles { justify-content: flex-start; flex-wrap: wrap; }
-      .table-container { overflow: auto; }
-      table { min-width: 700px; }
-      #footer { gap: 8px; padding: 8px 10px; flex-wrap: wrap; }
-      .footer-note { flex: 1 1 100%; }
-      .btn-action-group { margin-left: auto; }
+      .scrim { padding: 0; }
+      .board { border-radius: 0; max-height: 100%; height: 100%; }
+      .ident { display: none; }
+      .lbl { display: none; }
+      .col-node { display: none; }
     }
-    @media (max-width: 480px) {
-      #modal { top: 0; right: 0; width: 100vw; height: 100dvh; border-radius: 0; }
-      .brand-pill { display: none; }
-      .search-bar { flex-direction: column; }
-      .btn-scan { min-height: 40px; justify-content: center; }
-      .prod-subline { flex-wrap: wrap; }
-      .catalog-summary { flex-basis: 100%; }
-    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   `;
   shadow.appendChild(style);
 
-  // HUD HTML Layout
-  const modal = document.createElement('div');
-  modal.id = 'modal';
-  modal.innerHTML = `
-    <div id="toast"></div>
-
-    <!-- Header -->
-    <div id="header">
-      <div class="brand-wrap">
-        <div class="logo-badge">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <circle cx="12" cy="12" r="3"></circle>
-            <line x1="12" y1="2" x2="12" y2="5"></line>
-            <line x1="12" y1="19" x2="12" y2="22"></line>
-            <line x1="2" y1="12" x2="5" y2="12"></line>
-            <line x1="19" y1="12" x2="22" y2="12"></line>
-          </svg>
+  const ui = document.createElement('div');
+  ui.className = 'scrim';
+  ui.innerHTML = `
+    <div class="board" part="board">
+      <div class="mast">
+        <div class="mark">C</div>
+        <div>
+          <h1>Croma Stock Board</h1>
+          <div class="where" id="where">Maharashtra · ${PINS.length.toLocaleString('en-IN')} pincodes</div>
         </div>
-        <div class="brand-title">
-          <span>Croma Hunter</span>
-          <span class="brand-pill">MMR LIVE</span>
+        <div class="spacer"></div>
+        <div class="ident" id="ident" hidden>
+          <span class="nm" id="idName"></span>
+          <span class="pr" id="idPrice"></span>
+          <span class="sk" id="idSku"></span>
         </div>
-      </div>
-      <div class="header-actions">
-        <button class="ctrl-btn" id="btn-minimize" title="Minimize panel" aria-label="Minimize panel">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </button>
-        <button class="ctrl-btn close" id="btn-close" title="Close">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Body -->
-    <div id="body">
-      <!-- Search Bar -->
-      <div class="search-bar">
-        <div class="search-input-wrap">
-          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input type="text" id="query-input" placeholder="Enter one product SKU or paste its Croma URL..." />
-        </div>
-        <button class="btn-scan" id="btn-scan">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
-          <span>Re-Scan</span>
-        </button>
+        <button class="iconbtn" id="btnMin" title="Collapse">–</button>
+        <button class="iconbtn" id="btnClose" title="Close">✕</button>
       </div>
 
-      <!-- Product Info + Live Stats -->
-      <div class="hero-strip">
-        <div class="prod-thumb-wrap">
-          <img id="product-img" class="prod-thumb" alt="Product thumbnail" />
-          <span id="product-img-fallback" class="prod-thumb-fallback">SKU</span>
+      <div class="scope">
+        <div class="qrow">
+          <input id="q" type="text" placeholder="Paste a Croma product URL, or type a SKU like 324530" />
+          <button class="go" id="btnScan">Scan</button>
         </div>
-        <div class="prod-details">
-          <div class="prod-headline">
-            <span class="prod-title" id="product-title">Ready to Scan</span>
-            <span class="prod-price" id="product-price">&#8377; -</span>
-          </div>
-          <div class="prod-subline">
-            <div id="search-summary-text" class="catalog-summary">Enter a product SKU or product URL</div>
-            <div class="catalog-count-badge" id="catalog-count-badge" style="display:none;"></div>
-          </div>
+        <div class="srow">
+          <span class="lbl">Region</span>
+          <div class="pills" id="regions"></div>
         </div>
-
-        <div class="live-stats-bar">
-          <div class="stat-pill" title="Pincodes scanned">
-            <span class="stat-lbl">Pins</span>
-            <span class="stat-num cyan" id="stat-scanned">0 / ${MUMBAI_PINCODES.length}</span>
-          </div>
-          <div class="stat-pill green-pill" title="In-Stock fulfillment available">
-            <span class="stat-lbl">&#9889; In-Stock</span>
-            <span class="stat-num" id="stat-avail">0</span>
-          </div>
-          <div class="stat-pill red-pill" title="Unavailable / Out of Stock">
-            <span class="stat-lbl">OOS</span>
-            <span class="stat-num" id="stat-oos">0</span>
-          </div>
+        <div class="srow">
+          <span class="lbl">Narrow</span>
+          <select id="city"></select>
+          <input class="filter" id="area" type="text" placeholder="Area or pincode" />
+          <label class="chk"><input type="checkbox" id="onlyStock" /> Deliverable only</label>
+          <label class="chk"><input type="checkbox" id="onlyExpress" /> Express only</label>
         </div>
       </div>
 
-      <!-- Hidden pagination bar shim -->
-      <div id="pagination-bar" style="display:none;"></div>
-
-      <!-- Progress Bar -->
-      <div class="progress-wrap" id="progress-container">
-        <div class="progress-bar-fill" id="progress-bar"></div>
+      <div class="answer">
+        <div class="headline idle" id="headline">Pick a scope and scan to see where this ships from.</div>
+        <div class="sub" id="sub"></div>
+        <div class="track"><i id="bar"></i></div>
       </div>
 
-      <!-- Filter Controls -->
-      <div class="filter-bar">
-        <div class="zone-group" id="zone-chips">${ZONE_CHIPS_HTML}</div>
-        <div class="filter-toggles">
-          <label class="filter-toggle">
-          <input type="checkbox" id="chk-avail-only" />
-            <span>In-Stock Only</span>
-          </label>
-          <label class="filter-toggle">
-            <input type="checkbox" id="chk-express-only" />
-            <span>&#9889; Express Only</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Results Table -->
-      <div class="table-container">
+      <div class="sheet">
         <table>
-          <thead id="table-head">
-            <tr>
-              <th style="width: 80px;">Pincode</th>
-              <th>Area / Locality</th>
-              <th style="width: 100px;">Status</th>
-              <th>Fulfillment Mode &amp; Store</th>
-              <th style="width: 140px;">Delivery ETA</th>
-            </tr>
-          </thead>
-          <tbody id="table-body">
-            <tr>
-              <td colspan="5" style="text-align: center; color: #94a3b8; padding: 48px 16px;">
-                Enter one product SKU or paste a Croma product URL, then click <b>Scan</b>.
-              </td>
-            </tr>
-          </tbody>
+          <thead><tr>
+            <th>Pincode</th><th>Area</th><th>Ships from</th>
+            <th class="col-node">Mode</th><th>Arrives</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
         </table>
       </div>
 
-      <!-- Footer -->
-      <div id="footer">
-        <div class="footer-note">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f7c90" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          <span>Dual Mode: &#9889; Store Express (SDEL) &amp; &#128666; Warehouse (HDEL)</span>
+      <div class="foot">
+        <div class="legend">
+          <span><i class="dot x"></i>Store express</span>
+          <span><i class="dot w"></i>Warehouse</span>
+          <span><i class="dot o"></i>Not deliverable</span>
         </div>
-        <div class="btn-action-group">
-          <button class="btn-act" id="btn-copy">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            <span>Copy</span>
-          </button>
-          <button class="btn-act primary" id="btn-export">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>Export CSV</span>
-          </button>
-        </div>
+        <span class="note" id="note"></span>
+        <div class="spacer"></div>
+        <button class="ghost" id="btnCopy">Copy summary</button>
+        <button class="ghost" id="btnCsv">Export CSV</button>
       </div>
     </div>
+    <div class="toast" id="toast"></div>
   `;
-  shadow.appendChild(modal);
+  shadow.appendChild(ui);
 
-  // State Management
-  let currentQuery = "";
-  let currentProducts = []; // Contains only the product being scanned
-  let activeSelectedSKU = "ALL"; // "ALL" or specific SKU
-  let activeZone = "ALL";
-  let scanMatrix = {}; // { [sku]: { [pincode]: itemResult } }
-  let isScanning = false;
+  const $ = id => shadow.getElementById(id);
+  const board = shadow.querySelector('.board');
 
-  // DOM Elements
-  const queryInput = shadow.getElementById('query-input');
-  const btnScan = shadow.getElementById('btn-scan');
-  const paginationBar = shadow.getElementById('pagination-bar');
-  const searchSummaryText = shadow.getElementById('search-summary-text');
-  const catalogCountBadge = shadow.getElementById('catalog-count-badge');
-
-  const productImg = shadow.getElementById('product-img');
-  const productImgFallback = shadow.getElementById('product-img-fallback');
-  const productTitle = shadow.getElementById('product-title');
-  const productPrice = shadow.getElementById('product-price');
-
-  const progressContainer = shadow.getElementById('progress-container');
-  const progressBar = shadow.getElementById('progress-bar');
-  const statScanned = shadow.getElementById('stat-scanned');
-  const statAvail = shadow.getElementById('stat-avail');
-  const statOos = shadow.getElementById('stat-oos');
-  const tableHead = shadow.getElementById('table-head');
-  const tableBody = shadow.getElementById('table-body');
-  const chkAvailOnly = shadow.getElementById('chk-avail-only');
-  const chkExpressOnly = shadow.getElementById('chk-express-only');
-  const zoneChips = shadow.getElementById('zone-chips');
-  const btnCopy = shadow.getElementById('btn-copy');
-  const btnExport = shadow.getElementById('btn-export');
-  const btnClose = shadow.getElementById('btn-close');
-  const btnMinimize = shadow.getElementById('btn-minimize');
-  const bodyDiv = shadow.getElementById('body');
-  const toast = shadow.getElementById('toast');
-
-  function showToast(msg) {
-    toast.textContent = msg;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2400);
-  }
-
-  // Window Controls
-  btnClose.onclick = () => host.remove();
-  btnMinimize.onclick = () => {
-    const minimized = modal.classList.toggle('minimized');
-    bodyDiv.style.display = minimized ? 'none' : 'flex';
-    btnMinimize.title = minimized ? 'Restore panel' : 'Minimize panel';
-    btnMinimize.setAttribute('aria-label', btnMinimize.title);
+  let state = {
+    region: 'mmr', city: '', area: '', onlyStock: false, onlyExpress: false,
+    product: null, results: new Map(), scanning: false, done: 0, total: 0, throttled: false
   };
 
-  // Draggable HUD
-  const header = shadow.getElementById('header');
-  let isDragging = false;
-  let dragOffset = { x: 0, y: 0 };
-  header.onmousedown = (e) => {
-    if (e.target.closest('.ctrl-btn')) return;
-    isDragging = true;
-    dragOffset.x = e.clientX - modal.getBoundingClientRect().left;
-    dragOffset.y = e.clientY - modal.getBoundingClientRect().top;
-    e.preventDefault();
-  };
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    modal.style.left = (e.clientX - dragOffset.x) + 'px';
-    modal.style.top = (e.clientY - dragOffset.y) + 'px';
-    modal.style.right = 'auto';
-  });
-  window.addEventListener('mouseup', () => { isDragging = false; });
-
-  // Update Hero Card details for selected SKU
-  function updateHeroCard(sku) {
-    const p = currentProducts.find(x => x.code === sku) || currentProducts[0];
-    if (p) {
-      productTitle.textContent = p.name;
-      productPrice.textContent = p.price || "₹ -";
-      productImg.hidden = !p.image;
-      productImgFallback.style.display = p.image ? 'none' : 'block';
-      if (p.image) productImg.src = p.image;
-    }
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove('on'), 2600);
   }
 
-  productImg.onerror = () => {
-    productImg.hidden = true;
-    productImgFallback.style.display = 'block';
-  };
+  // ------------------------------------------------------------- rendering ---
 
-  // Update Stats Counters for active SKU
-  function updateStats() {
-    const targetSku = activeSelectedSKU || currentProducts[0]?.code;
-    const pMap = scanMatrix[targetSku] || {};
-    const scannedPins = Object.keys(pMap).length;
-    const availPins = Object.values(pMap).filter(x => x.available).length;
-    statScanned.textContent = `${scannedPins} / ${MUMBAI_PINCODES.length}`;
-    statAvail.textContent = availPins;
-    statOos.textContent = scannedPins - availPins;
-  }
-
-  // Render Table: 86-pincode drilldown breakdown for selected SKU
-  function renderTable() {
-    const availOnly = chkAvailOnly.checked;
-    const expressOnly = chkExpressOnly.checked;
-
-    tableHead.innerHTML = `
-      <tr>
-        <th style="width: 75px;">Pincode</th>
-        <th>Area / Locality</th>
-        <th style="width: 105px;">Status</th>
-        <th>Fulfillment Mode & Store</th>
-        <th style="width: 135px;">Delivery ETA</th>
-      </tr>
-    `;
-
-    const targetSku = activeSelectedSKU || currentProducts[0]?.code;
-    const pMap = scanMatrix[targetSku] || {};
-
-    const filtered = MUMBAI_PINCODES.map(item => {
-      const entry = pMap[item.pin] || {
-        pin: item.pin,
-        area: item.area,
-        zone: item.zone,
-        available: false
-      };
-      return entry;
-    }).filter(r => {
-      if (activeZone !== "ALL" && r.zone !== activeZone) return false;
-      if (availOnly && !r.available) return false;
-      if (expressOnly && !r.hasExpress) return false;
-      return true;
-    });
-
-    if (filtered.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 28px;">No pincodes match the selected filters.</td></tr>`;
-      return;
-    }
-
-    tableBody.innerHTML = filtered.map(r => {
-      let fBadge = '<span style="color:#64748b;">-</span>';
-      if (r.available) {
-        if (r.hasExpress && r.hasWarehouse) {
-          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><br><span style="font-size:9.5px; color:#0f766e;">+ &#128666; Warehouse [${r.warehouseHub}]</span>`;
-        } else if (r.hasExpress) {
-          fBadge = `<span class="badge-express">&#9889; Store Express [${r.expressStore}]</span><div style="font-size:10px; color:#64748b;">${r.expressStoreName}</div>`;
-        } else if (r.hasWarehouse) {
-          fBadge = `<span class="badge-warehouse">&#128666; Warehouse [${r.warehouseHub}]</span><div style="font-size:10px; color:#64748b;">${r.warehouseHubName}</div>`;
-        }
-      }
-
-      // Time and carrier on separate lines -- as one string the cell wrapped to
-      // three ragged lines once the IST suffix was added.
-      const etaTime = r.available ? formatDeliveryETA(r.fastestDate) : '-';
-      const etaCarrier = r.available
-        ? ((r.hasExpress ? r.expressCarrier : r.warehouseCarrier) || '')
-        : '';
-
-      return `
-        <tr>
-          <td class="pincode-cell">${r.pin}</td>
-          <td>
-            <div style="font-weight:600; color:#334155;">${r.area}</div>
-            <div style="font-size:10px; color:#64748b;">${r.zone}</div>
-          </td>
-          <td>
-            <span class="badge-status ${r.available ? 'avail' : 'oos'}">
-              ${r.available ? '<span class="pulse-dot"></span>IN STOCK' : 'OUT OF STOCK'}
-            </span>
-          </td>
-          <td>${fBadge}</td>
-          <td style="font-size:11px; color:${r.available ? '#334155' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'}; white-space:nowrap;">
-            <div>${etaTime}</div>
-            ${etaCarrier ? `<div style="font-size:10px; color:#64748b; font-weight:400;">${etaCarrier}</div>` : ''}
-          </td>
-        </tr>
-      `;
+  function renderRegions() {
+    $('regions').innerHTML = REGIONS.map(r => {
+      const n = PINS.filter(p => inRegion(p.pin, r)).length;
+      return `<button class="pill" data-region="${r.id}" aria-pressed="${r.id === state.region}">`
+        + `${esc(r.name)}<span class="n">${n.toLocaleString('en-IN')}</span></button>`;
     }).join('');
   }
 
-  // Drilldown helper exposed to custom element host
-  host.__selectSKU = async (sku) => {
-    activeSelectedSKU = sku;
-    updateHeroCard(sku);
-    if (!scanMatrix[sku] || Object.keys(scanMatrix[sku]).length === 0) {
-      if (!isScanning) await startScan();
-    } else {
-      renderTable();
-      updateStats();
-    }
-  };
-
-  // Zone Chips Filter
-  zoneChips.onclick = (e) => {
-    const chip = e.target.closest('.zone-chip');
-    if (chip) {
-      shadow.querySelectorAll('.zone-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      activeZone = chip.getAttribute('data-zone');
-      renderTable();
-    }
-  };
-
-  chkAvailOnly.onchange = renderTable;
-  chkExpressOnly.onchange = renderTable;
-
-  // Single-SKU Drilldown Scan Runner across all 86 Mumbai pincodes
-  async function startScan() {
-    if (isScanning) return; // Guard against concurrent runs
-
-    const q = queryInput.value.trim();
-    if (!q && currentProducts.length === 0) {
-      showToast("Please enter a product, SKU, or Croma URL! 🔍");
-      queryInput.focus();
-      return;
-    }
-
-    // Check if user entered a Croma product URL or direct SKU
-    const urlSkuMatch = q.match(/\/p\/(\d+)/);
-    const directSkuMatch = q.match(/^\d{5,7}$/);
-    const targetSku = urlSkuMatch ? urlSkuMatch[1] : (directSkuMatch ? directSkuMatch[0] : null);
-
-    if (q && !targetSku) {
-      showToast("Enter one 5–7 digit SKU or paste a Croma product URL.");
-      queryInput.focus();
-      return;
-    }
-
-    // Load only the requested product by SKU or product URL
-    if (q && (q !== currentQuery || currentProducts.length === 0 || !currentProducts[0]?.rawPrice)) {
-      currentQuery = q;
-      btnScan.disabled = true;
-      btnScan.className = 'btn-scan';
-      btnScan.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;">
-          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-          <path d="M12 2a10 10 0 0 1 10 10"></path>
-        </svg>
-        <span>Loading...</span>
-      `;
-
-      if (targetSku) {
-        // Direct SKU or pasted Product URL
-        try {
-          const res = await searchProductBySku(targetSku);
-          const matchedProd = res.product;
-          if (matchedProd) {
-            const rawP = matchedProd.price?.value || parseFloat((matchedProd.price?.formattedValue || "").replace(/[^\d.]/g, '')) || 0;
-            const img = matchedProd.images?.find(im => im.imageType === 'PRIMARY')?.url || matchedProd.productImage || "";
-            const pUrl = matchedProd.url ? (matchedProd.url.startsWith('http') ? matchedProd.url : `https://www.croma.com${matchedProd.url}`) : `https://www.croma.com/p/${matchedProd.code}`;
-            currentProducts = [{
-              code: String(matchedProd.code),
-              name: matchedProd.name,
-              price: matchedProd.price?.formattedValue || (rawP ? `₹${rawP.toLocaleString('en-IN')}` : ""),
-              rawPrice: rawP,
-              image: img,
-              url: pUrl
-            }];
-          } else {
-            currentProducts = [{
-              code: String(targetSku),
-              name: `Product SKU [${targetSku}]`,
-              price: "",
-              rawPrice: 0,
-              image: "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png",
-              url: `https://www.croma.com/p/${targetSku}`
-            }];
-          }
-        } catch (e) {
-          currentProducts = [{
-            code: String(targetSku),
-            name: `Product SKU [${targetSku}]`,
-            price: "",
-            rawPrice: 0,
-            image: "https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1606478950/Croma%20Assets/UI/croma_logo.png",
-            url: `https://www.croma.com/p/${targetSku}`
-          }];
-        }
-        paginationBar.style.display = 'flex';
-        searchSummaryText.innerHTML = `Loaded SKU <b style="color:#00E5BE;">[${targetSku}]</b>: ${currentProducts[0].name.slice(0, 36)}...`;
-        catalogCountBadge.textContent = '1 SKU Ready';
-        activeSelectedSKU = String(targetSku);
-      }
-    }
-
-    if (currentProducts.length === 0) {
-      showToast("Please enter a search query or product URL! 🔍");
-      return;
-    }
-
-    const targetProduct = currentProducts.find(p => p.code === activeSelectedSKU) || currentProducts[0];
-    if (!targetProduct) return;
-    activeSelectedSKU = targetProduct.code;
-    updateHeroCard(activeSelectedSKU);
-
-    // Begin real-time single-SKU drilldown scanning of all 86 Mumbai pincodes
-    isScanning = true;
-    btnScan.disabled = true;
-    btnScan.className = 'btn-scan';
-    btnScan.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;">
-        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-        <path d="M12 2a10 10 0 0 1 10 10"></path>
-      </svg>
-      <span>Scanning...</span>
-    `;
-
-    progressContainer.style.display = 'block';
-    scanMatrix[targetProduct.code] = scanMatrix[targetProduct.code] || {};
-
-    // MUMBAI_PINCODES.length, not `total` -- that is declared a few lines below
-    // and reading it here is a temporal-dead-zone error.
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00E5BE; padding: 28px;">&#9889; Scanning [${targetProduct.code}] across ${MUMBAI_PINCODES.length} Mumbai & MMR pincodes in real-time...</td></tr>`;
-
-    const targetPins = [...MUMBAI_PINCODES];
-    const total = targetPins.length;
-    let completed = 0;
-    let totalInStockOccurrences = 0;
-    let hitRateLimit = false;
-
-    const CONCURRENCY = 1;
-    let index = 0;
-
-    async function worker() {
-      while (true) {
-        if (hitRateLimit) break;
-        if (index >= targetPins.length) break;
-        const pinItem = targetPins[index++];
-        if (!pinItem || !pinItem.pin) break;
-
-        let batchResults = {};
-        try {
-          batchResults = (await checkBatchSLA([targetProduct], pinItem.pin)) || {};
-          // Pace request starts; requestGap widens itself if Croma throttles us.
-          await sleep(requestGap);
-        } catch (e) {
-          if (e.message === "WAF_RATE_LIMIT") {
-            // Only reached after MAX_RETRIES of backoff -- genuinely blocked.
-            hitRateLimit = true;
-            break;
-          }
-          batchResults = {};
-        }
-
-        completed++;
-
-        const res = (batchResults && batchResults[targetProduct.code]) || {};
-        const entry = {
-          pin: pinItem.pin,
-          area: pinItem.area || "",
-          zone: pinItem.zone || "",
-          available: !!res?.available,
-          hasExpress: !!res?.hasExpress,
-          hasWarehouse: !!res?.hasWarehouse,
-          expressStore: res?.expressStore || "",
-          expressStoreName: res?.expressStoreName || "",
-          expressCarrier: res?.expressCarrier || "",
-          expressDate: res?.expressDate || "",
-          warehouseHub: res?.warehouseHub || "",
-          warehouseHubName: res?.warehouseHubName || "",
-          warehouseCarrier: res?.warehouseCarrier || "",
-          warehouseDate: res?.warehouseDate || "",
-          fastestDate: res?.fastestDate || "",
-          fastestCarrier: (res?.hasExpress ? res?.expressCarrier : res?.warehouseCarrier) || ""
-        };
-
-        if (entry.available) totalInStockOccurrences++;
-        scanMatrix[targetProduct.code][pinItem.pin] = entry;
-
-        const pct = Math.min(100, Math.round((completed / total) * 100));
-        progressBar.style.width = pct + '%';
-        statScanned.textContent = `${completed} / ${total}`;
-        statAvail.textContent = totalInStockOccurrences;
-        statOos.textContent = completed - totalInStockOccurrences;
-
-        if (completed % 4 === 0 || completed >= total) {
-          renderTable();
-        }
-      }
-    }
-
-    try {
-      const workers = Array(CONCURRENCY).fill(0).map(() => worker());
-      await Promise.all(workers);
-    } catch (err) {
-      console.warn("Scan loop error:", err);
-    } finally {
-      isScanning = false;
-      btnScan.disabled = false;
-      btnScan.className = 'btn-scan';
-      btnScan.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <span>Re-Scan</span>
-      `;
-      renderTable();
-      if (hitRateLimit) {
-        showToast("⚠️ Akamai Rate Limit reached. Please pause a moment or switch network.");
-      } else {
-        showToast(completed < total ? `Scan Finished (${completed}/${total} pincodes)` : `Scan Complete! In-Stock at ${totalInStockOccurrences} of ${total} Pincodes ✨`);
-      }
-    }
+  function renderCities() {
+    const list = citiesIn(state.region);
+    const keep = list.some(([c]) => c === state.city) ? state.city : '';
+    state.city = keep;
+    $('city').innerHTML = `<option value="">All cities (${list.length})</option>`
+      + list.map(([c, n]) => `<option value="${esc(c)}"${c === keep ? ' selected' : ''}>`
+        + `${esc(c)} (${n})</option>`).join('');
   }
 
-  btnScan.onclick = () => {
-    if (!isScanning) {
-      startScan();
+  function scanTarget() { return scopedPins(state.region, state.city, state.area); }
+
+  function renderScanButton() {
+    const n = scanTarget().length;
+    const mins = Math.round(n * (requestGap / 1000) / 60);
+    const btn = $('btnScan');
+    btn.disabled = state.scanning || n === 0;
+    btn.textContent = state.scanning ? 'Scanning…'
+      : n === 0 ? 'Nothing in scope'
+      : `Scan ${n.toLocaleString('en-IN')} pincode${n === 1 ? '' : 's'}${mins >= 2 ? ` · ~${mins} min` : ''}`;
+    $('where').textContent = state.city
+      ? `${state.city} · ${n.toLocaleString('en-IN')} pincodes`
+      : `${(REGIONS.find(r => r.id === state.region) || {}).name} · ${n.toLocaleString('en-IN')} pincodes`;
+  }
+
+  function best(r) {
+    if (!r) return null;
+    if (r.express && r.warehouse) {
+      return new Date(r.express.date) <= new Date(r.warehouse.date)
+        ? { ...r.express, mode: 'SDEL' } : { ...r.warehouse, mode: 'HDEL' };
     }
-  };
+    if (r.express) return { ...r.express, mode: 'SDEL' };
+    if (r.warehouse) return { ...r.warehouse, mode: 'HDEL' };
+    return null;
+  }
 
-  queryInput.onkeydown = (e) => {
-    if (e.key === 'Enter') {
-      if (!isScanning) startScan();
-    }
-  };
-
-  // Auto-detect SKU if user opens bookmarklet while on a Croma product page
-  try {
-    const skuMatch = window.location.pathname.match(/\/p\/(\d+)/) || window.location.href.match(/\/p\/(\d+)/);
-    if (skuMatch && skuMatch[1]) {
-      const pageSku = skuMatch[1];
-      const pageTitle = document.querySelector('h1')?.textContent?.trim() || document.title.replace(' - Buy Online at Best Price in India - Croma', '').trim();
-      const rawPriceText = document.querySelector('[class*="amount"], [class*="price"], [data-testid*="price"]')?.textContent?.trim() || "";
-      const priceMatch = rawPriceText.match(/(?:\u20B9|Rs\.?)\s*[\d,]+(?:\.\d{2})?/i);
-      const pagePrice = priceMatch ? priceMatch[0] : rawPriceText;
-      const pageImg = document.querySelector('img[src*="croma.com"], img[src*="media-ik"]')?.src || "";
-
-      queryInput.value = window.location.href;
-      currentQuery = window.location.href;
-      currentProducts = [{
-        code: pageSku,
-        name: pageTitle || `Product [${pageSku}]`,
-        price: pagePrice,
-        rawPrice: 0,
-        image: pageImg,
-        url: window.location.href
-      }];
-      activeSelectedSKU = pageSku;
-
-      paginationBar.style.display = 'flex';
-      searchSummaryText.innerHTML = `Auto-Detected SKU <b style="color:#00E5BE;">[${pageSku}]</b> from this page`;
-      catalogCountBadge.textContent = 'Auto-Scanning';
-
-      // Automatically launch scan on product page load
-      setTimeout(() => {
-        if (!isScanning) startScan();
-      }, 300);
-    }
-  } catch (e) {}
-
-  setTimeout(() => queryInput.focus(), 120);
-
-  // Copy Summary Report
-  btnCopy.onclick = () => {
-    if (currentProducts.length === 0) {
-      showToast("Run a scan before copying! ⚠️");
-      return;
-    }
-
-    const text = [
-      `========================================`,
-      `🎯 CROMA MUMBAI INVENTORY INTELLIGENCE REPORT`,
-      `========================================`,
-      `🔍 Query: ${currentQuery || 'Custom Scan'}`,
-      `📦 Products Scanned: ${currentProducts.length}`,
-      `🕒 Verified At: ${new Date().toLocaleString()}`,
-      `⚡ Modes Checked: Store Express (SDEL) & Warehouse (HDEL)`,
-      `========================================\n`,
-      ...currentProducts.map(p => {
-        const pMap = scanMatrix[p.code] || {};
-        const availPins = Object.values(pMap).filter(x => x.available);
-        return [
-          `📦 [${p.code}] ${p.name} (${p.price || 'N/A'})`,
-          `  └─ In-Stock at ${availPins.length} of 86 Mumbai pincodes:`,
-          ...(availPins.slice(0, 8).map(x => `     • ${x.pin} ${x.area} -> ${x.hasExpress ? `⚡ Express [${x.expressStore}]` : ''}${x.hasWarehouse ? ` 🚚 Warehouse [${x.warehouseHub}]` : ''} (${formatDeliveryETA(x.fastestDate, x.fastestCarrier)})`)),
-          availPins.length > 8 ? `     • ... and ${availPins.length - 8} more pincodes` : ''
-        ].filter(Boolean).join('\n');
-      })
-    ].join('\n\n');
-
-    navigator.clipboard.writeText(text).then(() => showToast("Copied stock report! 📋"));
-  };
-
-  // Export Comprehensive CSV
-  btnExport.onclick = () => {
-    if (currentProducts.length === 0) {
-      showToast("Run a scan before exporting! ⚠️");
-      return;
-    }
-
-    const headers = [
-      "Product_SKU",
-      "Product_Name",
-      "Product_Price",
-      "Product_URL",
-      "Pincode",
-      "Area",
-      "Zone",
-      "Availability_Status",
-      "Store_Express_Available",
-      "Store_Express_Code",
-      "Store_Express_Name",
-      "Store_Express_Carrier",
-      "Store_Express_ETA",
-      "Warehouse_Available",
-      "Warehouse_Code",
-      "Warehouse_Name",
-      "Warehouse_Carrier",
-      "Warehouse_ETA",
-      "Fastest_Delivery_Date",
-      "Scan_Timestamp"
-    ];
-
-    const scanTime = new Date().toISOString();
-    const rows = [];
-
-    currentProducts.forEach(p => {
-      const pMap = scanMatrix[p.code] || {};
-      const cleanName = p.name.replace(/"/g, '""');
-      const cleanPrice = p.price.replace(/"/g, '""');
-
-      MUMBAI_PINCODES.forEach(item => {
-        const r = pMap[item.pin] || { available: false };
-        rows.push([
-          `"${p.code}"`,
-          `"${cleanName}"`,
-          `"${cleanPrice}"`,
-          `"${p.url}"`,
-          item.pin,
-          `"${item.area.replace(/"/g, '""')}"`,
-          `"${item.zone.replace(/"/g, '""')}"`,
-          r.available ? "IN_STOCK" : "OUT_OF_STOCK",
-          r.hasExpress ? "YES" : "NO",
-          r.expressStore || "",
-          `"${(r.expressStoreName || "").replace(/"/g, '""')}"`,
-          `"${(r.expressCarrier || "").replace(/"/g, '""')}"`,
-          `"${(r.expressDate || "").replace(/"/g, '""')}"`,
-          r.hasWarehouse ? "YES" : "NO",
-          r.warehouseHub || "",
-          `"${(r.warehouseHubName || "").replace(/"/g, '""')}"`,
-          `"${(r.warehouseCarrier || "").replace(/"/g, '""')}"`,
-          `"${(r.warehouseDate || "").replace(/"/g, '""')}"`,
-          `"${(r.fastestDate || "").replace(/"/g, '""')}"`,
-          `"${scanTime}"`
-        ]);
+  function visibleRows() {
+    return scanTarget().map(p => ({ p, b: best(state.results.get(p.pin)) }))
+      .filter(({ p, b }) => {
+        if (!state.results.has(p.pin)) return !state.onlyStock && !state.onlyExpress;
+        if (state.onlyExpress) return b && b.mode === 'SDEL';
+        if (state.onlyStock) return !!b;
+        return true;
       });
+  }
+
+  function renderRows() {
+    const rows = visibleRows();
+    const tbody = $('rows');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty">`
+        + (state.results.size
+          ? `<b>No pincodes match these filters</b>Clear a filter, or widen the region.`
+          : `<b>Nothing scanned yet</b>Choose a region or city above, then scan.`)
+        + `</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.slice(0, 1200).map(({ p, b }) => {
+      const scanned = state.results.has(p.pin);
+      const cls = !scanned ? 'o' : b ? (b.mode === 'SDEL' ? 'x' : 'w') : 'o';
+      return `<tr>
+        <td class="pin">${esc(p.pin)}</td>
+        <td><div class="area">${esc(p.area)}</div><div class="city">${esc(p.city)}</div></td>
+        <td>${b
+          ? `<div class="node"><i class="dot ${cls}"></i>${esc(b.name)} [${esc(b.node)}]</div>`
+            + `<div class="carrier">${esc(b.carrier)}</div>`
+          : `<span class="none"><i class="dot o"></i>${scanned ? 'No node ships here' : 'Not scanned'}</span>`}</td>
+        <td class="col-node">${b ? (b.mode === 'SDEL' ? 'Store express' : 'Warehouse') : '<span class="none">—</span>'}</td>
+        <td class="eta">${b ? esc(formatETA(b.date)) : '<span class="none">—</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderAnswer() {
+    const h = $('headline'), sub = $('sub');
+    if (!state.results.size) {
+      h.className = 'headline idle';
+      h.textContent = state.product
+        ? 'Ready to scan. Choose a region or city, then scan.'
+        : 'Pick a scope and scan to see where this ships from.';
+      sub.innerHTML = '';
+      $('bar').style.width = '0';
+      return;
+    }
+    let deliverable = 0, express = 0, warehouse = 0, earliest = null;
+    for (const [, r] of state.results) {
+      const b = best(r);
+      if (!b) continue;
+      deliverable++;
+      if (b.mode === 'SDEL') express++; else warehouse++;
+      const d = new Date(b.date);
+      if (!isNaN(d) && (!earliest || d < earliest)) earliest = d;
+    }
+    h.className = 'headline';
+    h.innerHTML = deliverable
+      ? `Ships to <span class="q">${deliverable.toLocaleString('en-IN')}</span> of `
+        + `<span class="q">${state.done.toLocaleString('en-IN')}</span> pincodes checked`
+        + (earliest ? `, from ${esc(earliest.toLocaleString('en-IN', IST_OPTS))}` : '')
+      : `No node ships this to any of the ${state.done.toLocaleString('en-IN')} pincodes checked`;
+    sub.innerHTML = `<span><i class="dot x"></i>Store express <b>${express}</b></span>`
+      + `<span><i class="dot w"></i>Warehouse <b>${warehouse}</b></span>`
+      + `<span><i class="dot o"></i>Nowhere <b>${state.done - deliverable}</b></span>`
+      + `<span>Checked <b>${state.done}</b> / ${state.total}</span>`;
+    $('bar').style.width = state.total ? `${(state.done / state.total) * 100}%` : '0';
+  }
+
+  const renderAll = () => { renderScanButton(); renderAnswer(); renderRows(); };
+
+  // --------------------------------------------------------------- wiring ---
+
+  $('regions').addEventListener('click', e => {
+    const btn = e.target.closest('.pill');
+    if (!btn || state.scanning) return;
+    state.region = btn.dataset.region;
+    renderRegions(); renderCities(); renderAll();
+  });
+
+  $('city').addEventListener('change', e => { state.city = e.target.value; renderAll(); });
+  $('area').addEventListener('input', e => { state.area = e.target.value; renderAll(); });
+  $('onlyStock').addEventListener('change', e => { state.onlyStock = e.target.checked; renderRows(); });
+  $('onlyExpress').addEventListener('change', e => { state.onlyExpress = e.target.checked; renderRows(); });
+
+  $('btnClose').addEventListener('click', () => host.remove());
+  $('btnMin').addEventListener('click', () => {
+    board.classList.toggle('min');
+    $('btnMin').textContent = board.classList.contains('min') ? '▢' : '–';
+    $('btnMin').title = board.classList.contains('min') ? 'Expand' : 'Collapse';
+  });
+  ui.addEventListener('click', e => { if (e.target === ui) host.remove(); });
+  shadow.addEventListener('keydown', e => { if (e.key === 'Escape') host.remove(); });
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnScan').click(); });
+
+  function showProduct(p) {
+    state.product = p;
+    const ident = $('ident');
+    if (!p) { ident.hidden = true; return; }
+    ident.hidden = false;
+    $('idName').textContent = p.name || '';
+    $('idName').title = p.name || '';
+    $('idPrice').textContent = p.price?.formattedValue || '';
+    $('idSku').textContent = p.code || '';
+  }
+
+  async function runScan() {
+    if (state.scanning) return;
+    const sku = extractSku($('q').value);
+    if (!sku) {
+      $('note').textContent = 'Enter a SKU or a Croma product URL.';
+      return;
+    }
+    $('note').textContent = '';
+
+    let product;
+    try {
+      product = await searchProductBySku(sku);
+    } catch (err) {
+      $('note').textContent = err.message;
+      return;
+    }
+    if (!product) {
+      $('note').textContent = `Croma has no product with SKU ${sku}.`;
+      showProduct(null);
+      return;
+    }
+    showProduct(product);
+
+    const targets = scanTarget();
+    state.scanning = true;
+    state.results = new Map();
+    state.done = 0;
+    state.total = targets.length;
+    state.throttled = false;
+    renderAll();
+
+    for (const p of targets) {
+      if (!state.scanning) break;              // closed or cancelled
+      let res = null;
+      try {
+        res = await checkPincode(product.code, p.pin);
+      } catch (e) {
+        if (e.message === 'THROTTLED') {       // only after 4 backed-off retries
+          state.throttled = true;
+          break;
+        }
+      }
+      state.results.set(p.pin, res);
+      state.done++;
+      if (state.done % 3 === 0 || state.done === state.total) renderAll();
+      await sleep(requestGap);
+    }
+
+    state.scanning = false;
+    renderAll();
+    $('note').textContent = state.throttled
+      ? `Croma stopped responding after ${state.done} pincodes. Results below are what completed.`
+      : '';
+    if (!state.throttled) toast(`Checked ${state.done.toLocaleString('en-IN')} pincodes`);
+  }
+
+  $('btnScan').addEventListener('click', runScan);
+
+  // ---------------------------------------------------------------- export ---
+
+  function rowsForExport() {
+    return scanTarget().map(p => {
+      const r = state.results.get(p.pin), b = best(r);
+      return {
+        pincode: p.pin, area: p.area, city: p.city,
+        status: !state.results.has(p.pin) ? 'NOT_SCANNED' : b ? 'DELIVERABLE' : 'NOT_DELIVERABLE',
+        mode: b ? b.mode : '', node: b ? b.node : '', node_name: b ? b.name : '',
+        carrier: b ? b.carrier : '', eta_ist: b ? formatETA(b.date) : '',
+        express_node: r?.express?.node || '', express_eta_ist: r?.express ? formatETA(r.express.date) : '',
+        warehouse_node: r?.warehouse?.node || '', warehouse_eta_ist: r?.warehouse ? formatETA(r.warehouse.date) : ''
+      };
     });
+  }
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `croma_mumbai_${(currentQuery || 'scan').replace(/\s+/g, '_')}_all_skus.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  $('btnCsv').addEventListener('click', () => {
+    if (!state.results.size) { toast('Run a scan first'); return; }
+    const p = state.product || {};
+    const cols = ['sku', 'product', 'price', 'url', 'scanned_at', 'region', 'pincode', 'area', 'city',
+      'status', 'mode', 'node', 'node_name', 'carrier', 'eta_ist',
+      'express_node', 'express_eta_ist', 'warehouse_node', 'warehouse_eta_ist'];
+    const at = new Date().toLocaleString('en-IN', IST_OPTS);
+    const region = (REGIONS.find(r => r.id === state.region) || {}).name;
+    const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const body = rowsForExport().map(r => [
+      p.code, p.name, p.price?.formattedValue, `https://www.croma.com/p/${p.code}`, at, region,
+      r.pincode, r.area, r.city, r.status, r.mode, r.node, r.node_name, r.carrier, r.eta_ist,
+      r.express_node, r.express_eta_ist, r.warehouse_node, r.warehouse_eta_ist
+    ].map(q).join(','));
 
-    showToast("Downloaded Comprehensive Stock CSV! 💾");
-  };
+    const blob = new Blob(['﻿' + [cols.join(','), ...body].join('\r\n')],
+      { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `croma_${p.code || 'scan'}_${state.region}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('CSV downloaded');
+  });
 
+  $('btnCopy').addEventListener('click', async () => {
+    if (!state.results.size) { toast('Run a scan first'); return; }
+    const p = state.product || {};
+    const rows = rowsForExport().filter(r => r.status === 'DELIVERABLE');
+    const region = (REGIONS.find(r => r.id === state.region) || {}).name;
+    const lines = [
+      `${p.name || ''} — ${p.price?.formattedValue || ''} (SKU ${p.code || ''})`,
+      `${region}${state.city ? ' · ' + state.city : ''}: ships to ${rows.length} of ${state.done} pincodes checked`,
+      ''
+    ].concat(rows.slice(0, 40).map(r =>
+      `${r.pincode}  ${r.area} — ${r.mode === 'SDEL' ? 'store express' : 'warehouse'} ` +
+      `${r.node_name} [${r.node}] · ${r.eta_ist}`));
+    if (rows.length > 40) lines.push(`…and ${rows.length - 40} more`);
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast('Summary copied');
+    } catch (e) {
+      toast('Clipboard blocked here — use Export CSV');
+    }
+  });
+
+  // ------------------------------------------------------------------ boot ---
+
+  renderRegions();
+  renderCities();
+  renderAll();
+
+  const pageSku = extractSku(location.pathname + location.search);
+  if (pageSku) {
+    $('q').value = location.href;
+    searchProductBySku(pageSku).then(p => {
+      if (p) { showProduct(p); renderAnswer(); }
+    }).catch(() => {});
+  }
+  $('q').focus();
 })();
