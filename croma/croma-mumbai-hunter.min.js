@@ -404,9 +404,9 @@
     "Western Suburbs": "Western",
     "Central & Eastern": "Central/East",
     "Thane & Navi Mumbai": "Thane/Navi",
-    "Thane & Palghar": "Thane/Palghar",
-    "Navi Mumbai & Raigad": "NaviMum/Raigad",
-    "Kalyan & Ambernath": "Kalyan/Ambernath"
+    "Thane & Palghar": "Vasai/Palghar",
+    "Navi Mumbai & Raigad": "Panvel/Raigad",
+    "Kalyan & Ambernath": "Kalyan/Amb"
   };
 
   const escapeAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -963,8 +963,18 @@
     .zone-group {
       display: flex;
       gap: 4px;
+      /* Chips must never be squeezed: with 7 zones they used to shrink below
+         their text and wrap mid-label. Scroll the strip instead. */
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      padding-bottom: 2px;
     }
+    .zone-group::-webkit-scrollbar { height: 4px; }
+    .zone-group::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
     .zone-chip {
+      flex: 0 0 auto;
+      white-space: nowrap;
       background: #f1f5f9;
       border: 1px solid #e2e8f0;
       color: #64748b;
@@ -1522,7 +1532,12 @@
         }
       }
 
-      const eta = r.available ? (formatDeliveryETA(r.fastestDate, r.hasExpress ? r.expressCarrier : r.warehouseCarrier)) : '-';
+      // Time and carrier on separate lines -- as one string the cell wrapped to
+      // three ragged lines once the IST suffix was added.
+      const etaTime = r.available ? formatDeliveryETA(r.fastestDate) : '-';
+      const etaCarrier = r.available
+        ? ((r.hasExpress ? r.expressCarrier : r.warehouseCarrier) || '')
+        : '';
 
       return `
         <tr>
@@ -1537,8 +1552,9 @@
             </span>
           </td>
           <td>${fBadge}</td>
-          <td style="font-size:11px; color:${r.available ? '#334155' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'};">
-            ${eta}
+          <td style="font-size:11px; color:${r.available ? '#334155' : '#64748b'}; font-weight:${r.available ? '600' : 'normal'}; white-space:nowrap;">
+            <div>${etaTime}</div>
+            ${etaCarrier ? `<div style="font-size:10px; color:#64748b; font-weight:400;">${etaCarrier}</div>` : ''}
           </td>
         </tr>
       `;
