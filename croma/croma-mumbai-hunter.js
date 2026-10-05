@@ -298,14 +298,9 @@
   const inRegion = (pin, region) =>
     !region.prefixes || region.prefixes.some(p => pin.startsWith(p));
 
-  function scopedPins(regionId, city, areaQuery) {
+  function scopedPins(regionId, city) {
     const region = REGIONS.find(r => r.id === regionId) || REGIONS[0];
-    const q = (areaQuery || '').trim().toUpperCase();
-    return PINS.filter(p =>
-      inRegion(p.pin, region) &&
-      (!city || p.city === city) &&
-      (!q || p.area.toUpperCase().includes(q) || p.pin.includes(q))
-    );
+    return PINS.filter(p => inRegion(p.pin, region) && (!city || p.city === city));
   }
 
   const citiesIn = regionId => {
@@ -542,7 +537,7 @@
     .pill[aria-pressed="true"] { background: #122033; border-color: #122033; color: #fff; }
     .pill[aria-pressed="true"] .n { color: #9FB0C4; }
 
-    select, .filter {
+    select {
       font: inherit; font-size: 12px; padding: 5px 9px; border: 1px solid #D7DDE5;
       border-radius: 6px; background: #fff; color: #122033; max-width: 176px;
     }
@@ -650,7 +645,6 @@
           <div class="pills" id="regions"></div>
           <span class="vr"></span>
           <select id="city"></select>
-          <input class="filter" id="area" type="text" placeholder="Area or pincode" />
           <label class="chk"><input type="checkbox" id="onlyStock" /> Deliverable only</label>
           <label class="chk"><input type="checkbox" id="onlyExpress" /> Express only</label>
         </div>
@@ -694,7 +688,7 @@
   const board = shadow.querySelector('.board');
 
   let state = {
-    region: 'mmr', city: '', area: '', onlyStock: false, onlyExpress: false,
+    region: 'mmr', city: '', onlyStock: false, onlyExpress: false,
     product: null, results: new Map(), scanning: false, done: 0, total: 0, throttled: false
   };
 
@@ -731,7 +725,7 @@
         + `${esc(c)} (${n})</option>`).join('');
   }
 
-  function scanTarget() { return scopedPins(state.region, state.city, state.area); }
+  function scanTarget() { return scopedPins(state.region, state.city); }
 
   function renderScanButton() {
     const n = scanTarget().length;
@@ -839,7 +833,6 @@
   });
 
   $('city').addEventListener('change', e => { state.city = e.target.value; renderAll(); });
-  $('area').addEventListener('input', e => { state.area = e.target.value; renderAll(); });
   $('onlyStock').addEventListener('change', e => { state.onlyStock = e.target.checked; renderRows(); });
   $('onlyExpress').addEventListener('change', e => { state.onlyExpress = e.target.checked; renderRows(); });
 
