@@ -283,7 +283,7 @@
     { id: 'pune',   name: 'Pune',    prefixes: ['411', '412'] },
     { id: 'nashik', name: 'Nashik',  prefixes: ['422', '423'] },
     { id: 'nagpur', name: 'Nagpur',  prefixes: ['440', '441'] },
-    { id: 'mh',     name: 'All Maharashtra', prefixes: null }
+    { id: 'mh',     name: 'All MH', prefixes: null }
   ];
 
   const PINS = [];
@@ -544,7 +544,7 @@
 
     select, .filter {
       font: inherit; font-size: 12px; padding: 5px 9px; border: 1px solid #D7DDE5;
-      border-radius: 6px; background: #fff; color: #122033; max-width: 220px;
+      border-radius: 6px; background: #fff; color: #122033; max-width: 176px;
     }
     .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #44546A; cursor: pointer; }
 
@@ -716,6 +716,12 @@
     }).join('');
   }
 
+  function scrollActivePillIntoView() {
+    const strip = $('regions');
+    const active = strip.querySelector('[aria-pressed="true"]');
+    if (active) strip.scrollLeft = Math.max(0, active.offsetLeft - 8);
+  }
+
   function renderCities() {
     const list = citiesIn(state.region);
     const keep = list.some(([c]) => c === state.city) ? state.city : '';
@@ -829,7 +835,7 @@
     const btn = e.target.closest('.pill');
     if (!btn || state.scanning) return;
     state.region = btn.dataset.region;
-    renderRegions(); renderCities(); renderAll();
+    renderRegions(); scrollActivePillIntoView(); renderCities(); renderAll();
   });
 
   $('city').addEventListener('change', e => { state.city = e.target.value; renderAll(); });
@@ -981,6 +987,7 @@
   // ------------------------------------------------------------------ boot ---
 
   renderRegions();
+  scrollActivePillIntoView();
   renderCities();
   renderAll();
 
