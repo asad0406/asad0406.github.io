@@ -768,11 +768,13 @@
     const rows = visibleRows();
     const tbody = $('rows');
     if (!rows.length) {
-      const msg = !state.results.size
+      const msg = !state.done
         ? `<b>Nothing scanned yet</b>Choose a region or city above, then scan.`
-        : state.onlyExpress
-          ? `<b>No store express anywhere in this scope</b>Untick Express only to see warehouse dispatch.`
-          : `<b>Not available anywhere in this scope</b>Checked ${state.done} pincodes. Try a wider region.`;
+        : state.failures.size === state.done
+          ? `<b>Nothing could be checked</b>${errorBreakdown()}.`
+          : state.onlyExpress
+            ? `<b>No store express anywhere in this scope</b>Untick Express only to see warehouse dispatch.`
+            : `<b>Not available anywhere in this scope</b>Checked ${state.done} pincodes. Try a wider region.`;
       tbody.innerHTML = `<tr><td colspan="5" class="empty">${msg}</td></tr>`;
       return;
     }
@@ -799,7 +801,7 @@
 
   function renderAnswer() {
     const h = $('headline'), sub = $('sub');
-    if (!state.results.size) {
+    if (!state.done) {
       h.className = 'headline idle';
       h.textContent = state.product
         ? 'Ready to scan. Choose a region or city, then scan.'
@@ -911,6 +913,9 @@
         if (e.fatal) { state.stoppedBy = e.label; state.done++; break; }
       }
       state.done++;
+      if (state.failures.size) {
+        $('note').textContent = `${state.failures.size} of ${state.done} checks failed — ${errorBreakdown()}.`;
+      }
       if (state.done % 3 === 0 || state.done === state.total) renderAll();
       await sleep(requestGap);
     }
