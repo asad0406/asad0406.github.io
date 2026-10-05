@@ -465,23 +465,23 @@
       position: fixed; inset: 0; z-index: 2147483646;
       background: rgba(18, 32, 51, .34);
       display: flex; align-items: center; justify-content: center;
-      padding: 24px;
+      padding: 14px;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: #122033;
     }
     .board {
-      background: #fff; width: min(1120px, 100%); max-height: min(760px, 100%);
+      background: #fff; width: min(1120px, 100%); height: min(880px, 100%);
       display: flex; flex-direction: column;
       border-radius: 10px; overflow: hidden;
       box-shadow: 0 24px 64px rgba(18, 32, 51, .28);
     }
-    .board.min { max-height: none; }
+    .board.min { height: auto; }
     .board.min .scope, .board.min .answer, .board.min .sheet, .board.min .foot { display: none; }
 
     /* masthead ------------------------------------------------------------ */
     .mast {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 18px; border-bottom: 2px solid #122033;
+      display: flex; align-items: center; gap: 14px; flex: none;
+      padding: 11px 18px; border-bottom: 2px solid #122033;
     }
     .mark {
       width: 26px; height: 26px; border-radius: 4px; flex: none;
@@ -510,7 +510,7 @@
     .ident .sk { font-size: 11px; color: #6B7A8D; font-variant-numeric: tabular-nums; }
 
     /* query + scope ------------------------------------------------------- */
-    .scope { padding: 14px 18px; border-bottom: 1px solid #E3E7EC; display: grid; gap: 10px; }
+    .scope { padding: 11px 18px; border-bottom: 1px solid #E3E7EC; display: grid; gap: 7px; flex: none; }
     .qrow { display: flex; gap: 8px; }
     .qrow input {
       flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 9px 12px;
@@ -547,26 +547,26 @@
     .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #44546A; cursor: pointer; }
 
     /* answer -------------------------------------------------------------- */
-    .answer { padding: 16px 18px 0; }
-    .headline { font-size: 21px; font-weight: 620; letter-spacing: -.015em; line-height: 1.25; }
+    .answer { padding: 10px 18px 0; flex: none; }
+    .headline { font-size: 15px; font-weight: 620; letter-spacing: -.005em; line-height: 1.35; }
     .headline .q { font-variant-numeric: tabular-nums; }
-    .headline.idle { color: #6B7A8D; font-weight: 500; font-size: 15px; }
-    .sub { margin-top: 5px; font-size: 12px; color: #6B7A8D; display: flex; gap: 14px; flex-wrap: wrap; }
+    .headline.idle { color: #6B7A8D; font-weight: 500; font-size: 13px; }
+    .sub { margin-top: 3px; font-size: 11.5px; color: #6B7A8D; display: flex; gap: 14px; flex-wrap: wrap; }
     .sub b { font-weight: 600; color: #122033; font-variant-numeric: tabular-nums; }
     .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
     .dot.x { background: #0E7C5A; } .dot.w { background: #2563A8; } .dot.o { background: #C3CBD5; }
-    .track { height: 2px; background: #EEF1F4; margin-top: 12px; }
+    .track { height: 2px; background: #EEF1F4; margin-top: 8px; }
     .track i { display: block; height: 100%; background: #D33A2C; width: 0; transition: width .2s linear; }
 
     /* sheet --------------------------------------------------------------- */
-    .sheet { flex: 1; overflow: auto; padding: 0 18px; }
+    .sheet { flex: 1 1 auto; min-height: 180px; overflow: auto; padding: 0 18px; }
     table { width: 100%; border-collapse: collapse; }
     thead th {
       position: sticky; top: 0; background: #fff; z-index: 1;
       text-align: left; font-size: 11px; font-weight: 600; color: #6B7A8D;
       padding: 10px 8px 7px; border-bottom: 1px solid #E3E7EC; white-space: nowrap;
     }
-    tbody td { padding: 9px 8px; border-bottom: 1px solid #F1F4F7; font-size: 12.5px; vertical-align: top; }
+    tbody td { padding: 7px 8px; border-bottom: 1px solid #F1F4F7; font-size: 12.5px; vertical-align: top; }
     tbody tr:hover { background: #FAFBFC; }
     .pin { font-weight: 640; font-variant-numeric: tabular-nums; width: 74px; }
     .area { font-weight: 550; }
@@ -581,7 +581,7 @@
     /* foot ---------------------------------------------------------------- */
     .foot {
       display: flex; align-items: center; gap: 10px;
-      padding: 11px 18px; border-top: 1px solid #E3E7EC; background: #FAFBFC;
+      padding: 9px 18px; border-top: 1px solid #E3E7EC; background: #FAFBFC; flex: none;
     }
     .legend { font-size: 11px; color: #6B7A8D; display: flex; gap: 14px; }
     .foot .spacer { flex: 1; }
