@@ -350,7 +350,7 @@
   async function searchProductBySku(sku) {
     const url = `https://api.croma.com/searchservices/v1/search?query=${encodeURIComponent(sku)}:relevance&channelCode=400001&channel=WEB&currentPage=0&pageSize=5&fields=FULL`;
     const res = await fetch(url, { headers: API_HEADERS });
-    if (!res.ok) throw new Error(`Croma search failed (${res.status})`);
+    if (!res.ok) throw scanError(res.status, null, false);
     const data = await res.json();
     // Exact match only. Falling back to the top hit reported another product's
     // stock whenever the requested SKU was absent.
@@ -366,6 +366,30 @@
     if (param) return param[1];
     const loose = s.match(/(?<!\w)(\d{5,7})(?!\w)/);
     return loose ? loose[1] : null;
+  }
+
+  // Report the real HTTP status, not a generic failure: "Error 429 Too Many
+  // Requests" tells you to slow down, "Error 404 Not Found" does not.
+  const HTTP_REASON = {
+    400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+    405: 'Method Not Allowed', 408: 'Request Timeout', 409: 'Conflict',
+    410: 'Gone', 413: 'Payload Too Large', 415: 'Unsupported Media Type',
+    422: 'Unprocessable Entity', 429: 'Too Many Requests',
+    500: 'Internal Server Error', 501: 'Not Implemented', 502: 'Bad Gateway',
+    503: 'Service Unavailable', 504: 'Gateway Timeout'
+  };
+
+  function httpLabel(status) {
+    const reason = HTTP_REASON[status];
+    return reason ? `Error ${status} ${reason}` : `Error ${status}`;
+  }
+
+  function scanError(status, text, fatal) {
+    const e = new Error(status ? httpLabel(status) : text);
+    e.status = status || 0;
+    e.label = status ? httpLabel(status) : text;
+    e.fatal = !!fatal;
+    return e;
   }
 
   // One POST carries both modes as separate promise lines, so checking store
@@ -396,23 +420,26 @@
         clearTimeout(timer);
         if (res.status === 403 || res.status === 429 || res.status >= 500) {
           widenGate();
-          if (attempt === MAX_RETRIES) throw new Error('THROTTLED');
+          // Retries exhausted on a throttle: stop the run and name the code.
+          if (attempt === MAX_RETRIES) throw scanError(res.status, null, true);
           const ra = parseFloat(res.headers.get('Retry-After'));
           await sleep(Number.isFinite(ra) ? ra * 1000
             : Math.min(1000 * Math.pow(2, attempt) + Math.random() * 400, 15000));
           continue;
         }
-        if (!res.ok) return null;
+        if (!res.ok) throw scanError(res.status, null, false);
         data = await res.json();
         break;
       } catch (e) {
         clearTimeout(timer);
-        if (e.message === 'THROTTLED') throw e;
-        if (attempt === MAX_RETRIES) return null;
+        if (e.status !== undefined) throw e;                 // already labelled
+        const text = e.name === 'AbortError' ? 'Timed out after 8s'
+          : e instanceof SyntaxError ? 'Unreadable response from Croma'
+          : `Network error: ${e.message}`;
+        if (attempt === MAX_RETRIES) throw scanError(0, text, false);
         await sleep(Math.min(1000 * Math.pow(2, attempt), 8000));
       }
     }
-    if (!data) return null;
 
     const lines = data?.promise?.suggestedOption?.option?.promiseLines?.promiseLine || [];
     const out = { express: null, warehouse: null };
@@ -587,6 +614,8 @@
     }
     .ghost:hover { background: #F3F5F8; }
     .note { font-size: 12px; color: #D33A2C; }
+    .sub .bad { color: #D33A2C; }
+    .sub .bad b { color: #D33A2C; }
 
     .toast {
       position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);
@@ -676,7 +705,8 @@
 
   let state = {
     region: 'mmr', onlyExpress: false,
-    product: null, results: new Map(), scanning: false, done: 0, total: 0, throttled: false
+    product: null, results: new Map(), failures: new Map(),
+    scanning: false, done: 0, total: 0, stoppedBy: ''
   };
 
   function toast(msg) {
@@ -757,6 +787,16 @@
 
   }
 
+  // "Error 429 Too Many Requests ×12 · Error 503 Service Unavailable ×2"
+  function errorBreakdown() {
+    const tally = new Map();
+    for (const [, label] of state.failures) tally.set(label, (tally.get(label) || 0) + 1);
+    return [...tally.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, n]) => n > 1 ? `${label} ×${n}` : label)
+      .join(' · ');
+  }
+
   function renderAnswer() {
     const h = $('headline'), sub = $('sub');
     if (!state.results.size) {
@@ -782,10 +822,14 @@
       ? `Ships to <span class="q">${deliverable.toLocaleString('en-IN')}</span> of `
         + `<span class="q">${state.done.toLocaleString('en-IN')}</span> pincodes checked`
         + (earliest ? `, from ${esc(earliest.toLocaleString('en-IN', IST_OPTS))}` : '')
-      : `No node ships this to any of the ${state.done.toLocaleString('en-IN')} pincodes checked`;
+      : state.failures.size === state.done
+        ? `Could not check any of the ${state.done.toLocaleString('en-IN')} pincodes`
+        : `No node ships this to any of the ${state.done.toLocaleString('en-IN')} pincodes checked`;
+    const failed = state.failures.size;
     sub.innerHTML = `<span><i class="dot x"></i>Store express <b>${express}</b></span>`
       + `<span><i class="dot w"></i>Warehouse <b>${warehouse}</b></span>`
-      + `<span><i class="dot o"></i>Nowhere <b>${state.done - deliverable}</b></span>`
+      + `<span><i class="dot o"></i>Nowhere <b>${state.done - deliverable - failed}</b></span>`
+      + (failed ? `<span class="bad">Failed <b>${failed}</b></span>` : '')
       + `<span>Checked <b>${state.done}</b> / ${state.total}</span>`;
     $('bar').style.width = state.total ? `${(state.done / state.total) * 100}%` : '0';
   }
@@ -850,23 +894,22 @@
     const targets = scanTarget();
     state.scanning = true;
     state.results = new Map();
+    state.failures = new Map();
     state.done = 0;
     state.total = targets.length;
-    state.throttled = false;
+    state.stoppedBy = '';
     renderAll();
 
     for (const p of targets) {
       if (!state.scanning) break;              // closed or cancelled
-      let res = null;
       try {
-        res = await checkPincode(product.code, p.pin);
+        state.results.set(p.pin, await checkPincode(product.code, p.pin));
       } catch (e) {
-        if (e.message === 'THROTTLED') {       // only after 4 backed-off retries
-          state.throttled = true;
-          break;
-        }
+        // Keep the code against the pincode so a failure is never mistaken for
+        // "checked, nothing ships here".
+        state.failures.set(p.pin, e.label || 'Error');
+        if (e.fatal) { state.stoppedBy = e.label; state.done++; break; }
       }
-      state.results.set(p.pin, res);
       state.done++;
       if (state.done % 3 === 0 || state.done === state.total) renderAll();
       await sleep(requestGap);
@@ -874,10 +917,15 @@
 
     state.scanning = false;
     renderAll();
-    $('note').textContent = state.throttled
-      ? `Croma stopped responding after ${state.done} pincodes. Results below are what completed.`
-      : '';
-    if (!state.throttled) toast(`Checked ${state.done.toLocaleString('en-IN')} pincodes`);
+    const failed = state.failures.size;
+    if (state.stoppedBy) {
+      $('note').textContent = `${state.stoppedBy} — stopped after ${state.done} of ${state.total} pincodes.`;
+    } else if (failed) {
+      $('note').textContent = `${failed} pincode${failed === 1 ? '' : 's'} could not be checked — ${errorBreakdown()}.`;
+    } else {
+      $('note').textContent = '';
+      toast(`Checked ${state.done.toLocaleString('en-IN')} pincodes`);
+    }
   }
 
   $('btnScan').addEventListener('click', runScan);
