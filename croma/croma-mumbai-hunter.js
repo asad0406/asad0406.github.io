@@ -465,7 +465,7 @@
       position: fixed; inset: 0; z-index: 2147483646;
       background: rgba(18, 32, 51, .34);
       display: flex; align-items: center; justify-content: center;
-      padding: 14px;
+      padding: 10px;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: #122033;
     }
@@ -526,8 +526,10 @@
     .go[disabled] { background: #C3CBD5; cursor: default; }
 
     .srow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .vr { width: 1px; height: 18px; background: #E3E7EC; flex: none; }
+    .aline { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
     .lbl { font-size: 11px; color: #6B7A8D; width: 42px; flex: none; }
-    .pills { display: flex; gap: 4px; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
+    .pills { display: flex; gap: 4px; min-width: 0; flex: 1 1 300px; overflow-x: auto; padding-bottom: 2px; }
     .pills::-webkit-scrollbar { height: 4px; }
     .pills::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
     .pill {
@@ -547,15 +549,15 @@
     .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #44546A; cursor: pointer; }
 
     /* answer -------------------------------------------------------------- */
-    .answer { padding: 10px 18px 0; flex: none; }
+    .answer { padding: 9px 18px 0; flex: none; }
     .headline { font-size: 15px; font-weight: 620; letter-spacing: -.005em; line-height: 1.35; }
     .headline .q { font-variant-numeric: tabular-nums; }
     .headline.idle { color: #6B7A8D; font-weight: 500; font-size: 13px; }
-    .sub { margin-top: 3px; font-size: 11.5px; color: #6B7A8D; display: flex; gap: 14px; flex-wrap: wrap; }
+    .sub { margin-top: 0; font-size: 11.5px; color: #6B7A8D; display: flex; gap: 14px; flex-wrap: wrap; }
     .sub b { font-weight: 600; color: #122033; font-variant-numeric: tabular-nums; }
     .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
     .dot.x { background: #0E7C5A; } .dot.w { background: #2563A8; } .dot.o { background: #C3CBD5; }
-    .track { height: 2px; background: #EEF1F4; margin-top: 8px; }
+    .track { height: 2px; background: #EEF1F4; margin-top: 7px; }
     .track i { display: block; height: 100%; background: #D33A2C; width: 0; transition: width .2s linear; }
 
     /* sheet --------------------------------------------------------------- */
@@ -645,11 +647,8 @@
           <button class="go" id="btnScan">Scan</button>
         </div>
         <div class="srow">
-          <span class="lbl">Region</span>
           <div class="pills" id="regions"></div>
-        </div>
-        <div class="srow">
-          <span class="lbl">Narrow</span>
+          <span class="vr"></span>
           <select id="city"></select>
           <input class="filter" id="area" type="text" placeholder="Area or pincode" />
           <label class="chk"><input type="checkbox" id="onlyStock" /> Deliverable only</label>
@@ -658,8 +657,10 @@
       </div>
 
       <div class="answer">
-        <div class="headline idle" id="headline">Pick a scope and scan to see where this ships from.</div>
-        <div class="sub" id="sub"></div>
+        <div class="aline">
+          <div class="headline idle" id="headline">Pick a scope and scan to see where this ships from.</div>
+          <div class="sub" id="sub"></div>
+        </div>
         <div class="track"><i id="bar"></i></div>
       </div>
 
