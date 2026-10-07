@@ -681,6 +681,7 @@
 
     const COLUMN_ORDER_PRODUCTS = [
       'store_locality',
+      'delivery_eta',
       'name',
       'brand',
       'quantity',
@@ -721,14 +722,16 @@
       sub_category: 'Sub-category',
       product_id: 'Product ID',
       status: 'Live Status',
-      eta: 'Delivery ETA'
+      eta: 'Delivery ETA',
+      delivery_eta: 'Delivery ETA',
+      store_status: 'Store Status'
     };
 
-    const DETAIL_COLS = ['store_locality', 'store_id', 'store_pincode', 'brand', 'quantity', 'selling_price_inr', 'mrp_inr', 'discount_pct', 'stock', 'category', 'sub_category', 'store_address'];
+    const DETAIL_COLS = ['store_locality', 'delivery_eta', 'store_status', 'store_id', 'store_pincode', 'brand', 'quantity', 'selling_price_inr', 'mrp_inr', 'discount_pct', 'stock', 'category', 'sub_category', 'store_address'];
     const DETAIL_COLS_HEALTH = ['store_locality', 'store_id', 'status', 'eta', 'store_pincode', 'store_address', 'message'];
     const DETAIL_FULL_WIDTH = new Set(['store_address']);
     const NUMERIC_COLS = new Set(['mrp_inr', 'selling_price_inr', 'discount_pct']);
-    const NOWRAP_COLS = new Set(['stock', 'quantity', 'image_1', 'maps_url', 'status', 'eta']);
+    const NOWRAP_COLS = new Set(['stock', 'quantity', 'image_1', 'maps_url', 'status', 'eta', 'delivery_eta', 'store_status']);
 
     const label = c => COLUMN_LABELS[c] || c;
 
@@ -742,9 +745,15 @@
 
     const variantKey = r => `${r.name || ''}__${r.brand || ''}__${r.quantity || ''}`.trim().toLowerCase();
 
+    function isHealthRow(r) {
+      if (!r) return false;
+      if (r.is_health === true) return true;
+      if (!r.name && !r.title && !r.product_id && (r.status || r.eta || r.status_type)) return true;
+      return false;
+    }
+
     function normalizeRow(r) {
-      if (r.status || r.eta || r.is_health) {
-        isHealthMode = true;
+      if (isHealthRow(r)) {
         const loc = r.store_locality || r.locality || '-';
         const storeId = r.store_id || r.podId || '-';
         const pin = r.store_pincode || r.pincode || '';
@@ -753,7 +762,7 @@
         const eta = r.eta || '-';
         const msg = r.message || '';
         const maps = r.maps_url || r.mapsUrl || `https://www.google.com/maps?q=${r.latitude || ''},${r.longitude || ''}`;
-        const stType = r.status_type || (status.includes('Live') ? 'live' : status.includes('Closed') ? 'closed' : status.includes('Coming') ? 'coming_soon' : 'unserviceable');
+        const stType = r.status_type || (String(status).includes('Live') ? 'live' : String(status).includes('Closed') ? 'closed' : String(status).includes('Coming') ? 'coming_soon' : 'unserviceable');
         return {
           is_health: true,
           store_locality: loc,
@@ -779,16 +788,18 @@
       const qty = r.quantity || '';
       const cat = r.category || '';
       const subCat = r.sub_category || '';
+      const eta = r.delivery_eta || r.eta || '-';
+      const storeStatus = r.store_status || r.status || 'Live & Active';
 
-      const searchStr = `${title} ${brand} ${qty} ${loc} ${storeId} ${pin} ${addr} ${cat} ${subCat}`.toLowerCase();
+      const searchStr = `${title} ${brand} ${qty} ${loc} ${storeId} ${pin} ${addr} ${cat} ${subCat} ${eta}`.toLowerCase();
 
       return {
         store_locality: loc,
         store_id: storeId,
         store_pincode: pin,
         store_address: addr,
-        store_status: r.store_status || r.status || 'Live & Active',
-        delivery_eta: r.delivery_eta || r.eta || '-',
+        store_status: storeStatus,
+        delivery_eta: eta,
         maps_url: r.maps_url || r.mapsUrl || '',
         name: title,
         brand: brand,
@@ -894,35 +905,6 @@
       const modal = document.createElement('div');
       modal.className = 'modal-overlay';
 
-      const fields = DETAIL_COLS.map(c => {
-        let val = row[c] ?? '-';
-        if (c === 'selling_price_inr' && val !== '-') val = `<b>₹${val}</b>`;
-        if (c === 'mrp_inr' && val !== '-') val = `₹${val}`;
-        if (c === 'discount_pct' && val) val = `${val}% OFF`;
-        if (c === 'store_address' && row.maps_url) {
-          val = `${val} <br><a href="${row.maps_url}" target="_blank" rel="noopener noreferrer" style="font-weight:700;display:inline-block;margin-top:4px;">📍 Open in Google Maps ↗</a>`;
-        }
-        return `<div class="modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}">` +
-          `<div class="k">${label(c)}</div><div class="v">${val}</div></div>`;
-      }).join('');
-
-      const prices = priceAcrossStores(row);
-      const priceSection = prices.length > 1 ? buildPriceSection(prices) : '';
-
-      const img = row.image_1
-        ? `<img src="${row.image_1}" alt="${row.name}" onerror="this.style.display='none'">`
-        : `<div style="width:48px;height:48px;border-radius:6px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;">🛵</div>`;
-
-      modal.innerHTML =
-        `<div class="modal-card">` +
-        `<div class="modal-head">${img}` +
-        `<div class="name"><a href="${row.product_url}" target="_blank" rel="noopener noreferrer" class="prod-link" style="font-size:15px;">${row.name}</a></div>` +
-        `<span class="modal-close">✕</span></div>` +
-        `<div class="modal-grid">${fields}</div>` +
-    function openDetail(row) {
-      const modal = document.createElement('div');
-      modal.className = 'modal-overlay';
-
       if (isHealthMode) {
         const fields = DETAIL_COLS_HEALTH.map(c => {
           let val = row[c] ?? '-';
@@ -1001,12 +983,14 @@
 
     function cellValue(row, col) {
       const v = row[col] ?? '';
-      if (col === 'status') {
-        const st = row.status_type || (String(row.status || '').includes('Live') ? 'live' : String(row.status || '').includes('Closed') ? 'closed' : String(row.status || '').includes('Coming') ? 'coming_soon' : 'unserviceable');
-        return `<span class="health-pill ${st}">${row.status || 'Live'}</span>`;
+      if (col === 'store_status' || col === 'status') {
+        const val = row.store_status || row.status || v || 'Live';
+        const st = row.status_type || (String(val).includes('Live') ? 'live' : String(val).includes('Closed') ? 'closed' : String(val).includes('Coming') ? 'coming_soon' : 'unserviceable');
+        return `<span class="health-pill ${st}">${val}</span>`;
       }
-      if (col === 'eta') {
-        return (row.eta && row.eta !== '-') ? `<span class="eta-pill">⚡ ${row.eta}</span>` : '-';
+      if (col === 'delivery_eta' || col === 'eta') {
+        const val = row.delivery_eta || row.eta || v;
+        return (val && val !== '-') ? `<span class="eta-pill">⚡ ${val}</span>` : '-';
       }
       if (col === 'image_1') {
         return v
@@ -1342,7 +1326,7 @@
 
     function initData(items, query) {
       currentQuery = query || '';
-      isHealthMode = (query === 'Store Health Audit') || (items && items[0] && (items[0].status || items[0].eta || items[0].is_health));
+      isHealthMode = (query === 'Store Health Audit') || (items && items.length > 0 && isHealthRow(items[0]));
 
       if (document.getElementById('queryLabel')) {
         document.getElementById('queryLabel').textContent = currentQuery ? currentQuery : (isHealthMode ? 'Store Health Audit' : 'Instamart Hunter');
