@@ -268,22 +268,22 @@
       position: fixed;
       top: 20px;
       right: 20px;
-      width: 500px;
+      width: 480px;
       max-width: calc(100vw - 32px);
       max-height: calc(100vh - 40px);
       background: #ffffff;
-      border-radius: 18px;
-      box-shadow: 0 24px 65px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.9);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(226, 232, 240, 0.9);
       z-index: 999999999;
       display: flex;
       flex-direction: column;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: #0f172a;
       overflow: hidden;
-      animation: swFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: swFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes swFadeIn {
-      from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+      from { opacity: 0; transform: translateY(-12px) scale(0.97); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .sw-h-header {
@@ -297,7 +297,7 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .sw-h-title {
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 800;
       letter-spacing: -0.01em;
       display: flex;
@@ -305,23 +305,23 @@
       gap: 8px;
     }
     .sw-h-badge {
-      background: linear-gradient(135deg, #ff7a1a, #ea580c);
-      color: #ffffff;
+      background: rgba(255, 122, 26, 0.18);
+      border: 1px solid rgba(255, 122, 26, 0.4);
+      color: #ff9838;
       font-size: 10px;
       font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 20px;
-      letter-spacing: 0.04em;
-      box-shadow: 0 2px 8px rgba(255, 122, 26, 0.4);
+      padding: 2px 8px;
+      border-radius: 14px;
+      letter-spacing: 0.03em;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
     }
     .sw-h-badge-dot {
       width: 5px;
       height: 5px;
       border-radius: 50%;
-      background: #ffffff;
+      background: #10b981;
       display: inline-block;
     }
     .sw-h-actions {
@@ -346,7 +346,7 @@
     }
     .sw-h-btn:hover {
       background: rgba(255, 255, 255, 0.22);
-      transform: scale(1.08);
+      transform: scale(1.05);
     }
 
     .sw-h-body {
@@ -354,26 +354,33 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 13px;
     }
 
+    /* Search row */
     .sw-h-search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sw-h-input-wrap {
+      flex: 1;
       display: flex;
       align-items: center;
       background: #f8fafc;
       border: 1.5px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 0 8px 0 12px;
+      border-radius: 10px;
+      padding: 0 10px 0 12px;
       transition: all 0.2s ease;
       gap: 8px;
     }
-    .sw-h-search-box:focus-within {
+    .sw-h-input-wrap:focus-within {
       border-color: #ff7a1a;
       background: #ffffff;
-      box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.18);
+      box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.15);
     }
     .sw-h-search-icon {
-      font-size: 15px;
+      font-size: 14px;
       color: #94a3b8;
       line-height: 1;
       flex: none;
@@ -382,100 +389,59 @@
       flex: 1;
       border: none;
       background: transparent;
-      padding: 11px 0;
+      padding: 10px 0;
       font-size: 13.5px;
       color: #0f172a;
       outline: none;
       font-weight: 500;
     }
-    .sw-h-input::placeholder { color: #94a3b8; }
+    .sw-h-input::placeholder { color: #94a3b8; font-weight: 400; }
     .sw-h-clear-btn {
       background: #e2e8f0;
       color: #64748b;
       border: none;
-      width: 18px;
-      height: 18px;
+      width: 17px;
+      height: 17px;
       border-radius: 50%;
       display: none;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 10px;
+      font-size: 9px;
       line-height: 1;
       flex: none;
       transition: background 0.15s;
     }
-    .sw-h-clear-btn:hover {
-      background: #cbd5e1;
-      color: #1e293b;
-    }
+    .sw-h-clear-btn:hover { background: #cbd5e1; color: #0f172a; }
+
+    /* Scan Action Button (Primary) */
     .sw-h-submit {
       background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
       color: #ffffff;
       border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.15s ease;
       white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(255, 122, 26, 0.35);
+      box-shadow: 0 3px 10px rgba(255, 122, 26, 0.35);
       display: flex;
       align-items: center;
       gap: 6px;
       flex: none;
     }
     .sw-h-submit:hover {
-      box-shadow: 0 6px 18px rgba(255, 122, 26, 0.45);
+      box-shadow: 0 5px 15px rgba(255, 122, 26, 0.45);
       transform: translateY(-1px);
     }
     .sw-h-submit.scanning {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
-    }
-    .sw-h-submit:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
-      transform: none;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
     }
 
-    .sw-h-quick-chips {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      overflow-x: auto;
-      white-space: nowrap;
-      padding-bottom: 2px;
-      scrollbar-width: none;
-    }
-    .sw-h-quick-chips::-webkit-scrollbar { display: none; }
-    .sw-h-chip-lbl {
-      font-size: 11px;
-      color: #94a3b8;
-      font-weight: 600;
-      flex: none;
-    }
-    .sw-h-chip {
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      color: #475569;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 14px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      flex: none;
-      user-select: none;
-    }
-    .sw-h-chip:hover {
-      background: #fff7ed;
-      border-color: #fdba74;
-      color: #ea580c;
-      transform: translateY(-1px);
-    }
-
+    /* Filter Options Row */
     .sw-h-options {
       display: flex;
       align-items: center;
@@ -484,12 +450,11 @@
       color: #475569;
       flex-wrap: wrap;
       gap: 8px;
-      padding-top: 2px;
     }
     .sw-h-check {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       cursor: pointer;
       user-select: none;
       font-weight: 600;
@@ -517,7 +482,7 @@
       font-weight: 600;
       cursor: pointer;
       transition: border-color 0.15s;
-      max-width: 190px;
+      max-width: 185px;
     }
     .sw-h-select:focus { border-color: #ff7a1a; }
     .sw-h-upload-link {
@@ -532,19 +497,15 @@
     }
     .sw-h-upload-link:hover { text-decoration: underline; }
 
-    /* Live Searching Radar Card */
+    /* Live Progress Card */
     .sw-h-live-card {
-      background: linear-gradient(135deg, #090d16 0%, #172033 100%);
-      color: #ffffff;
-      border-radius: 14px;
-      padding: 13px 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 11px 14px;
       display: none;
       flex-direction: column;
-      gap: 9px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      position: relative;
-      overflow: hidden;
+      gap: 8px;
       animation: swFadeIn 0.2s ease;
     }
     .sw-h-live-head {
@@ -556,67 +517,59 @@
     .sw-h-live-store-info {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       overflow: hidden;
     }
-    .sw-h-radar-dot {
-      width: 10px;
-      height: 10px;
+    .sw-h-pulse-dot {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: #10b981;
-      position: relative;
+      background: #ff7a1a;
       flex: none;
+      animation: swPulse 1.2s infinite;
     }
-    .sw-h-radar-dot::after {
-      content: '';
-      position: absolute;
-      inset: -4px;
-      border-radius: 50%;
-      border: 2px solid #10b981;
-      animation: swRadar 1.4s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-    }
-    @keyframes swRadar {
-      0% { transform: scale(0.6); opacity: 1; }
-      100% { transform: scale(2.2); opacity: 0; }
+    @keyframes swPulse {
+      0% { transform: scale(0.85); opacity: 0.5; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.85); opacity: 0.5; }
     }
     .sw-h-live-store-title {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
-      color: #ffffff;
+      color: #0f172a;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .sw-h-live-store-sub {
       font-size: 11px;
-      color: #94a3b8;
+      color: #64748b;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .sw-h-live-pct {
-      background: rgba(255, 255, 255, 0.12);
-      color: #ff9838;
+      background: #ffedd5;
+      color: #ea580c;
       font-size: 11px;
       font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 12px;
+      padding: 2px 7px;
+      border-radius: 10px;
       flex: none;
       font-variant-numeric: tabular-nums;
     }
     .sw-h-pbar-wrap {
       width: 100%;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.12);
+      height: 5px;
+      background: #e2e8f0;
       border-radius: 4px;
       overflow: hidden;
-      position: relative;
     }
     .sw-h-pbar-fill {
       width: 0%;
       height: 100%;
       background: linear-gradient(90deg, #ff7a1a 0%, #10b981 100%);
-      transition: width 0.25s ease;
+      transition: width 0.2s ease;
       border-radius: 4px;
     }
 
@@ -630,9 +583,8 @@
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
-      padding: 9px 8px;
+      padding: 8px;
       text-align: center;
-      transition: all 0.15s ease;
     }
     .sw-h-sum-val {
       font-size: 15px;
@@ -645,15 +597,16 @@
       color: #64748b;
       text-transform: uppercase;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       margin-top: 2px;
     }
 
+    /* Live Preview Table */
     .sw-h-results-box {
-      max-height: 210px;
+      max-height: 190px;
       overflow-y: auto;
       border: 1px solid #e2e8f0;
-      border-radius: 12px;
+      border-radius: 10px;
       display: none;
       background: #ffffff;
     }
@@ -664,18 +617,18 @@
     }
     .sw-h-table th {
       background: #f8fafc;
-      padding: 8px 10px;
+      padding: 7px 10px;
       text-align: left;
       font-weight: 700;
       color: #475569;
       position: sticky;
       top: 0;
       z-index: 2;
-      border-bottom: 1.5px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
       font-size: 11px;
     }
     .sw-h-table td {
-      padding: 7px 10px;
+      padding: 6px 10px;
       border-bottom: 1px solid #f1f5f9;
       color: #1e293b;
       vertical-align: middle;
@@ -684,12 +637,12 @@
     .sw-h-td-prod {
       display: flex;
       align-items: center;
-      gap: 7px;
-      max-width: 180px;
+      gap: 6px;
+      max-width: 170px;
     }
     .sw-h-thumb {
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       border-radius: 4px;
       object-fit: contain;
       background: #f8fafc;
@@ -701,7 +654,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       font-weight: 600;
-      font-size: 11.5px;
+      font-size: 11px;
     }
     .sw-h-price { font-weight: 800; color: #059669; }
     .sw-h-loc-pill {
@@ -717,13 +670,14 @@
     .sw-h-in { background: #ecfdf5; color: #065f46; }
     .sw-h-out { background: #fef2f2; color: #991b1b; }
 
+    /* Results Ready Banner */
     .sw-h-banner {
       display: none;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 10px;
       font-size: 12px;
       font-weight: 600;
       animation: swFadeIn 0.2s ease;
@@ -755,8 +709,8 @@
       background: #d97706;
       box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
     }
-    .sw-h-banner-btn:hover { opacity: 0.92; transform: translateY(-1px); }
 
+    /* Footer Navigation */
     .sw-h-footer {
       padding: 12px 18px;
       background: #f8fafc;
@@ -767,12 +721,12 @@
     }
     .sw-h-page-btn {
       flex: 1;
-      background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
-      color: #ffffff;
-      border: none;
-      padding: 9px 14px;
-      border-radius: 9px;
-      font-size: 12.5px;
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1.5px solid #cbd5e1;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
       display: flex;
@@ -780,18 +734,23 @@
       justify-content: center;
       gap: 6px;
       transition: all 0.15s ease;
-      box-shadow: 0 3px 10px rgba(255, 122, 26, 0.3);
     }
-    .sw-h-page-btn:hover {
-      box-shadow: 0 5px 15px rgba(255, 122, 26, 0.45);
+    .sw-h-page-btn.ready {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+    }
+    .sw-h-page-btn.ready:hover {
+      background: #1e293b;
       transform: translateY(-1px);
     }
     .sw-h-tool-btn {
       background: #ffffff;
       color: #334155;
       border: 1.5px solid #e2e8f0;
-      padding: 8px 13px;
-      border-radius: 9px;
+      padding: 7px 12px;
+      border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
@@ -800,7 +759,6 @@
     .sw-h-tool-btn:hover {
       border-color: #cbd5e1;
       background: #f1f5f9;
-      color: #0f172a;
     }
 
     /* Reopen Floating Launcher */
@@ -810,24 +768,23 @@
       right: 24px;
       background: linear-gradient(135deg, #090d16 0%, #172033 100%);
       color: #ffffff;
-      padding: 11px 20px;
+      padding: 10px 18px;
       border-radius: 30px;
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.4);
       border: 1.5px solid rgba(255, 122, 26, 0.35);
       z-index: 999999998;
       cursor: pointer;
       font-weight: 700;
-      font-size: 13.5px;
+      font-size: 13px;
       display: none;
       align-items: center;
       gap: 8px;
       user-select: none;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease;
     }
     #sw-hunter-launcher:hover {
-      transform: scale(1.05);
-      box-shadow: 0 14px 36px rgba(255, 122, 26, 0.4);
+      transform: scale(1.04);
     }
   `;
   document.head.appendChild(styleEl);
@@ -838,11 +795,11 @@
   overlay.innerHTML = `
     <div class="sw-h-header">
       <div class="sw-h-title">
-        <span style="font-size: 17px;">🛵</span>
-        <span>Swiggy Hunter</span>
+        <span style="font-size: 16px;">🛵</span>
+        <span>Swiggy Instamart Hunter</span>
         <span class="sw-h-badge" id="sw-h-badge">
           <span class="sw-h-badge-dot"></span>
-          <span>${STORES.length} PODS</span>
+          <span>${STORES.length} Pods</span>
         </span>
       </div>
       <div class="sw-h-actions">
@@ -851,25 +808,17 @@
       </div>
     </div>
     <div class="sw-h-body">
+      <!-- Search Input Area -->
       <div class="sw-h-search-box">
-        <span class="sw-h-search-icon">🔍</span>
-        <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, butter, coke, atta, eggs)..." autocomplete="off" />
-        <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
-        <button id="sw-h-start-btn" class="sw-h-submit">🛵 Scan Stores</button>
+        <div class="sw-h-input-wrap">
+          <span class="sw-h-search-icon">🔍</span>
+          <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, butter, atta)..." autocomplete="off" />
+          <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
+        </div>
+        <button id="sw-h-start-btn" class="sw-h-submit">▶ Start Scan</button>
       </div>
 
-      <div class="sw-h-quick-chips">
-        <span class="sw-h-chip-lbl">Quick:</span>
-        <span class="sw-h-chip" data-q="Milk">🥛 Milk</span>
-        <span class="sw-h-chip" data-q="Amul Butter">🧈 Butter</span>
-        <span class="sw-h-chip" data-q="Coke">🥤 Coke</span>
-        <span class="sw-h-chip" data-q="Atta">🌾 Atta</span>
-        <span class="sw-h-chip" data-q="Chocolate">🍫 Chocolate</span>
-        <span class="sw-h-chip" data-q="Eggs">🥚 Eggs</span>
-        <span class="sw-h-chip" data-q="Cheese">🧀 Cheese</span>
-        <span class="sw-h-chip" data-q="Bread">🍞 Bread</span>
-      </div>
-
+      <!-- Settings Row -->
       <div class="sw-h-options">
         <label class="sw-h-check">
           <input type="checkbox" id="sw-h-instock" checked />
@@ -886,14 +835,14 @@
         <span class="sw-h-upload-link" id="sw-h-upload-trigger" title="Upload custom pods JSON">📁 Custom JSON</span>
       </div>
 
-      <!-- Live Radar Scanning Card -->
+      <!-- Live Progress Card -->
       <div class="sw-h-live-card" id="sw-h-live-card">
         <div class="sw-h-live-head">
           <div class="sw-h-live-store-info">
-            <span class="sw-h-radar-dot"></span>
+            <span class="sw-h-pulse-dot"></span>
             <div>
               <div class="sw-h-live-store-title" id="sw-live-store-title">Ready to scan...</div>
-              <div class="sw-h-live-store-sub" id="sw-live-store-sub">Initializing dark store connections</div>
+              <div class="sw-h-live-store-sub" id="sw-live-store-sub">Ready</div>
             </div>
           </div>
           <span class="sw-h-live-pct" id="sw-live-pct">0%</span>
@@ -905,6 +854,7 @@
 
       <div class="sw-h-banner" id="sw-h-banner"></div>
 
+      <!-- Live Stats -->
       <div class="sw-h-summary" id="sw-h-summary">
         <div class="sw-h-sum-item">
           <div class="sw-h-sum-val" id="sw-sum-items">0</div>
@@ -920,6 +870,7 @@
         </div>
       </div>
 
+      <!-- Live Preview Table -->
       <div class="sw-h-results-box" id="sw-h-results">
         <table class="sw-h-table">
           <thead>
@@ -935,7 +886,7 @@
       </div>
     </div>
     <div class="sw-h-footer">
-      <button class="sw-h-page-btn" id="sw-h-page">🌐 Results Table ↗</button>
+      <button class="sw-h-page-btn" id="sw-h-page">📊 Results Table (0 items)</button>
       <button class="sw-h-tool-btn" id="sw-h-csv">⬇ Export CSV</button>
     </div>
   `;
@@ -985,6 +936,7 @@
   const tableBody = document.getElementById('sw-h-table-body');
   const summaryBox = document.getElementById('sw-h-summary');
   const csvBtn = document.getElementById('sw-h-csv');
+  const pageBtn = document.getElementById('sw-h-page');
   const storeSelect = document.getElementById('sw-h-store');
   const fileInput = document.getElementById('sw-h-file');
   const uploadTrigger = document.getElementById('sw-h-upload-trigger');
@@ -994,7 +946,7 @@
     if (liveStoreSub) liveStoreSub.textContent = text;
   }
 
-  // Clear button & quick chips
+  // Clear button
   queryInput.oninput = () => {
     clearBtn.style.display = queryInput.value ? 'flex' : 'none';
   };
@@ -1003,14 +955,6 @@
     clearBtn.style.display = 'none';
     queryInput.focus();
   };
-
-  overlay.querySelectorAll('.sw-h-chip').forEach(chip => {
-    chip.onclick = () => {
-      queryInput.value = chip.dataset.q;
-      clearBtn.style.display = 'flex';
-      startBtn.click();
-    };
-  });
 
   // Custom JSON Upload Handler
   uploadTrigger.onclick = () => fileInput.click();
@@ -1039,7 +983,7 @@
           ]);
         }
         STORES = parsed;
-        badgeEl.innerHTML = `<span class="sw-h-badge-dot"></span><span>${STORES.length} PODS</span>`;
+        badgeEl.innerHTML = `<span class="sw-h-badge-dot"></span><span>${STORES.length} Pods</span>`;
         storeSelect.innerHTML = `<option value="all">All ${STORES.length} Stores</option>` +
           STORES.map((s, i) => `<option value="${i}">${s[1]}</option>`).join('');
         alert(`Successfully loaded ${STORES.length} dark stores from custom JSON!`);
@@ -1049,6 +993,16 @@
     };
     reader.readAsText(file);
   };
+
+  function updateResultsButton(count) {
+    if (count > 0) {
+      pageBtn.className = 'sw-h-page-btn ready';
+      pageBtn.innerHTML = `📊 Open Results Table (${count.toLocaleString()} Items) ↗`;
+    } else {
+      pageBtn.className = 'sw-h-page-btn';
+      pageBtn.innerHTML = '📊 Results Table (No results yet)';
+    }
+  }
 
   function showResultsReadyBanner(items, query, opened) {
     if (!banner) return;
@@ -1120,6 +1074,7 @@
     if (banner) banner.style.display = 'none';
     tableBody.innerHTML = '';
     searchResults = [];
+    updateResultsButton(0);
 
     const inStockOnly = document.getElementById('sw-h-instock').checked;
     const storeChoice = document.getElementById('sw-h-store').value;
@@ -1172,8 +1127,8 @@
           // Append preview row to UI table
           const tr = document.createElement('tr');
           const imgTag = row.image_1
-            ? `<img src="${row.image_1}" class="sw-h-thumb" onerror="this.outerHTML='<span style=\\'font-size:16px;\\'>🛵</span>'">`
-            : `<span style="font-size:16px;">🛵</span>`;
+            ? `<img src="${row.image_1}" class="sw-h-thumb" onerror="this.outerHTML='<span style=\\'font-size:15px;\\'>🛵</span>'">`
+            : `<span style="font-size:15px;">🛵</span>`;
           tr.innerHTML = `
             <td>
               <div class="sw-h-td-prod">
@@ -1193,10 +1148,11 @@
 
         if (storeAdded) storesWithItems++;
 
-        // Update live metrics
+        // Update live metrics & footer button
         document.getElementById('sw-sum-items').textContent = searchResults.length.toLocaleString();
         document.getElementById('sw-sum-stores').textContent = `${storesWithItems}/${targetStores.length}`;
         document.getElementById('sw-sum-min').textContent = minPriceFound < 999999 ? `₹${minPriceFound}` : '-';
+        updateResultsButton(searchResults.length);
 
       } catch (err) {
         console.warn('Scan error for', loc, err);
@@ -1209,14 +1165,15 @@
     }
 
     isScanning = false;
-    startBtn.innerHTML = '🛵 Scan Stores';
+    startBtn.innerHTML = '▶ Start Scan';
     startBtn.classList.remove('scanning');
     startBtn.disabled = false;
     liveStoreTitle.textContent = abortScan
       ? `Scan stopped (${searchResults.length} items found)`
       : `✓ Scan completed! (${searchResults.length} items found)`;
-    liveStoreSub.textContent = `Covered ${storesWithItems} of ${targetStores.length} stores with inventory.`;
+    liveStoreSub.textContent = `Found products across ${storesWithItems} of ${targetStores.length} stores.`;
     window.swiggyResults = searchResults;
+    updateResultsButton(searchResults.length);
 
     // Auto open results once done or stopped
     if (searchResults.length > 0 && !resultsOpenedForScan) {
