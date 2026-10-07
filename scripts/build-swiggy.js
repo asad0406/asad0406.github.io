@@ -290,6 +290,8 @@ function generateHunterCode(stores, tableHtml) {
           store_locality: locality || '',
           store_address: resolvedAddr,
           store_pincode: resolvedPin,
+          store_status: store.status || 'Live & Active',
+          delivery_eta: store.eta || '-',
           maps_url: maps,
           name: rawName,
           brand: v.brandName || d.brand || '',
@@ -1293,16 +1295,44 @@ function generateHunterCode(stores, tableHtml) {
       pbar.style.width = \`\${pct}%\`;
       livePct.textContent = \`\${pct}%\`;
       liveStoreTitle.textContent = \`[\${i + 1}/\${targetStores.length}] \${loc}\`;
-      liveStoreSub.textContent = defaultAddress ? \`📍 \${defaultAddress}\` : 'Connecting to Swiggy pod...';
+      liveStoreSub.textContent = 'Checking store health & serviceability...';
 
       try {
-        await setLocationViaApi({ lat, lng, address: loc });
-        const products = await searchViaApi(query);
+        // 1. Pre-check store health & serviceability in real time
+        const health = await checkStoreStatusViaApi(store);
+        store.status = health.status;
+        store.status_type = health.status_type;
+        store.eta = health.eta;
+
+        if (inStockOnly && health.status_type !== 'live') {
+          liveStoreSub.textContent = \`📍 \${loc} • [\${health.status}] \${health.message} (Skipped)\`;
+          if (i < targetStores.length - 1 && !abortScan) await sleep(200);
+          continue;
+        }
+
+        liveStoreSub.textContent = \`🟢 \${health.status} (\${health.eta}) • Searching "\${query}"...\`;
+
+        // 2. Search products for this active store
+        let products = [];
+        try {
+          products = await searchViaApi(query);
+        } catch (err) {
+          if (err.rateLimited) {
+            liveStoreSub.textContent = \`Rate limit reached for \${loc}. Using DOM fallback...\`;
+            products = await searchViaDom(query);
+          } else {
+            throw err;
+          }
+        }
+
         const rows = productsToRows(products, store);
         let storeAdded = false;
 
         for (const row of rows) {
           if (inStockOnly && row.stock !== 'In stock') continue;
+
+          row.store_status = health.status;
+          row.delivery_eta = health.eta;
 
           searchResults.push(row);
           storeAdded = true;
@@ -1344,7 +1374,7 @@ function generateHunterCode(stores, tableHtml) {
       }
 
       if (i < targetStores.length - 1 && !abortScan) {
-        await sleep(400);
+        await sleep(350);
       }
     }
 
@@ -1553,6 +1583,8 @@ function generateHunterCode(stores, tableHtml) {
       '#',
       'Store_Locality',
       'Store_ID',
+      'Store_Status',
+      'Delivery_ETA',
       'Store_Address',
       'Store_Pincode',
       'Brand',
@@ -1571,6 +1603,8 @@ function generateHunterCode(stores, tableHtml) {
       i + 1,
       \`"\${(r.store_locality || '').replace(/"/g, '""')}"\`,
       \`"\${r.store_id || ''}"\`,
+      \`"\${r.store_status || 'Live & Active'}"\`,
+      \`"\${r.delivery_eta || '-'}"\`,
       \`"\${(r.store_address || '').replace(/"/g, '""')}"\`,
       \`"\${r.store_pincode || ''}"\`,
       \`"\${(r.brand || '').replace(/"/g, '""')}"\`,

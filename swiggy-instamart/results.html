@@ -787,6 +787,8 @@
         store_id: storeId,
         store_pincode: pin,
         store_address: addr,
+        store_status: r.store_status || r.status || 'Live & Active',
+        delivery_eta: r.delivery_eta || r.eta || '-',
         maps_url: r.maps_url || r.mapsUrl || '',
         name: title,
         brand: brand,
@@ -1307,11 +1309,13 @@
         return;
       }
 
-      const headers = ['#', 'Store_Locality', 'Store_ID', 'Store_Address', 'Store_Pincode', 'Brand', 'Product_Title', 'Quantity', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Stock', 'Category', 'Sub_Category', 'Google_Maps_URL', 'Product_URL'];
+      const headers = ['#', 'Store_Locality', 'Store_ID', 'Store_Status', 'Delivery_ETA', 'Store_Address', 'Store_Pincode', 'Brand', 'Product_Title', 'Quantity', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Stock', 'Category', 'Sub_Category', 'Google_Maps_URL', 'Product_URL'];
       const rows = rowsToExport.map((r, i) => [
         i + 1,
         `"${(r.store_locality || '').replace(/"/g, '""')}"`,
         `"${r.store_id || ''}"`,
+        `"${r.store_status || 'Live & Active'}"`,
+        `"${r.delivery_eta || '-'}"`,
         `"${(r.store_address || '').replace(/"/g, '""')}"`,
         `"${r.store_pincode || ''}"`,
         `"${(r.brand || '').replace(/"/g, '""')}"`,
