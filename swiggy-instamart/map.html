@@ -165,6 +165,21 @@
             box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
         }
 
+        .precision-select {
+            padding: 4px 8px;
+            border-radius: 14px;
+            border: 1.5px solid #d8b4fe;
+            font-size: 11px;
+            font-weight: 700;
+            background: #ffffff;
+            color: #6b21a8;
+            outline: none;
+            cursor: pointer;
+        }
+        .precision-select:focus {
+            border-color: #7c3aed;
+        }
+
         .pulse-live {
             width: 7px;
             height: 7px;
@@ -600,6 +615,12 @@
         <button id="tracerToggle" class="tool-toggle tracer active" title="Toggle Boundary Tracer mode">
             <span>📐 Dynamic Boundary Tracer</span>
         </button>
+        <select id="precisionSelect" class="precision-select" title="Number of radial probe directions">
+            <option value="16">16 Directions (Fast)</option>
+            <option value="24">24 Directions (High Precision)</option>
+            <option value="36" selected>36 Directions (Ultra-Smooth 10°)</option>
+            <option value="72">72 Directions (Extreme 5°)</option>
+        </select>
         <button id="finderToggle" class="tool-toggle finder" title="Toggle click-to-discover store finder">
             <span class="pulse-live"></span>
             <span>🎯 Store Finder</span>
@@ -620,7 +641,7 @@
     <div id="map"></div>
 
     <div class="bottom-hint" id="bottomHint">
-        <span>📐 <b>Dynamic Boundary Tracer Active:</b> Click any store pin or popup to trace its real serving boundary polygon outward in all directions!</span>
+        <span>📐 <b>Dynamic Boundary Tracer:</b> Click any store pin or popup to trace its real serving boundary polygon outward in all directions!</span>
     </div>
 
     <script id="pods-data">
@@ -740,6 +761,26 @@
         const polygonById = new Map();
 
         const STANDARD_RADIUS_METERS = 2500;
+
+        // Smooth Spline / Catmull-Rom Curve Interpolation for Organic Contours
+        function smoothClosedPolygon(points, subdivisions = 3) {
+            if (!points || points.length < 3) return points;
+            const n = points.length;
+            const result = [];
+            for (let i = 0; i < n; i++) {
+                const p0 = points[(i - 1 + n) % n];
+                const p1 = points[i];
+                const p2 = points[(i + 1) % n];
+                const p3 = points[(i + 2) % n];
+                for (let t = 0; t < 1; t += 1 / subdivisions) {
+                    const t2 = t * t, t3 = t2 * t;
+                    const lat = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
+                    const lng = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
+                    result.push([lat, lng]);
+                }
+            }
+            return result;
+        }
 
         function addStoreMarker(store, animate = false) {
             const lat = store.coordinates?.latitude || 0;
@@ -862,21 +903,22 @@
             }
         }
 
-        function renderStorePolygon(podId, locality, points, isNew = false) {
+        function renderStorePolygon(podId, locality, rawPoints, isNew = false) {
             const existingPoly = polygonById.get(podId);
             if (existingPoly) dynamicBoundariesGroup.removeLayer(existingPoly);
 
+            const smoothedPoints = smoothClosedPolygon(rawPoints, 3);
             const polyColor = isNew ? '#059669' : '#ea580c';
             const polyFill = isNew ? '#10b981' : '#ff7a1a';
 
-            const poly = L.polygon(points, {
+            const poly = L.polygon(smoothedPoints, {
                 color: polyColor,
                 weight: 2.5,
                 fillColor: polyFill,
                 fillOpacity: 0.22
             });
 
-            poly.bindTooltip(`📐 <b>${locality}</b><br><span style="font-size:11px;color:#059669;font-weight:700;">✓ Live Traced Serving Boundary</span>`, {
+            poly.bindTooltip(`📐 <b>${locality}</b><br><span style="font-size:11px;color:#059669;font-weight:700;">✓ Exact Traced Serving Contour (${rawPoints.length} Points)</span>`, {
                 sticky: true
             });
 
@@ -939,9 +981,10 @@
         function updateBottomHint() {
             if (isProbingActive) return;
             if (tracerMode) {
+                const count = document.getElementById('precisionSelect').value || '36';
                 bottomHint.style.display = 'flex';
                 bottomHint.className = 'bottom-hint';
-                bottomHint.innerHTML = '<span>📐 <b>Dynamic Boundary Tracer:</b> Click any store marker or "Trace True Boundary" button to probe delivery limits in all directions!</span>';
+                bottomHint.innerHTML = `<span>📐 <b>Dynamic Boundary Tracer Active:</b> Click any store pin or "Trace True Boundary" button to probe delivery limits in <b>${count} directions</b> outward!</span>`;
             } else if (finderMode) {
                 bottomHint.style.display = 'flex';
                 bottomHint.className = 'bottom-hint';
@@ -957,7 +1000,6 @@
 
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-        // Offset coordinates in a given bearing angle (degrees) and distance (meters)
         function offsetCoordinates(lat, lng, distanceMeters, bearingDegrees) {
             const rad = bearingDegrees * (Math.PI / 180);
             const latOffset = (distanceMeters * Math.cos(rad)) / 111320;
@@ -1054,7 +1096,7 @@
             return { status: 'Unserviceable', status_type: 'unserviceable' };
         }
 
-        // 4. Trace Real Boundary in 12 Radial Directions
+        // 4. Trace Real Boundary in Configurable Radial Directions (16, 24, 36, or 72 points)
         window.traceStoreBoundary = async function(podId) {
             const store = podsMap.get(String(podId));
             if (!store) return alert('Store not found: ' + podId);
@@ -1072,21 +1114,13 @@
 
             map.setView([originLat, originLng], 14);
 
-            // 12 directions (every 30 degrees)
-            const DIRECTIONS = [
-                { deg: 0, name: 'North' },
-                { deg: 30, name: 'NNE' },
-                { deg: 60, name: 'ENE' },
-                { deg: 90, name: 'East' },
-                { deg: 120, name: 'ESE' },
-                { deg: 150, name: 'SSE' },
-                { deg: 180, name: 'South' },
-                { deg: 210, name: 'SSW' },
-                { deg: 240, name: 'WSW' },
-                { deg: 270, name: 'West' },
-                { deg: 300, name: 'WNW' },
-                { deg: 330, name: 'NNW' }
-            ];
+            const numPoints = parseInt(document.getElementById('precisionSelect')?.value || '36', 10);
+            const stepDeg = 360 / numPoints;
+
+            const DIRECTIONS = [];
+            for (let deg = 0; deg < 360; deg += stepDeg) {
+                DIRECTIONS.push({ deg: Math.round(deg * 10) / 10 });
+            }
 
             const perimeterPoints = [];
             let maxReachMeters = 0;
@@ -1094,7 +1128,7 @@
             bottomHint.style.display = 'flex';
             bottomHint.className = 'bottom-hint probing';
 
-            // Draw initial store beam center
+            // Draw center beacon
             const centerBeam = L.circleMarker([originLat, originLng], {
                 radius: 8,
                 color: '#7c3aed',
@@ -1107,10 +1141,10 @@
                 if (abortProbe) break;
                 const dir = DIRECTIONS[i];
 
-                bottomHint.innerHTML = `<span>⚡ <b>Probing Direction [${i + 1}/${DIRECTIONS.length}]:</b> ${dir.name} (${dir.deg}°) for <b>${store.locality}</b>...</span>`;
+                bottomHint.innerHTML = `<span>⚡ <b>Probing Direction [${i + 1}/${DIRECTIONS.length}] (${dir.deg}°):</b> for <b>${store.locality}</b>...</span>`;
 
-                // Radial Binary Search between 700m and 5200m
-                let low = 600, high = 5000;
+                // Radial Binary Search between 600m and 5200m
+                let low = 600, high = 5200;
                 let bestServingDistance = low;
                 let lastProbeCoords = [originLat, originLng];
 
@@ -1121,9 +1155,8 @@
                     const [pLat, pLng] = offsetCoordinates(originLat, originLng, testDist, dir.deg);
                     lastProbeCoords = [pLat, pLng];
 
-                    // Visual beam marker
                     const probeMarker = L.circleMarker([pLat, pLng], {
-                        radius: 5,
+                        radius: 4.5,
                         color: '#ffffff',
                         fillColor: '#7c3aed',
                         fillOpacity: 0.9,
@@ -1132,7 +1165,7 @@
                     probeActiveGroup.addLayer(probeMarker);
 
                     const res = await querySwiggyDiscovery(pLat, pLng);
-                    await sleep(180);
+                    await sleep(120);
 
                     const servesHere = res && String(res.store_id || res.podId) === String(podId) && res.status_type === 'live';
 
@@ -1161,7 +1194,6 @@
             probeActiveGroup.clearLayers();
 
             if (perimeterPoints.length > 2 && !abortProbe) {
-                // Save boundary polygon to localStorage
                 try {
                     localStorage.setItem('swiggy_traced_boundary_' + podId, JSON.stringify(perimeterPoints));
                 } catch(e) {}
@@ -1170,7 +1202,7 @@
 
                 const maxReachKm = (maxReachMeters / 1000).toFixed(1);
                 bottomHint.className = 'bottom-hint';
-                bottomHint.innerHTML = `<span>🎉 <b>Boundary Complete!</b> Traced actual delivery perimeter for <b>${store.locality}</b> (Max Reach: ~${maxReachKm} km).</span>`;
+                bottomHint.innerHTML = `<span>🎉 <b>Boundary Complete!</b> Traced high-density <b>${perimeterPoints.length}-point contour</b> for <b>${store.locality}</b> (Max Reach: ~${maxReachKm} km).</span>`;
                 setTimeout(updateBottomHint, 5000);
             } else {
                 updateBottomHint();
