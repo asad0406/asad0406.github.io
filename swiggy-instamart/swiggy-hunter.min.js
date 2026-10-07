@@ -1000,7 +1000,6 @@
     <div class="sw-h-footer">
       <button class="sw-h-page-btn" id="sw-h-page">📊 Results Table (0 items)</button>
       <button class="sw-h-tool-btn" id="sw-h-csv">⬇ CSV</button>
-      <a href="https://asad0406.github.io/swiggy-instamart/map.html" target="_blank" rel="noopener noreferrer" class="sw-h-tool-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="View all 112 dark stores on interactive map">🗺️ Map</a>
     </div>
   `;
   document.body.appendChild(overlay);
