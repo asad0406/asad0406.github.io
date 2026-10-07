@@ -766,7 +766,7 @@ function generateHunterCode(stores, tableHtml) {
       <div class="sw-h-summary" id="sw-h-summary">
         <div class="sw-h-sum-item">
           <div class="sw-h-sum-val" id="sw-sum-stores">0</div>
-          <div class="sw-h-sum-lbl">Stores Found</div>
+          <div class="sw-h-sum-lbl">Stores (w/ items)</div>
         </div>
         <div class="sw-h-sum-item">
           <div class="sw-h-sum-val" id="sw-sum-items">0</div>
@@ -1015,12 +1015,15 @@ function generateHunterCode(stores, tableHtml) {
             <td><span class="sw-h-stock \${row.stock === 'In stock' ? 'sw-h-in' : 'sw-h-out'}">\${row.stock === 'In stock' ? 'In Stock' : 'Out'}</span></td>
           \`;
           tableBody.appendChild(tr);
+          if (tableBody.children.length > 50) {
+            tableBody.removeChild(tableBody.firstElementChild);
+          }
         }
 
         if (storeAdded) storesWithItems++;
 
         // Update live metrics
-        document.getElementById('sw-sum-stores').textContent = storesWithItems;
+        document.getElementById('sw-sum-stores').textContent = \`\${storesWithItems}/\${targetStores.length}\`;
         document.getElementById('sw-sum-items').textContent = searchResults.length;
         document.getElementById('sw-sum-min').textContent = minPriceFound < 999999 ? \`₹\${minPriceFound}\` : '-';
         countBadge.style.display = searchResults.length ? 'inline-block' : 'none';
@@ -1044,8 +1047,8 @@ function generateHunterCode(stores, tableHtml) {
     countBadge.style.display = searchResults.length ? 'inline-block' : 'none';
     countBadge.textContent = \`\${searchResults.length} total\`;
     statusText.textContent = abortScan
-      ? \`Scan stopped (\${searchResults.length} items found).\`
-      : \`✓ Done! Scanned \${targetStores.length} stores (\${searchResults.length} items found).\`;
+      ? \`Scan stopped (\${searchResults.length} items found across \${storesWithItems} stores).\`
+      : \`✓ Done! Scanned \${targetStores.length} stores (\${searchResults.length} items found across \${storesWithItems} stores).\`;
     window.swiggyResults = searchResults;
 
     // Auto open results once done or stopped

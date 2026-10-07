@@ -570,6 +570,23 @@
       text-decoration: underline;
     }
 
+    .table-status-bar {
+      text-align: center;
+      padding: 16px 20px 24px;
+      font-size: 12px;
+      color: var(--stone);
+      font-family: var(--display);
+      font-weight: 600;
+    }
+    #empty {
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 15px;
+      color: var(--stone);
+      font-family: var(--display);
+      font-weight: 600;
+    }
+
     @media (max-width: 800px) {
       header { padding: 12px 14px; }
       .toolbar { gap: 6px; }
@@ -631,6 +648,11 @@
     const sortSel = document.getElementById('sortSelect');
     const variationBtn = document.getElementById('filterVariation');
 
+    const PAGE_CHUNK = 100;
+    let visibleCount = PAGE_CHUNK;
+    let renderedCount = 0;
+    let filteredRows = [];
+
     const COLUMN_ORDER = [
       'store_locality',
       'name',
@@ -673,52 +695,74 @@
 
     let DATA = [];
     let allRows = [];
-    let renderedRows = [];
     let currentQuery = '';
     let sortCol = null, sortDir = 1;
     let onlyVariation = false;
     let cheapestByKey = new Map();
+    let variantsMap = new Map();
 
     const variantKey = r => `${r.name || ''}__${r.brand || ''}__${r.quantity || ''}`.trim().toLowerCase();
 
     function normalizeRow(r) {
       const avail = (r.stock === 'In stock' || r.inStock === true || r.availability === 'IN_STOCK') ? 'In stock' : 'Sold out';
       const title = (r.name || r.title || r.titles?.title || '-').trim();
+      const loc = r.store_locality || r.locality || '-';
+      const storeId = r.store_id || r.podId || r.storeId || '-';
+      const pin = r.store_pincode || r.pincode || '';
+      const addr = r.store_address || r.deliveryLocation || '';
+      const brand = r.brand || '';
+      const qty = r.quantity || '';
+      const cat = r.category || '';
+      const subCat = r.sub_category || '';
+
+      const searchStr = `${title} ${brand} ${qty} ${loc} ${storeId} ${pin} ${addr} ${cat} ${subCat}`.toLowerCase();
 
       return {
-        store_locality: r.store_locality || r.locality || '-',
-        store_id: r.store_id || r.podId || r.storeId || '-',
-        store_pincode: r.store_pincode || r.pincode || '',
-        store_address: r.store_address || r.deliveryLocation || '',
+        store_locality: loc,
+        store_id: storeId,
+        store_pincode: pin,
+        store_address: addr,
         maps_url: r.maps_url || r.mapsUrl || '',
         name: title,
-        brand: r.brand || '',
-        quantity: r.quantity || '',
+        brand: brand,
+        quantity: qty,
         stock: avail,
         mrp_inr: r.mrp_inr != null ? Number(r.mrp_inr) : (r.mrp != null ? Number(r.mrp) : null),
         selling_price_inr: r.selling_price_inr != null ? Number(r.selling_price_inr) : (r.price != null ? Number(r.price) : null),
         discount_pct: r.discount_pct != null ? Number(r.discount_pct) : (r.discount != null ? Number(r.discount) : 0),
-        category: r.category || '',
-        sub_category: r.sub_category || '',
+        category: cat,
+        sub_category: subCat,
         product_id: r.product_id || r.productId || '',
         image_1: r.image_1 || r.imageUrl || '',
-        product_url: r.product_url || (r.product_id ? `https://www.swiggy.com/instamart/item/${r.product_id}` : '#')
+        product_url: r.product_url || (r.product_id ? `https://www.swiggy.com/instamart/item/${r.product_id}` : '#'),
+        _search: searchStr
       };
     }
 
     function priceAcrossStores(row) {
       const k = variantKey(row);
-      return allRows
-        .filter(r => variantKey(r) === k && r.stock === 'In stock' && r.selling_price_inr != null)
+      const group = variantsMap.get(k) || [];
+      return group
+        .filter(r => r.stock === 'In stock' && r.selling_price_inr != null)
         .map(r => ({ store: r.store_locality, price: r.selling_price_inr, stock: r.stock }))
         .sort((a, b) => a.price - b.price);
     }
 
     function computeVariationKeys() {
       const byKey = new Map();
-      for (const r of allRows) {
-        if (r.stock !== 'In stock' || r.selling_price_inr == null) continue;
+      variantsMap = new Map();
+
+      for (let i = 0; i < allRows.length; i++) {
+        const r = allRows[i];
         const k = variantKey(r);
+        let group = variantsMap.get(k);
+        if (!group) {
+          group = [];
+          variantsMap.set(k, group);
+        }
+        group.push(r);
+
+        if (r.stock !== 'In stock' || r.selling_price_inr == null) continue;
         const price = r.selling_price_inr;
         const e = byKey.get(k);
         if (!e) byKey.set(k, { min: price, max: price, cheapest: r });
@@ -867,46 +911,64 @@
       });
     }
 
-    function render(rows) {
-      rows = sortRows(rows);
-      renderedRows = rows;
-      if (!rows.length) {
-        tableWrap.innerHTML = '<div id="empty">No rows match your filter.</div>';
+    function renderRowHtml(r, i) {
+      const trClass = r.stock === 'Sold out' ? 'sold-out' : 'in-stock';
+      const cols = COLUMN_ORDER.filter(c => c in r);
+      return `<tr class="${trClass}"><td class="nowrap"><button data-idx="${i}" class="view-btn" title="View details">👁</button></td>` +
+        cols.map(c => {
+          const cls = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : ''].filter(Boolean).join(' ');
+          return `<td class="${cls}">${cellValue(r, c)}</td>`;
+        }).join('') + '</tr>';
+    }
+
+    function updateTableStatus() {
+      const statusEl = document.getElementById('tableStatus');
+      if (!statusEl) return;
+      const total = filteredRows.length;
+      if (total === 0) {
+        statusEl.textContent = '';
+      } else if (renderedCount >= total) {
+        statusEl.textContent = `✓ Showing all ${total.toLocaleString()} products`;
+      } else {
+        statusEl.textContent = `Showing ${renderedCount.toLocaleString()} of ${total.toLocaleString()} products • Scroll down to load more`;
+      }
+    }
+
+    function appendNextChunk() {
+      if (renderedCount >= filteredRows.length) return;
+      const tbody = document.getElementById('tableBody');
+      if (!tbody) return;
+
+      const nextBatch = filteredRows.slice(renderedCount, renderedCount + PAGE_CHUNK);
+      let html = '';
+      for (let i = 0; i < nextBatch.length; i++) {
+        html += renderRowHtml(nextBatch[i], renderedCount + i);
+      }
+      tbody.insertAdjacentHTML('beforeend', html);
+      renderedCount += nextBatch.length;
+      updateTableStatus();
+    }
+
+    function renderInitialTable() {
+      if (!filteredRows.length) {
+        tableWrap.innerHTML = '<div id="empty">No products match your filter criteria.</div>';
         return;
       }
-      const cols = COLUMN_ORDER.filter(c => c in rows[0]);
+      const cols = COLUMN_ORDER.filter(c => c in filteredRows[0]);
       const head = '<thead><tr><th></th>' + cols.map(c => {
         const arrow = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
         return `<th data-col="${c}">${label(c)}${arrow}</th>`;
       }).join('') + '</tr></thead>';
 
-      const body = '<tbody>' + rows.map((r, i) => {
-        const trClass = r.stock === 'Sold out' ? 'sold-out' : 'in-stock';
-        return `<tr class="${trClass}"><td class="nowrap"><button data-idx="${i}" class="view-btn" title="View details">👁</button></td>` +
-          cols.map(c => {
-            const cls = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : ''].filter(Boolean).join(' ');
-            return `<td class="${cls}">${cellValue(r, c)}</td>`;
-          }).join('') + '</tr>';
-      }).join('') + '</tbody>';
+      renderedCount = Math.min(PAGE_CHUNK, filteredRows.length);
+      let bodyHtml = '';
+      for (let i = 0; i < renderedCount; i++) {
+        bodyHtml += renderRowHtml(filteredRows[i], i);
+      }
 
-      tableWrap.innerHTML = `<table>${head}${body}</table>`;
-
-      tableWrap.querySelectorAll('th[data-col]').forEach(th => {
-        th.addEventListener('click', () => {
-          const col = th.dataset.col;
-          sortDir = sortCol === col ? -sortDir : 1;
-          sortCol = col;
-          applyFilter();
-        });
-      });
-
-      tableWrap.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', () => openDetail(renderedRows[Number(btn.dataset.idx)]));
-      });
-
-      tableWrap.querySelectorAll('.thumb').forEach(img => {
-        img.addEventListener('click', () => openImage(img.dataset.src));
-      });
+      tableWrap.innerHTML = `<table>${head}<tbody id="tableBody">${bodyHtml}</tbody></table><div id="tableStatus" class="table-status-bar"></div>`;
+      updateTableStatus();
+      tableWrap.scrollTop = 0;
     }
 
     function applyFilter() {
@@ -917,77 +979,152 @@
       const stock = stockSel.value;
       const base = onlyVariation ? [...cheapestByKey.values()] : allRows;
 
+      const qTokens = q ? q.split(/\s+/).filter(Boolean) : [];
+
       const filtered = base.filter(r => {
-        if (store && r.store_locality !== store) return false;
+        if (store && r.store_id !== store && r.store_locality !== store) return false;
         if (brand && r.brand !== brand) return false;
         if (cat && r.category !== cat) return false;
         if (stock && r.stock !== stock) return false;
-        if (!q) return true;
-        return (
-          r.name + ' ' +
-          r.brand + ' ' +
-          r.quantity + ' ' +
-          r.store_locality + ' ' +
-          r.store_id + ' ' +
-          r.store_pincode + ' ' +
-          r.store_address + ' ' +
-          r.category
-        ).toLowerCase().includes(q);
+        if (qTokens.length > 0) {
+          const search = r._search;
+          for (let i = 0; i < qTokens.length; i++) {
+            if (!search.includes(qTokens[i])) return false;
+          }
+        }
+        return true;
       });
 
-      render(filtered);
+      filteredRows = sortRows(filtered);
+      renderInitialTable();
+      updateMetaRibbon();
     }
 
+    // Event delegation on tableWrap for high performance (zero per-row event listeners)
+    tableWrap.addEventListener('click', (e) => {
+      const th = e.target.closest('th[data-col]');
+      if (th) {
+        const col = th.dataset.col;
+        sortDir = sortCol === col ? -sortDir : 1;
+        sortCol = col;
+        applyFilter();
+        return;
+      }
+
+      const viewBtn = e.target.closest('.view-btn');
+      if (viewBtn) {
+        const idx = Number(viewBtn.dataset.idx);
+        if (filteredRows[idx]) openDetail(filteredRows[idx]);
+        return;
+      }
+
+      const thumb = e.target.closest('.thumb');
+      if (thumb) {
+        openImage(thumb.dataset.src);
+        return;
+      }
+    });
+
+    // Infinite scroll listener throttled by rAF
+    let scrollScheduled = false;
+    tableWrap.addEventListener('scroll', () => {
+      if (scrollScheduled) return;
+      scrollScheduled = true;
+      requestAnimationFrame(() => {
+        scrollScheduled = false;
+        if (renderedCount >= filteredRows.length) return;
+        const scrollBottom = tableWrap.scrollHeight - tableWrap.scrollTop - tableWrap.clientHeight;
+        if (scrollBottom < 600) {
+          appendNextChunk();
+        }
+      });
+    }, { passive: true });
+
     function updateMetaRibbon() {
-      const storesSet = new Set(allRows.map(r => r.store_locality));
-      const prices = allRows.map(r => r.selling_price_inr).filter(p => p != null);
+      const allStoresSet = new Set(allRows.map(r => r.store_id || r.store_locality));
+      const filteredStoresSet = new Set(filteredRows.map(r => r.store_id || r.store_locality));
+      const prices = (filteredRows.length ? filteredRows : allRows).map(r => r.selling_price_inr).filter(p => p != null);
       const minPrice = prices.length ? Math.min(...prices) : null;
 
+      const isFiltered = (filteredRows.length < allRows.length) || (filterEl.value.trim() !== '') || (storeSel.value !== '') || (brandSel.value !== '') || (catSel.value !== '') || (stockSel.value !== '') || onlyVariation;
+
+      const rowCountStr = isFiltered
+        ? `<b>${filteredRows.length.toLocaleString()}</b> / ${allRows.length.toLocaleString()} rows`
+        : `<b>${allRows.length.toLocaleString()}</b> rows`;
+
+      const storeCountStr = isFiltered
+        ? `<b>${filteredStoresSet.size}</b> / ${allStoresSet.size} stores`
+        : `<b>${allStoresSet.size}</b> stores`;
+
       const metaEl = document.getElementById('metaCard');
-      metaEl.innerHTML =
-        `<span class="stat"><b>${allRows.length}</b> rows</span>` +
-        `<span class="stat"><b>${storesSet.size}</b> stores</span>` +
-        (minPrice != null ? `<span class="stat">min <b>₹${minPrice}</b></span>` : '') +
-        `<span class="stat">${new Date().toLocaleTimeString()}</span>`;
+      if (metaEl) {
+        metaEl.innerHTML =
+          `<span class="stat">${rowCountStr}</span>` +
+          `<span class="stat">${storeCountStr}</span>` +
+          (minPrice != null ? `<span class="stat">min <b>₹${minPrice}</b></span>` : '') +
+          `<span class="stat">${new Date().toLocaleTimeString()}</span>`;
+      }
     }
 
     function fillStoreOptions() {
-      const stores = [...new Set(allRows.map(r => r.store_locality).filter(Boolean))].sort();
+      const storeMap = new Map();
+      allRows.forEach(r => {
+        const id = r.store_id || r.store_locality;
+        if (!storeMap.has(id)) {
+          storeMap.set(id, {
+            id: id,
+            locality: r.store_locality,
+            count: 0
+          });
+        }
+        storeMap.get(id).count++;
+      });
+
+      const stores = [...storeMap.values()].sort((a, b) => a.locality.localeCompare(b.locality));
       storeSel.innerHTML = '<option value="">All stores (' + stores.length + ')</option>';
       stores.forEach(s => {
         const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = s;
+        opt.value = s.id;
+        opt.textContent = `${s.locality} (${s.count})`;
         storeSel.appendChild(opt);
       });
     }
 
     function fillBrandOptions() {
-      const brands = [...new Set(allRows.map(r => r.brand).filter(Boolean))].sort();
+      const brandCount = new Map();
+      allRows.forEach(r => {
+        if (r.brand) brandCount.set(r.brand, (brandCount.get(r.brand) || 0) + 1);
+      });
+      const brands = [...brandCount.keys()].sort((a, b) => a.localeCompare(b));
       brandSel.innerHTML = '<option value="">All brands (' + brands.length + ')</option>';
       brands.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b;
-        opt.textContent = b;
+        opt.textContent = `${b} (${brandCount.get(b)})`;
         brandSel.appendChild(opt);
       });
     }
 
     function fillCategoryOptions() {
-      const cats = [...new Set(allRows.map(r => r.category).filter(Boolean))].sort();
+      const catCount = new Map();
+      allRows.forEach(r => {
+        if (r.category) catCount.set(r.category, (catCount.get(r.category) || 0) + 1);
+      });
+      const cats = [...catCount.keys()].sort((a, b) => a.localeCompare(b));
       catSel.innerHTML = '<option value="">All categories (' + cats.length + ')</option>';
       cats.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c;
-        opt.textContent = c;
+        opt.textContent = `${c} (${catCount.get(c)})`;
         catSel.appendChild(opt);
       });
     }
 
     function exportCSV() {
-      if (!allRows.length) return alert('No data to download.');
+      const rowsToExport = filteredRows.length ? filteredRows : allRows;
+      if (!rowsToExport.length) return alert('No data to download.');
       const headers = ['#', 'Store_Locality', 'Store_ID', 'Store_Address', 'Store_Pincode', 'Brand', 'Product_Title', 'Quantity', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Stock', 'Category', 'Sub_Category', 'Google_Maps_URL', 'Product_URL'];
-      const rows = allRows.map((r, i) => [
+      const rows = rowsToExport.map((r, i) => [
         i + 1,
         `"${(r.store_locality || '').replace(/"/g, '""')}"`,
         `"${r.store_id || ''}"`,
@@ -1029,8 +1166,13 @@
       applyFilter();
     }
 
-    // Controls listeners
-    filterEl.addEventListener('input', applyFilter);
+    // Debounced text filter
+    let filterDebounce = null;
+    filterEl.addEventListener('input', () => {
+      clearTimeout(filterDebounce);
+      filterDebounce = setTimeout(applyFilter, 120);
+    });
+
     storeSel.addEventListener('change', applyFilter);
     brandSel.addEventListener('change', applyFilter);
     catSel.addEventListener('change', applyFilter);
