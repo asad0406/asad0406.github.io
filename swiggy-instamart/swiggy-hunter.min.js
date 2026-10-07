@@ -1601,4 +1601,24 @@
     a.remove();
   };
 
+  // Expose checkStoreStatusViaApi for Map Store Finder & Child Windows
+  window.checkStoreStatusViaApi = checkStoreStatusViaApi;
+
+  // Listen for Store Discovery queries from Map Window
+  window.addEventListener('message', async (event) => {
+    if (event.data && event.data.type === 'SWIGGY_DISCOVER_POD') {
+      const { lat, lng, address, reqId } = event.data;
+      try {
+        const res = await checkStoreStatusViaApi([null, address || `${lat}, ${lng}`, lat, lng, '', '']);
+        if (event.source) {
+          event.source.postMessage({ type: 'SWIGGY_DISCOVER_POD_RES', reqId, data: res }, '*');
+        }
+      } catch (err) {
+        if (event.source) {
+          event.source.postMessage({ type: 'SWIGGY_DISCOVER_POD_RES', reqId, data: { status: 'Unserviceable', status_type: 'unserviceable', message: err.message } }, '*');
+        }
+      }
+    }
+  });
+
 })();
