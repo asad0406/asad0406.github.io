@@ -54,7 +54,7 @@
             box-shadow: 0 6px 24px rgba(15, 23, 42, 0.16);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 9px;
             border: 1px solid rgba(226, 232, 240, 0.9);
             max-width: 96vw;
         }
@@ -89,6 +89,7 @@
             white-space: nowrap;
         }
         .stats-badge b { color: var(--swiggy-dark); }
+
         .search-box {
             position: relative;
             display: flex;
@@ -99,7 +100,7 @@
             border-radius: 18px;
             border: 1.5px solid #cbd5e1;
             font-size: 12px;
-            width: 175px;
+            width: 160px;
             outline: none;
             transition: all 0.2s ease;
             background: #ffffff;
@@ -109,7 +110,7 @@
         .search-input:focus {
             border-color: var(--swiggy);
             box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.18);
-            width: 220px;
+            width: 210px;
         }
         .search-icon {
             position: absolute;
@@ -119,10 +120,11 @@
             pointer-events: none;
         }
 
-        .finder-toggle {
-            background: #ecfdf5;
-            color: #065f46;
-            border: 1.5px solid #a7f3d0;
+        /* Toggle Buttons */
+        .tool-toggle {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1.5px solid #cbd5e1;
             font-size: 11.5px;
             font-weight: 700;
             padding: 4px 11px;
@@ -134,12 +136,23 @@
             transition: all 0.15s ease;
             white-space: nowrap;
         }
-        .finder-toggle.active {
+        .tool-toggle:hover {
+            border-color: var(--swiggy);
+            color: var(--swiggy-dark);
+        }
+        .tool-toggle.active {
+            background: #ff7a1a;
+            color: #ffffff;
+            border-color: #ea580c;
+            box-shadow: 0 2px 8px rgba(255, 122, 26, 0.35);
+        }
+        .tool-toggle.finder.active {
             background: #059669;
             color: #ffffff;
             border-color: #059669;
-            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
         }
+
         .pulse-live {
             width: 7px;
             height: 7px;
@@ -149,7 +162,7 @@
             box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
             animation: pulse 1.5s infinite;
         }
-        .finder-toggle.active .pulse-live {
+        .tool-toggle.finder.active .pulse-live {
             background: #ffffff;
             box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
         }
@@ -531,7 +544,10 @@
         <div class="stats-badge" id="statsWrap">
             <span id="activeCount">112</span> Pods <span id="newDiscoveredCount"></span>
         </div>
-        <button id="finderToggle" class="finder-toggle active" title="Toggle click-to-discover mode">
+        <button id="circlesToggle" class="tool-toggle active" title="Toggle store delivery coverage circles (~2.5 km)">
+            <span>⭕ Serving Circles</span>
+        </button>
+        <button id="finderToggle" class="tool-toggle finder active" title="Toggle click-to-discover store finder">
             <span class="pulse-live"></span>
             <span>🎯 Store Finder</span>
         </button>
@@ -577,7 +593,6 @@
             }
         } catch(e) {}
 
-        // Map pod lookup table by ID
         const podsMap = new Map();
         storesData.forEach(s => {
             if (s.podId) podsMap.set(String(s.podId), s);
@@ -608,11 +623,17 @@
             attribution: 'Tiles &copy; Esri, Earthstar Geographics'
         });
 
+        // Delivery Coverage Circles Layer Group
+        const coverageCirclesGroup = L.layerGroup().addTo(map);
+
+        // Layer Switcher
         L.control.layers({
             "🗺️ OpenStreetMap": osmStandard,
             "🎨 OSM Humanitarian": osmHot,
             "🛰️ Satellite": satellite
-        }, null, { position: 'bottomleft' }).addTo(map);
+        }, {
+            "⭕ Serving Circles (~2.5 km)": coverageCirclesGroup
+        }, { position: 'bottomleft' }).addTo(map);
 
         // Marker Icons
         function createSwiggyPointerIcon(podId, isNew = false) {
@@ -661,6 +682,9 @@
 
         const markers = [];
         const markerById = new Map();
+        const circleById = new Map();
+
+        const STANDARD_RADIUS_METERS = 2500; // ~2.5 km typical Swiggy Instamart delivery radius
 
         function addStoreMarker(store, animate = false) {
             const lat = store.coordinates?.latitude || 0;
@@ -672,6 +696,36 @@
             const icon = createSwiggyPointerIcon(store.podId || '', isNew);
             const marker = L.marker([lat, lng], { icon: icon });
 
+            // 1. Draw Serving Region Circle
+            const circleColor = isNew ? '#059669' : '#ea580c';
+            const circleFill = isNew ? '#10b981' : '#ff7a1a';
+
+            const circle = L.circle([lat, lng], {
+                radius: STANDARD_RADIUS_METERS,
+                color: circleColor,
+                weight: 1.5,
+                dashArray: '5, 8',
+                fillColor: circleFill,
+                fillOpacity: 0.09
+            });
+
+            circle.bindTooltip(`🛵 <b>${store.locality}</b><br><span style="font-size:11px;color:#64748b;">Serving Region (~2.5 km Radius)</span>`, {
+                sticky: true,
+                className: 'circle-tooltip'
+            });
+
+            // Circle hover highlight
+            marker.on('mouseover', () => {
+                circle.setStyle({ weight: 3, fillOpacity: 0.22, dashArray: null });
+            });
+            marker.on('mouseout', () => {
+                circle.setStyle({ weight: 1.5, fillOpacity: 0.09, dashArray: '5, 8' });
+            });
+
+            coverageCirclesGroup.addLayer(circle);
+            if (store.podId) circleById.set(String(store.podId), circle);
+
+            // 2. Build Rich Popup
             const darkStoreAddr = store.primaryServingAddress || store.address || 'Address not listed';
             const liveServingAddr = store.liveSwiggyAddress || store.deliveryLocation || '';
             const mapsUrl = store.mapsUrl || `https://www.google.com/maps?q=${lat},${lng}`;
@@ -684,8 +738,8 @@
                     </div>
                     <div class="popup-sub">
                         <span class="status-badge">● Active Dark Store</span>
+                        <span style="background:#fff7ed;color:#ea580c;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10.5px;">⭕ ~2.5km Coverage</span>
                         ${store.pincode ? `<span class="pin-badge">📮 ${store.pincode}</span>` : ''}
-                        ${store.seller ? `<span class="seller-badge">${store.seller}</span>` : ''}
                     </div>
                     <div class="popup-addr-box">
                         <span class="addr-label">Dark Store Address</span>
@@ -717,7 +771,8 @@
                 seller: (store.seller || '').toLowerCase(),
                 lat,
                 lng,
-                markerRef: marker
+                markerRef: marker,
+                circleRef: circle
             };
 
             markers.push(marker);
@@ -753,7 +808,19 @@
         }
         updateStatsUI();
 
-        // 2. STORE FINDER & REAL-TIME AUTO DISCOVERY
+        // 2. TOGGLE CONTROLS: CIRCLES & STORE FINDER
+        let showCircles = true;
+        const circlesToggleBtn = document.getElementById('circlesToggle');
+        circlesToggleBtn.addEventListener('click', () => {
+            showCircles = !showCircles;
+            circlesToggleBtn.classList.toggle('active', showCircles);
+            if (showCircles) {
+                map.addLayer(coverageCirclesGroup);
+            } else {
+                map.removeLayer(coverageCirclesGroup);
+            }
+        });
+
         let finderMode = true;
         const finderToggleBtn = document.getElementById('finderToggle');
         const bottomHint = document.getElementById('bottomHint');
@@ -834,7 +901,7 @@
                 });
             }
 
-            // Fallback for standalone preview: Reverse geocode with OpenStreetMap Nominatim & distance matching
+            // Fallback for standalone preview: Reverse geocode with OpenStreetMap Nominatim
             try {
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
                 const geoJson = await geoRes.json();
@@ -842,14 +909,12 @@
                 const pincode = geoJson.address?.postcode || '';
                 const fullAddr = geoJson.display_name || `${lat}, ${lng}`;
 
-                // Find nearest dark store in our database
                 let nearest = null, minDist = Infinity;
                 storesData.forEach(s => {
                     const d = Math.hypot((s.coordinates?.latitude || 0) - lat, (s.coordinates?.longitude || 0) - lng);
                     if (d < minDist) { minDist = d; nearest = s; }
                 });
 
-                // Approx ~0.025 degrees is ~2.7km radius
                 if (minDist < 0.028 && nearest) {
                     return {
                         store_id: nearest.podId,
@@ -886,7 +951,6 @@
             if (!finderMode) return;
             const { lat, lng } = e.latlng;
 
-            // 1. Drop pulsing radar marker
             if (discoveryRadarMarker) map.removeLayer(discoveryRadarMarker);
 
             const radarIcon = L.divIcon({
@@ -908,7 +972,6 @@
                 `)
                 .openOn(map);
 
-            // 2. Query Swiggy API
             const disc = await querySwiggyDiscovery(lat, lng);
             if (discoveryRadarMarker) map.removeLayer(discoveryRadarMarker);
 
@@ -935,6 +998,14 @@
             if (existing) {
                 // CASE 1: STORE ALREADY PRESENT IN DATABASE
                 const m = markerById.get(podId);
+                const circle = circleById.get(podId);
+                if (circle) {
+                    circle.setStyle({ weight: 3.5, fillOpacity: 0.28, color: '#059669' });
+                    setTimeout(() => {
+                        circle.setStyle({ weight: 1.5, fillOpacity: 0.09, color: '#ea580c' });
+                    }, 4000);
+                }
+
                 const popupContent = `
                     <div class="popup-card">
                         <div class="disc-banner already">
@@ -946,8 +1017,8 @@
                         </div>
                         <div class="popup-sub">
                             <span class="status-badge">● Active Store</span>
+                            <span style="background:#fff7ed;color:#ea580c;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10.5px;">⭕ ~2.5km Coverage</span>
                             ${disc.eta ? `<span style="background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10.5px;">⚡ ${disc.eta}</span>` : ''}
-                            ${existing.pincode ? `<span class="pin-badge">📮 ${existing.pincode}</span>` : ''}
                         </div>
                         <div class="popup-addr-box">
                             <span class="addr-label">Serving Dark Store Address</span>
@@ -986,18 +1057,15 @@
                     is_newly_discovered: true
                 };
 
-                // Add to collections
                 storesData.push(newStore);
                 podsMap.set(String(newStore.podId), newStore);
 
-                // Save to localStorage
                 try {
                     const saved = JSON.parse(localStorage.getItem('swiggy_discovered_pods') || '[]');
                     saved.push(newStore);
                     localStorage.setItem('swiggy_discovered_pods', JSON.stringify(saved));
                 } catch(e) {}
 
-                // Add to Map with glowing marker
                 addStoreMarker(newStore, false);
                 updateStatsUI();
 
@@ -1012,8 +1080,8 @@
                         </div>
                         <div class="popup-sub">
                             <span class="status-badge">● Live & Active</span>
+                            <span style="background:#ecfdf5;color:#065f46;padding:1px 6px;border-radius:4px;font-weight:800;font-size:10.5px;">⭕ ~2.5km Coverage</span>
                             ${disc.eta ? `<span style="background:#ecfdf5;color:#065f46;padding:1px 6px;border-radius:4px;font-weight:800;font-size:10.5px;">⚡ ${disc.eta}</span>` : ''}
-                            ${newStore.pincode ? `<span class="pin-badge">📮 ${newStore.pincode}</span>` : ''}
                         </div>
                         <div class="popup-addr-box">
                             <span class="addr-label">Discovered Location / Serving Address</span>
@@ -1055,6 +1123,7 @@
         function doSearch() {
             const query = (searchInput.value || '').trim().toLowerCase();
             clusterGroup.clearLayers();
+            coverageCirclesGroup.clearLayers();
 
             let matched = 0;
             const matchedMarkers = [];
@@ -1070,6 +1139,7 @@
 
                 if (match) {
                     clusterGroup.addLayer(m);
+                    if (d.circleRef && showCircles) coverageCirclesGroup.addLayer(d.circleRef);
                     matchedMarkers.push(m);
                     matched++;
                 }
@@ -1092,7 +1162,6 @@
             searchDebounce = setTimeout(doSearch, 150);
         });
 
-        // Shortcut: '/' focuses search
         window.addEventListener('keydown', (e) => {
             if (e.key === '/' && document.activeElement !== searchInput) {
                 e.preventDefault();
