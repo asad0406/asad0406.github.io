@@ -737,6 +737,9 @@
 
     let DATA = [];
     let allRows = [];
+    let filteredRows = [];
+    let renderedCount = 0;
+    const PAGE_CHUNK = 80;
     let currentQuery = '';
     let sortCol = null, sortDir = 1;
     let onlyVariation = false;
