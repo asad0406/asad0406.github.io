@@ -1035,7 +1035,8 @@ function generateHunterCode(stores, tableHtml) {
     </div>
     <div class="sw-h-footer">
       <button class="sw-h-page-btn" id="sw-h-page">📊 Results Table (0 items)</button>
-      <button class="sw-h-tool-btn" id="sw-h-csv">⬇ Export CSV</button>
+      <button class="sw-h-tool-btn" id="sw-h-csv">⬇ CSV</button>
+      <a href="https://asad0406.github.io/swiggy-instamart/map.html" target="_blank" rel="noopener noreferrer" class="sw-h-tool-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="View all 112 dark stores on interactive map">🗺️ Map</a>
     </div>
   \`;
   document.body.appendChild(overlay);
@@ -1648,4 +1649,18 @@ console.log(`Generated swiggy-hunter.js (${fullScript.length} bytes)`);
 // 4. Generate minified swiggy-hunter.min.js
 fs.writeFileSync(hunterMinJsPath, fullScript, 'utf8');
 console.log(`Generated swiggy-hunter.min.js (${fullScript.length} bytes)`);
+
+// 5. Generate map.html and maps.html
+const mapTemplatePath = path.join(repoRoot, 'swiggy-instamart', 'map.html');
+const mapsHtmlPath = path.join(repoRoot, 'swiggy-instamart', 'maps.html');
+if (fs.existsSync(mapTemplatePath)) {
+  let mapHtml = fs.readFileSync(mapTemplatePath, 'utf8');
+  const rawPods = JSON.parse(fs.readFileSync(podsJsonPath, 'utf8'));
+  mapHtml = mapHtml.replace('/* __PODS_JSON__ */', `window.PODS_DATA = ${JSON.stringify(rawPods)};`);
+  fs.writeFileSync(mapTemplatePath, mapHtml, 'utf8');
+  fs.writeFileSync(mapsHtmlPath, mapHtml, 'utf8');
+  console.log(`Generated map.html and maps.html with ${rawPods.length} pods.`);
+}
+
 console.log('Build completed successfully!');
+
