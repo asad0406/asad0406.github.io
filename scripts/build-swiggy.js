@@ -302,29 +302,28 @@ function generateHunterCode(stores, tableHtml) {
   styleEl.textContent = \`
     #sw-hunter-overlay {
       position: fixed;
-      top: 24px;
-      right: 24px;
-      width: 480px;
+      top: 20px;
+      right: 20px;
+      width: 500px;
       max-width: calc(100vw - 32px);
-      max-height: calc(100vh - 48px);
+      max-height: calc(100vh - 40px);
       background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28), 0 4px 16px rgba(15, 23, 42, 0.08);
+      border-radius: 18px;
+      box-shadow: 0 24px 65px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.9);
       z-index: 999999999;
       display: flex;
       flex-direction: column;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: #0f172a;
-      border: 1px solid rgba(203, 213, 225, 0.9);
       overflow: hidden;
       animation: swFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes swFadeIn {
-      from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+      from { opacity: 0; transform: translateY(-14px) scale(0.96); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .sw-h-header {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      background: linear-gradient(135deg, #090d16 0%, #172033 100%);
       color: #ffffff;
       padding: 13px 18px;
       display: flex;
@@ -334,22 +333,32 @@ function generateHunterCode(stores, tableHtml) {
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .sw-h-title {
-      font-size: 14.5px;
-      font-weight: 700;
+      font-size: 15px;
+      font-weight: 800;
       letter-spacing: -0.01em;
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .sw-h-badge {
-      background: #ff7a1a;
+      background: linear-gradient(135deg, #ff7a1a, #ea580c);
       color: #ffffff;
       font-size: 10px;
       font-weight: 800;
-      padding: 2.5px 8px;
-      border-radius: 12px;
+      padding: 3px 9px;
+      border-radius: 20px;
       letter-spacing: 0.04em;
-      box-shadow: 0 2px 6px rgba(255, 122, 26, 0.35);
+      box-shadow: 0 2px 8px rgba(255, 122, 26, 0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sw-h-badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #ffffff;
+      display: inline-block;
     }
     .sw-h-actions {
       display: flex;
@@ -357,8 +366,8 @@ function generateHunterCode(stores, tableHtml) {
       gap: 6px;
     }
     .sw-h-btn {
-      background: transparent;
-      border: none;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #ffffff;
       width: 26px;
       height: 26px;
@@ -367,15 +376,13 @@ function generateHunterCode(stores, tableHtml) {
       justify-content: center;
       cursor: pointer;
       line-height: 1;
-      opacity: 0.8;
       border-radius: 50%;
-      font-size: 14px;
+      font-size: 13px;
       transition: all 0.15s ease;
     }
     .sw-h-btn:hover {
-      opacity: 1;
-      background: rgba(255, 255, 255, 0.16);
-      transform: scale(1.05);
+      background: rgba(255, 255, 255, 0.22);
+      transform: scale(1.08);
     }
 
     .sw-h-body {
@@ -386,33 +393,64 @@ function generateHunterCode(stores, tableHtml) {
       gap: 12px;
     }
 
-    .sw-h-input-group {
+    .sw-h-search-box {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 0 8px 0 12px;
+      transition: all 0.2s ease;
+      gap: 8px;
+    }
+    .sw-h-search-box:focus-within {
+      border-color: #ff7a1a;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.18);
+    }
+    .sw-h-search-icon {
+      font-size: 15px;
+      color: #94a3b8;
+      line-height: 1;
+      flex: none;
     }
     .sw-h-input {
       flex: 1;
-      padding: 10px 14px;
-      border-radius: 10px;
-      border: 1.5px solid #e2e8f0;
+      border: none;
+      background: transparent;
+      padding: 11px 0;
       font-size: 13.5px;
-      background: #f8fafc;
       color: #0f172a;
       outline: none;
-      transition: all 0.15s ease;
-    }
-    .sw-h-input:focus {
-      border-color: #ff7a1a;
-      background: #ffffff;
-      box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+      font-weight: 500;
     }
     .sw-h-input::placeholder { color: #94a3b8; }
+    .sw-h-clear-btn {
+      background: #e2e8f0;
+      color: #64748b;
+      border: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      line-height: 1;
+      flex: none;
+      transition: background 0.15s;
+    }
+    .sw-h-clear-btn:hover {
+      background: #cbd5e1;
+      color: #1e293b;
+    }
     .sw-h-submit {
-      background: linear-gradient(135deg, #ff7a1a 0%, #e5660a 100%);
+      background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
       color: #ffffff;
       border: none;
-      padding: 10px 18px;
-      border-radius: 10px;
+      padding: 8px 16px;
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
@@ -422,6 +460,7 @@ function generateHunterCode(stores, tableHtml) {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex: none;
     }
     .sw-h-submit:hover {
       box-shadow: 0 6px 18px rgba(255, 122, 26, 0.45);
@@ -431,13 +470,46 @@ function generateHunterCode(stores, tableHtml) {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
     }
-    .sw-h-submit.scanning:hover {
-      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
-    }
     .sw-h-submit:disabled {
       opacity: 0.65;
       cursor: not-allowed;
       transform: none;
+    }
+
+    .sw-h-quick-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .sw-h-quick-chips::-webkit-scrollbar { display: none; }
+    .sw-h-chip-lbl {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 600;
+      flex: none;
+    }
+    .sw-h-chip {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex: none;
+      user-select: none;
+    }
+    .sw-h-chip:hover {
+      background: #fff7ed;
+      border-color: #fdba74;
+      color: #ea580c;
+      transform: translateY(-1px);
     }
 
     .sw-h-options {
@@ -448,6 +520,7 @@ function generateHunterCode(stores, tableHtml) {
       color: #475569;
       flex-wrap: wrap;
       gap: 8px;
+      padding-top: 2px;
     }
     .sw-h-check {
       display: flex;
@@ -455,7 +528,8 @@ function generateHunterCode(stores, tableHtml) {
       gap: 7px;
       cursor: pointer;
       user-select: none;
-      font-weight: 500;
+      font-weight: 600;
+      font-size: 12px;
     }
     .sw-h-check input[type="checkbox"] {
       accent-color: #ff7a1a;
@@ -476,94 +550,216 @@ function generateHunterCode(stores, tableHtml) {
       outline: none;
       background: #f8fafc;
       color: #334155;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       transition: border-color 0.15s;
       max-width: 190px;
     }
     .sw-h-select:focus { border-color: #ff7a1a; }
-
     .sw-h-upload-link {
-      font-size: 11px;
+      font-size: 11.5px;
       color: #ff7a1a;
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 3px;
     }
-    .sw-h-upload-link:hover {
-      text-decoration: underline;
-    }
+    .sw-h-upload-link:hover { text-decoration: underline; }
 
-    .sw-h-progress-bar-bg {
-      width: 100%;
-      height: 4px;
-      background: #f1f5f9;
-      border-radius: 2px;
-      overflow: hidden;
+    /* Live Searching Radar Card */
+    .sw-h-live-card {
+      background: linear-gradient(135deg, #090d16 0%, #172033 100%);
+      color: #ffffff;
+      border-radius: 14px;
+      padding: 13px 16px;
       display: none;
-      margin: 2px 0;
+      flex-direction: column;
+      gap: 9px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+      animation: swFadeIn 0.2s ease;
     }
-    .sw-h-progress-bar-fill {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, #ff7a1a, #10b981);
-      transition: width 0.2s ease;
-    }
-    .sw-h-status {
-      font-size: 11.5px;
-      color: #64748b;
+    .sw-h-live-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 18px;
-      font-weight: 500;
+      gap: 8px;
     }
-    .sw-h-status-left {
+    .sw-h-live-store-info {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .sw-h-radar-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      position: relative;
+      flex: none;
+    }
+    .sw-h-radar-dot::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid #10b981;
+      animation: swRadar 1.4s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+    }
+    @keyframes swRadar {
+      0% { transform: scale(0.6); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    .sw-h-live-store-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sw-h-live-store-sub {
+      font-size: 11px;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sw-h-live-pct {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ff9838;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 12px;
+      flex: none;
+      font-variant-numeric: tabular-nums;
+    }
+    .sw-h-pbar-wrap {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .sw-h-pbar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #ff7a1a 0%, #10b981 100%);
+      transition: width 0.25s ease;
+      border-radius: 4px;
+    }
+
+    /* Live Summary Box */
+    .sw-h-summary {
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .sw-h-sum-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 9px 8px;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .sw-h-sum-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+    .sw-h-sum-lbl {
+      font-size: 9.5px;
+      color: #64748b;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+
+    .sw-h-results-box {
+      max-height: 210px;
+      overflow-y: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      display: none;
+      background: #ffffff;
+    }
+    .sw-h-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+    .sw-h-table th {
+      background: #f8fafc;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 700;
+      color: #475569;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1.5px solid #e2e8f0;
+      font-size: 11px;
+    }
+    .sw-h-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+    .sw-h-table tr:hover td { background: #fdfaf6; }
+    .sw-h-td-prod {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      max-width: 180px;
+    }
+    .sw-h-thumb {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      object-fit: contain;
+      background: #f8fafc;
+      flex: none;
+      border: 1px solid #e2e8f0;
+    }
+    .sw-h-prod-title {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      font-weight: 600;
+      font-size: 11.5px;
     }
-    .sw-h-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #10b981;
-      display: inline-block;
-      flex: none;
+    .sw-h-price { font-weight: 800; color: #059669; }
+    .sw-h-loc-pill {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
     }
-    .sw-h-dot.pulse {
-      background: #ff7a1a;
-      animation: swPulse 1.2s infinite;
-    }
-    @keyframes swPulse {
-      0% { opacity: 0.3; transform: scale(0.9); }
-      50% { opacity: 1; transform: scale(1.15); }
-      100% { opacity: 0.3; transform: scale(0.9); }
-    }
-    .sw-h-count-badge {
-      background: #fff7ed;
-      color: #ff7a1a;
-      font-weight: 700;
-      font-size: 10.5px;
-      padding: 2px 8px;
-      border-radius: 10px;
-      display: none;
-      flex: none;
-    }
+    .sw-h-stock { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+    .sw-h-in { background: #ecfdf5; color: #065f46; }
+    .sw-h-out { background: #fef2f2; color: #991b1b; }
 
     .sw-h-banner {
       display: none;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 9px 13px;
-      border-radius: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
       font-size: 12px;
       font-weight: 600;
       animation: swFadeIn 0.2s ease;
@@ -582,65 +778,20 @@ function generateHunterCode(stores, tableHtml) {
       background: #059669;
       color: #ffffff;
       border: none;
-      padding: 5px 12px;
-      border-radius: 6px;
+      padding: 6px 13px;
+      border-radius: 7px;
       font-size: 11.5px;
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
-      transition: opacity 0.15s;
+      box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+      transition: all 0.15s;
     }
     .sw-h-banner.blocked .sw-h-banner-btn {
       background: #d97706;
+      box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
     }
-    .sw-h-banner-btn:hover { opacity: 0.92; }
-
-    .sw-h-summary {
-      display: none;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      background: #f8fafc;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-    }
-    .sw-h-sum-item { text-align: center; }
-    .sw-h-sum-val { font-size: 15px; font-weight: 800; color: #0f172a; }
-    .sw-h-sum-lbl { font-size: 9.5px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em; margin-top: 2px; }
-
-    .sw-h-results-box {
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      display: none;
-    }
-    .sw-h-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-    }
-    .sw-h-table th {
-      background: #f1f5f9;
-      padding: 7px 10px;
-      text-align: left;
-      font-weight: 700;
-      color: #475569;
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .sw-h-table td {
-      padding: 7px 10px;
-      border-bottom: 1px solid #f1f5f9;
-      color: #1e293b;
-    }
-    .sw-h-table tr:hover td { background: #f8fafc; }
-    .sw-h-price { font-weight: 800; color: #059669; }
-    .sw-h-stock { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-    .sw-h-in { background: #ecfdf5; color: #065f46; }
-    .sw-h-out { background: #fef2f2; color: #991b1b; }
+    .sw-h-banner-btn:hover { opacity: 0.92; transform: translateY(-1px); }
 
     .sw-h-footer {
       padding: 12px 18px;
@@ -652,12 +803,12 @@ function generateHunterCode(stores, tableHtml) {
     }
     .sw-h-page-btn {
       flex: 1;
-      background: #ff7a1a;
+      background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
       color: #ffffff;
       border: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 9px 14px;
+      border-radius: 9px;
+      font-size: 12.5px;
       font-weight: 700;
       cursor: pointer;
       display: flex;
@@ -665,18 +816,18 @@ function generateHunterCode(stores, tableHtml) {
       justify-content: center;
       gap: 6px;
       transition: all 0.15s ease;
-      box-shadow: 0 2px 8px rgba(255, 122, 26, 0.25);
+      box-shadow: 0 3px 10px rgba(255, 122, 26, 0.3);
     }
     .sw-h-page-btn:hover {
-      background: #e5660a;
-      box-shadow: 0 4px 12px rgba(255, 122, 26, 0.35);
+      box-shadow: 0 5px 15px rgba(255, 122, 26, 0.45);
+      transform: translateY(-1px);
     }
     .sw-h-tool-btn {
       background: #ffffff;
       color: #334155;
       border: 1.5px solid #e2e8f0;
-      padding: 7px 12px;
-      border-radius: 8px;
+      padding: 8px 13px;
+      border-radius: 9px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
@@ -693,16 +844,16 @@ function generateHunterCode(stores, tableHtml) {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      background: linear-gradient(135deg, #0f172a, #1e293b);
+      background: linear-gradient(135deg, #090d16 0%, #172033 100%);
       color: #ffffff;
-      padding: 10px 18px;
+      padding: 11px 20px;
       border-radius: 30px;
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.4);
+      border: 1.5px solid rgba(255, 122, 26, 0.35);
       z-index: 999999998;
       cursor: pointer;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 13.5px;
       display: none;
       align-items: center;
       gap: 8px;
@@ -711,8 +862,8 @@ function generateHunterCode(stores, tableHtml) {
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
     #sw-hunter-launcher:hover {
-      transform: scale(1.04);
-      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.45);
+      transform: scale(1.05);
+      box-shadow: 0 14px 36px rgba(255, 122, 26, 0.4);
     }
   \`;
   document.head.appendChild(styleEl);
@@ -723,9 +874,12 @@ function generateHunterCode(stores, tableHtml) {
   overlay.innerHTML = \`
     <div class="sw-h-header">
       <div class="sw-h-title">
-        <span style="font-size: 16px;">🛵</span>
-        <span>Instamart Hunter</span>
-        <span class="sw-h-badge" id="sw-h-badge">\${STORES.length} STORES</span>
+        <span style="font-size: 17px;">🛵</span>
+        <span>Swiggy Hunter</span>
+        <span class="sw-h-badge" id="sw-h-badge">
+          <span class="sw-h-badge-dot"></span>
+          <span>\${STORES.length} PODS</span>
+        </span>
       </div>
       <div class="sw-h-actions">
         <button class="sw-h-btn" id="sw-h-min" title="Minimize">−</button>
@@ -733,10 +887,25 @@ function generateHunterCode(stores, tableHtml) {
       </div>
     </div>
     <div class="sw-h-body">
-      <div class="sw-h-input-group">
-        <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. butter, amul milk, coke, atta)..." />
+      <div class="sw-h-search-box">
+        <span class="sw-h-search-icon">🔍</span>
+        <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, butter, coke, atta, eggs)..." autocomplete="off" />
+        <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
         <button id="sw-h-start-btn" class="sw-h-submit">🛵 Scan Stores</button>
       </div>
+
+      <div class="sw-h-quick-chips">
+        <span class="sw-h-chip-lbl">Quick:</span>
+        <span class="sw-h-chip" data-q="Milk">🥛 Milk</span>
+        <span class="sw-h-chip" data-q="Amul Butter">🧈 Butter</span>
+        <span class="sw-h-chip" data-q="Coke">🥤 Coke</span>
+        <span class="sw-h-chip" data-q="Atta">🌾 Atta</span>
+        <span class="sw-h-chip" data-q="Chocolate">🍫 Chocolate</span>
+        <span class="sw-h-chip" data-q="Eggs">🥚 Eggs</span>
+        <span class="sw-h-chip" data-q="Cheese">🧀 Cheese</span>
+        <span class="sw-h-chip" data-q="Bread">🍞 Bread</span>
+      </div>
+
       <div class="sw-h-options">
         <label class="sw-h-check">
           <input type="checkbox" id="sw-h-instock" checked />
@@ -750,39 +919,49 @@ function generateHunterCode(stores, tableHtml) {
           </select>
         </div>
         <input type="file" id="sw-h-file" accept=".json" style="display:none;" />
-        <span class="sw-h-upload-link" id="sw-h-upload-trigger" title="Upload custom pods JSON">📁 Upload JSON</span>
+        <span class="sw-h-upload-link" id="sw-h-upload-trigger" title="Upload custom pods JSON">📁 Custom JSON</span>
       </div>
-      <div class="sw-h-progress-bar-bg" id="sw-h-pbar-bg">
-        <div class="sw-h-progress-bar-fill" id="sw-h-pbar"></div>
-      </div>
-      <div class="sw-h-status" id="sw-h-status">
-        <div class="sw-h-status-left">
-          <span class="sw-h-dot" id="sw-h-dot"></span>
-          <span id="sw-h-status-text">Ready to search.</span>
+
+      <!-- Live Radar Scanning Card -->
+      <div class="sw-h-live-card" id="sw-h-live-card">
+        <div class="sw-h-live-head">
+          <div class="sw-h-live-store-info">
+            <span class="sw-h-radar-dot"></span>
+            <div>
+              <div class="sw-h-live-store-title" id="sw-live-store-title">Ready to scan...</div>
+              <div class="sw-h-live-store-sub" id="sw-live-store-sub">Initializing dark store connections</div>
+            </div>
+          </div>
+          <span class="sw-h-live-pct" id="sw-live-pct">0%</span>
         </div>
-        <span class="sw-h-count-badge" id="sw-h-count"></span>
+        <div class="sw-h-pbar-wrap">
+          <div class="sw-h-pbar-fill" id="sw-h-pbar"></div>
+        </div>
       </div>
+
       <div class="sw-h-banner" id="sw-h-banner"></div>
+
       <div class="sw-h-summary" id="sw-h-summary">
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-stores">0</div>
-          <div class="sw-h-sum-lbl">Stores (w/ items)</div>
+          <div class="sw-h-sum-val" id="sw-sum-items">0</div>
+          <div class="sw-h-sum-lbl">Items Found</div>
         </div>
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-items">0</div>
-          <div class="sw-h-sum-lbl">Items</div>
+          <div class="sw-h-sum-val" id="sw-sum-stores">0</div>
+          <div class="sw-h-sum-lbl">Stores w/ Stock</div>
         </div>
         <div class="sw-h-sum-item">
           <div class="sw-h-sum-val" id="sw-sum-min" style="color: #059669;">-</div>
-          <div class="sw-h-sum-lbl">Min Price</div>
+          <div class="sw-h-sum-lbl">Lowest Price</div>
         </div>
       </div>
+
       <div class="sw-h-results-box" id="sw-h-results">
         <table class="sw-h-table">
           <thead>
             <tr>
-              <th>Locality</th>
               <th>Product</th>
+              <th>Locality</th>
               <th>Price</th>
               <th>Stock</th>
             </tr>
@@ -828,14 +1007,15 @@ function generateHunterCode(stores, tableHtml) {
 
   // UI Event Handlers
   const queryInput = document.getElementById('sw-h-query');
+  const clearBtn = document.getElementById('sw-h-clear');
   const startBtn = document.getElementById('sw-h-start-btn');
   const closeBtn = document.getElementById('sw-h-close');
   const minBtn = document.getElementById('sw-h-min');
-  const statusText = document.getElementById('sw-h-status-text');
-  const statusDot = document.getElementById('sw-h-dot');
-  const countBadge = document.getElementById('sw-h-count');
+  const liveCard = document.getElementById('sw-h-live-card');
+  const liveStoreTitle = document.getElementById('sw-live-store-title');
+  const liveStoreSub = document.getElementById('sw-live-store-sub');
+  const livePct = document.getElementById('sw-live-pct');
   const banner = document.getElementById('sw-h-banner');
-  const pbarBg = document.getElementById('sw-h-pbar-bg');
   const pbar = document.getElementById('sw-h-pbar');
   const resultsBox = document.getElementById('sw-h-results');
   const tableBody = document.getElementById('sw-h-table-body');
@@ -847,8 +1027,26 @@ function generateHunterCode(stores, tableHtml) {
   const badgeEl = document.getElementById('sw-h-badge');
 
   function updateStatusWarn(text) {
-    if (statusText) statusText.textContent = text;
+    if (liveStoreSub) liveStoreSub.textContent = text;
   }
+
+  // Clear button & quick chips
+  queryInput.oninput = () => {
+    clearBtn.style.display = queryInput.value ? 'flex' : 'none';
+  };
+  clearBtn.onclick = () => {
+    queryInput.value = '';
+    clearBtn.style.display = 'none';
+    queryInput.focus();
+  };
+
+  overlay.querySelectorAll('.sw-h-chip').forEach(chip => {
+    chip.onclick = () => {
+      queryInput.value = chip.dataset.q;
+      clearBtn.style.display = 'flex';
+      startBtn.click();
+    };
+  });
 
   // Custom JSON Upload Handler
   uploadTrigger.onclick = () => fileInput.click();
@@ -877,7 +1075,7 @@ function generateHunterCode(stores, tableHtml) {
           ]);
         }
         STORES = parsed;
-        badgeEl.textContent = \`\${STORES.length} STORES\`;
+        badgeEl.innerHTML = \`<span class="sw-h-badge-dot"></span><span>\${STORES.length} PODS</span>\`;
         storeSelect.innerHTML = \`<option value="all">All \${STORES.length} Stores</option>\` +
           STORES.map((s, i) => \`<option value="\${i}">\${s[1]}</option>\`).join('');
         alert(\`Successfully loaded \${STORES.length} dark stores from custom JSON!\`);
@@ -894,13 +1092,13 @@ function generateHunterCode(stores, tableHtml) {
     if (opened) {
       banner.className = 'sw-h-banner opened';
       banner.innerHTML = \`
-        <span>✨ <b>\${items.length}</b> products found! Results opened in new tab ↗</span>
+        <span>✨ <b>\${items.length.toLocaleString()}</b> products found! Table opened in new tab ↗</span>
         <button id="sw-h-banner-btn" class="sw-h-banner-btn">View Again</button>
       \`;
     } else {
       banner.className = 'sw-h-banner blocked';
       banner.innerHTML = \`
-        <span>🛵 <b>\${items.length}</b> products ready! Click to open table ↗</span>
+        <span>🛵 <b>\${items.length.toLocaleString()}</b> products ready! Click to open table ↗</span>
         <button id="sw-h-banner-btn" class="sw-h-banner-btn">Open Results</button>
       \`;
     }
@@ -951,14 +1149,13 @@ function generateHunterCode(stores, tableHtml) {
     resultsOpenedForScan = false;
     startBtn.innerHTML = '⏹ Stop Scan';
     startBtn.classList.add('scanning');
-    pbarBg.style.display = 'block';
+    liveCard.style.display = 'flex';
     pbar.style.width = '0%';
     resultsBox.style.display = 'block';
     summaryBox.style.display = 'grid';
     if (banner) banner.style.display = 'none';
     tableBody.innerHTML = '';
     searchResults = [];
-    statusDot.className = 'sw-h-dot pulse';
 
     const inStockOnly = document.getElementById('sw-h-instock').checked;
     const storeChoice = document.getElementById('sw-h-store').value;
@@ -976,7 +1173,9 @@ function generateHunterCode(stores, tableHtml) {
 
       const pct = Math.round(((i + 1) / targetStores.length) * 100);
       pbar.style.width = \`\${pct}%\`;
-      statusText.textContent = \`[\${i + 1}/\${targetStores.length}] Checking \${loc}...\`;
+      livePct.textContent = \`\${pct}%\`;
+      liveStoreTitle.textContent = \`[\${i + 1}/\${targetStores.length}] \${loc}\`;
+      liveStoreSub.textContent = defaultAddress ? \`📍 \${defaultAddress}\` : 'Connecting to Swiggy pod...';
 
       try {
         // Location update via Swiggy API
@@ -987,7 +1186,7 @@ function generateHunterCode(stores, tableHtml) {
           products = await searchViaApi(query);
         } catch (err) {
           if (err.rateLimited) {
-            statusText.textContent = \`[\${i + 1}/\${targetStores.length}] DOM fallback for \${loc}...\`;
+            liveStoreSub.textContent = \`Rate limit reached for \${loc}. Using DOM fallback...\`;
             products = await searchViaDom(query);
           } else {
             throw err;
@@ -1008,9 +1207,17 @@ function generateHunterCode(stores, tableHtml) {
 
           // Append preview row to UI table
           const tr = document.createElement('tr');
+          const imgTag = row.image_1
+            ? \`<img src="\${row.image_1}" class="sw-h-thumb" onerror="this.outerHTML='<span style=\\\\'font-size:16px;\\\\'>🛵</span>'">\`
+            : \`<span style="font-size:16px;">🛵</span>\`;
           tr.innerHTML = \`
-            <td><b>\${row.store_locality}</b></td>
-            <td>\${row.name}</td>
+            <td>
+              <div class="sw-h-td-prod">
+                \${imgTag}
+                <span class="sw-h-prod-title">\${row.name}</span>
+              </div>
+            </td>
+            <td><span class="sw-h-loc-pill">\${row.store_locality}</span></td>
             <td class="sw-h-price">\${price ? '₹' + price : '-'}</td>
             <td><span class="sw-h-stock \${row.stock === 'In stock' ? 'sw-h-in' : 'sw-h-out'}">\${row.stock === 'In stock' ? 'In Stock' : 'Out'}</span></td>
           \`;
@@ -1023,15 +1230,13 @@ function generateHunterCode(stores, tableHtml) {
         if (storeAdded) storesWithItems++;
 
         // Update live metrics
+        document.getElementById('sw-sum-items').textContent = searchResults.length.toLocaleString();
         document.getElementById('sw-sum-stores').textContent = \`\${storesWithItems}/\${targetStores.length}\`;
-        document.getElementById('sw-sum-items').textContent = searchResults.length;
         document.getElementById('sw-sum-min').textContent = minPriceFound < 999999 ? \`₹\${minPriceFound}\` : '-';
-        countBadge.style.display = searchResults.length ? 'inline-block' : 'none';
-        countBadge.textContent = \`\${searchResults.length} found\`;
 
       } catch (err) {
         console.warn('Scan error for', loc, err);
-        statusText.textContent = \`[\${i + 1}/\${targetStores.length}] \${loc} skipped (\${err.message})\`;
+        liveStoreSub.textContent = \`\${loc} skipped (\${err.message})\`;
       }
 
       if (i < targetStores.length - 1 && !abortScan) {
@@ -1043,12 +1248,10 @@ function generateHunterCode(stores, tableHtml) {
     startBtn.innerHTML = '🛵 Scan Stores';
     startBtn.classList.remove('scanning');
     startBtn.disabled = false;
-    statusDot.className = 'sw-h-dot';
-    countBadge.style.display = searchResults.length ? 'inline-block' : 'none';
-    countBadge.textContent = \`\${searchResults.length} total\`;
-    statusText.textContent = abortScan
-      ? \`Scan stopped (\${searchResults.length} items found across \${storesWithItems} stores).\`
-      : \`✓ Done! Scanned \${targetStores.length} stores (\${searchResults.length} items found across \${storesWithItems} stores).\`;
+    liveStoreTitle.textContent = abortScan
+      ? \`Scan stopped (\${searchResults.length} items found)\`
+      : \`✓ Scan completed! (\${searchResults.length} items found)\`;
+    liveStoreSub.textContent = \`Covered \${storesWithItems} of \${targetStores.length} stores with inventory.\`;
     window.swiggyResults = searchResults;
 
     // Auto open results once done or stopped
