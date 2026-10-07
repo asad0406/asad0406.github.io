@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🛒 Blinkit MMR — Results</title>
+<style>
+  :root {
+    --bg:#0f172a; --panel:#1e293b; --border:#334155; --text:#f8fafc;
+    --muted:#94a3b8; --accent:#f8cb46; --green:#4ade80; --red:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);min-height:100vh;padding:28px 20px;
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto}
+
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+  .pill{background:rgba(248,203,70,.15);color:var(--accent);border:1px solid rgba(248,203,70,.35);
+    font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:20px}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.3px}
+  h1 span{color:var(--muted);font-weight:600}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .tile{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+  .tile .v{font-size:22px;font-weight:800;line-height:1.2}
+  .tile .v.good{color:var(--green)}
+
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  input[type=search]{flex:1;min-width:200px;background:var(--panel);border:1px solid var(--border);
+    color:var(--text);border-radius:9px;padding:10px 13px;font-size:14px}
+  label.chk{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--border);
+    border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13px;user-select:none;white-space:nowrap}
+  label.chk input{accent-color:var(--accent);cursor:pointer}
+  button{background:var(--panel);border:1px solid var(--border);color:#cbd5e1;border-radius:9px;
+    padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  button:hover{border-color:#475569}
+
+  .tablewrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:70vh}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{position:sticky;top:0;background:var(--panel);text-align:left;padding:10px 12px;font-size:11px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--border);
+    cursor:pointer;white-space:nowrap;z-index:1}
+  th:hover{color:var(--text)}
+  th.sorted::after{content:' ▾';color:var(--accent)}
+  th.sorted.asc::after{content:' ▴'}
+  td{padding:9px 12px;border-bottom:1px solid #1a2744;vertical-align:top}
+  tr:hover td{background:#16213a}
+  td a{color:var(--accent);text-decoration:none}
+  td a:hover{text-decoration:underline}
+  .dim{color:var(--muted)}
+  .price{font-weight:700;color:var(--green);white-space:nowrap}
+  .strike{text-decoration:line-through;color:var(--muted);white-space:nowrap}
+  .oos{color:var(--red);font-weight:600}
+  .empty{padding:50px 20px;text-align:center;color:var(--muted)}
+  footer{margin-top:18px;text-align:center;font-size:12px;color:#64748b}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="pill">MMR</span>
+    <h1>Blinkit Results <span id="q"></span></h1>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="controls">
+    <input type="search" id="filter" placeholder="Filter by product name or store id…">
+    <label class="chk"><input type="checkbox" id="instock"> In stock only</label>
+    <label class="chk"><input type="checkbox" id="noacc"> Hide accessories</label>
+    <button id="csv">⬇ CSV</button>
+    <button id="json">⬇ JSON</button>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th data-k="store_id">Store</th>
+        <th data-k="name">Product</th>
+        <th data-k="variant">Variant</th>
+        <th data-k="priceNum">Price</th>
+        <th data-k="mrp">MRP</th>
+        <th data-k="inventory">Stock</th>
+        <th data-k="merchant_id">Merchant</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="empty" id="empty">Waiting for scan data from the hunter…</div>
+  <footer>Blinkit MMR Hunter • <a href="./" style="color:#64748b">back to hunter</a></footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // accessory keywords — a search for a phone returns mostly cases and glass
+  var ACC = /cover|case|protector|glass|cable|charger|holder|stand|pouch|skin|guard|lens|strap|adapter|ring|mount|screen/i;
+
+  var all = [], query = '', sortKey = 'priceNum', sortAsc = true;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[^\d.]/g, '')) || 0; };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  };
+
+  function visible() {
+    var term = $('filter').value.trim().toLowerCase();
+    var onlyStock = $('instock').checked;
+    var hideAcc = $('noacc').checked;
+    return all.filter(function (r) {
+      if (onlyStock && !(+r.inventory > 0)) return false;
+      if (hideAcc && ACC.test(r.name || '')) return false;
+      if (term && (String(r.name || '') + ' ' + r.store_id).toLowerCase().indexOf(term) === -1) return false;
+      return true;
+    });
+  }
+
+  function tiles(list) {
+    var stores = {}, products = {}, inStock = 0, cheapest = Infinity, units = 0;
+    list.forEach(function (r) {
+      stores[r.store_id] = 1;
+      products[r.name] = 1;
+      units += +r.inventory || 0;
+      if (+r.inventory > 0) { inStock++; if (r.priceNum) cheapest = Math.min(cheapest, r.priceNum); }
+    });
+    var t = [
+      ['Rows', list.length],
+      ['Stores', Object.keys(stores).length],
+      ['Distinct products', Object.keys(products).length],
+      ['In-stock listings', inStock],
+      ['Units available', units],
+      ['Cheapest in stock', cheapest === Infinity ? '—' : '₹' + cheapest.toLocaleString('en-IN'), 'good'],
+    ];
+    $('tiles').innerHTML = t.map(function (x) {
+      return '<div class="tile"><div class="k">' + x[0] + '</div><div class="v ' + (x[2] || '') + '">' + x[1] + '</div></div>';
+    }).join('');
+  }
+
+  function render() {
+    var list = visible();
+    tiles(list);
+
+    list.sort(function (a, b) {
+      var x = a[sortKey], y = b[sortKey];
+      if (sortKey === 'priceNum' || sortKey === 'inventory' || sortKey === 'store_id') {
+        x = +x || 0; y = +y || 0;
+      } else { x = String(x || ''); y = String(y || ''); }
+      return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1);
+    });
+
+    $('empty').style.display = list.length ? 'none' : 'block';
+    if (!list.length && all.length) $('empty').textContent = 'No rows match these filters.';
+
+    $('rows').innerHTML = list.map(function (r) {
+      var stock = +r.inventory > 0
+        ? r.inventory
+        : '<span class="oos">out</span>';
+      return '<tr>'
+        + '<td><a href="https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng + '" target="_blank" rel="noopener">' + esc(r.store_id) + '</a></td>'
+        + '<td>' + esc(r.name) + '</td>'
+        + '<td class="dim">' + esc(r.variant) + '</td>'
+        + '<td class="price">' + esc(r.price) + '</td>'
+        + '<td class="strike">' + esc(r.mrp) + '</td>'
+        + '<td>' + stock + '</td>'
+        + '<td class="dim">' + esc(r.merchant_id) + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function load(rows, q) {
+    all = (rows || []).map(function (r) {
+      r.priceNum = num(r.price);
+      return r;
+    });
+    query = q || '';
+    $('q').textContent = query ? '— "' + query + '"' : '';
+    document.title = '🛒 Blinkit MMR — ' + (query || 'Results');
+    $('empty').textContent = 'No rows match these filters.';
+    render();
+  }
+
+  // ---------- export ----------
+
+  function save(text, type, ext) {
+    var name = 'blinkit_' + (query || 'results').replace(/\W+/g, '_') + '_'
+      + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.' + ext;
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: type }));
+    a.download = name;
+    a.click();
+  }
+
+  $('csv').onclick = function () {
+    var cols = ['store_id', 'lat', 'lng', 'name', 'variant', 'price', 'mrp', 'inventory', 'merchant_id'];
+    var cell = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+    var body = visible().map(function (r) { return cols.map(function (c) { return cell(r[c]); }).join(','); });
+    save([cols.join(',')].concat(body).join('\n'), 'text/csv', 'csv');
+  };
+  $('json').onclick = function () {
+    save(JSON.stringify(visible(), null, 2), 'application/json', 'json');
+  };
+
+  // ---------- wiring ----------
+
+  ['filter', 'instock', 'noacc'].forEach(function (id) {
+    $(id).addEventListener('input', render);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('th[data-k]'), function (th) {
+    th.onclick = function () {
+      var k = th.dataset.k;
+      sortAsc = sortKey === k ? !sortAsc : true;
+      sortKey = k;
+      Array.prototype.forEach.call(document.querySelectorAll('th'), function (o) { o.className = ''; });
+      th.className = 'sorted' + (sortAsc ? ' asc' : '');
+      render();
+    };
+  });
+
+  // The hunter runs on blinkit.com, so it cannot share storage with this page.
+  // It hands the rows over by postMessage once we announce we are listening.
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (d && d.type === 'bk-data') load(d.rows, d.query);
+  });
+  if (window.opener) {
+    try { window.opener.postMessage({ type: 'bk-ready' }, '*'); } catch (err) {}
+  }
+
+  // standalone use: drop a JSON export onto the page
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer.files[0];
+    if (!f) return;
+    f.text().then(function (t) {
+      try { load(JSON.parse(t), f.name); } catch (err) { $('empty').textContent = 'Not valid JSON: ' + err.message; }
+    });
+  });
+})();
+</script>
+</body>
+</html>

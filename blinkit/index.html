@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛒 Blinkit MMR Hunter - Multi-Store Price Scanner</title>
+    <style>
+        :root {
+            --primary: #f8cb46;
+            --primary-dark: #eab308;
+            --ink: #0f172a;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-dark);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+        .container { max-width: 860px; margin: 0 auto; }
+
+        .header { text-align: center; margin-bottom: 36px; }
+        .badge-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #fefce8; color: #a16207;
+            font-size: 13px; font-weight: 700;
+            padding: 4px 14px; border-radius: 20px;
+            border: 1px solid #fde68a; margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 34px; font-weight: 800; color: var(--text-dark);
+            margin-bottom: 10px; letter-spacing: -0.5px;
+        }
+        .subtitle {
+            font-size: 16px; color: var(--text-muted);
+            max-width: 620px; margin: 0 auto;
+        }
+
+        .bookmark-card {
+            background: var(--card-bg); border: 2px dashed #fcd34d;
+            border-radius: 16px; padding: 36px 24px; text-align: center;
+            box-shadow: 0 10px 30px rgba(248, 203, 70, 0.14);
+            margin-bottom: 36px; position: relative;
+        }
+        .drag-instruction {
+            font-size: 14px; font-weight: 600; color: #a16207;
+            margin-bottom: 18px; display: flex;
+            align-items: center; justify-content: center; gap: 6px;
+        }
+        .draggable-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            color: var(--ink); font-size: 17px; font-weight: 800;
+            padding: 15px 34px; border-radius: 12px; text-decoration: none;
+            box-shadow: 0 6px 18px rgba(248, 203, 70, 0.45);
+            cursor: grab; transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .draggable-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 26px rgba(248, 203, 70, 0.6);
+        }
+        .drag-tip {
+            font-size: 13px; color: var(--text-muted); margin-top: 18px;
+        }
+
+        .copy-box {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 14px; padding: 22px 24px; margin-bottom: 36px;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap;
+        }
+        .copy-info { font-size: 14px; color: var(--text-muted); flex: 1; min-width: 240px; }
+        .copy-btn {
+            background: #ffffff; color: #a16207; border: 1px solid #cbd5e1;
+            border-radius: 9px; padding: 11px 18px; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s ease;
+        }
+        .copy-btn:hover { border-color: var(--primary-dark); }
+
+        .steps-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 18px; margin-bottom: 36px;
+        }
+        .step-card {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 14px; padding: 22px 20px;
+        }
+        .step-num {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: var(--primary); color: var(--ink);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; margin-bottom: 12px;
+        }
+        .step-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+        .step-card p { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; }
+
+        .feature-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px; margin-bottom: 36px;
+        }
+        .feat-item {
+            display: flex; gap: 12px; background: var(--card-bg);
+            border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+        }
+        .feat-icon { font-size: 22px; line-height: 1.2; }
+        .feat-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+        .feat-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; }
+
+        .footer {
+            text-align: center; font-size: 13px; color: var(--text-muted);
+            padding-top: 20px; border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <div class="header">
+            <div class="badge-pill">🛒 146 MMR Dark Stores Pre-loaded • Mumbai to Virar, Panvel &amp; Alibag</div>
+            <h1>Blinkit MMR Hunter</h1>
+            <p class="subtitle">Search any product across all 146 Blinkit dark stores in the Mumbai Metropolitan Region at once — live prices, MRP, stock counts, and which store is cheapest. Zero browser extensions.</p>
+        </div>
+
+        <!-- Draggable Button Card -->
+        <div class="bookmark-card">
+            <div class="drag-instruction">
+                👇 Drag this button to your Bookmarks Bar:
+            </div>
+
+            <a href="javascript:(function(){fetch('https://asad0406.github.io/blinkit/blinkit-hunter.js?t='+Date.now()).then(r=>r.text()).then(t=>new Function(t)()).catch(e=>alert('Hunter error: '+e));})();"
+               class="draggable-btn"
+               title="Drag me to your Bookmarks bar!">
+                🛒 Blinkit Hunter
+            </a>
+
+            <div class="drag-tip">
+                💡 <b>Tip:</b> If your bookmarks bar is hidden, press <b>Ctrl + Shift + B</b> (or <b>Cmd + Shift + B</b> on Mac) to show it.
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 18px; border-top: 1px dashed #fde68a; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                <a href="../index.html" style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;">
+                    ← All Hunters Hub
+                </a>
+            </div>
+        </div>
+
+        <!-- Copy Alternative -->
+        <div class="copy-box">
+            <div class="copy-info">
+                Prefer manual bookmark creation or on mobile? Copy the bookmarklet code directly:
+            </div>
+            <button class="copy-btn" id="copyBtn" onclick="copyBookmarklet()">📋 Copy Bookmarklet Code</button>
+        </div>
+
+        <!-- Instructions -->
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <h3>Add Bookmark</h3>
+                <p>Drag the <b>🛒 Blinkit Hunter</b> button above into your browser's bookmarks bar.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <h3>Open Blinkit</h3>
+                <p>Navigate to <a href="https://blinkit.com" target="_blank" style="color: #a16207; font-weight: 600;">blinkit.com</a> in your browser.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <h3>Scan &amp; Compare</h3>
+                <p>Click your bookmark, type a query, and hit <b>Scan MMR</b>. Results fill in live, cheapest first.</p>
+            </div>
+        </div>
+
+        <!-- Feature Highlights -->
+        <div class="feature-grid">
+            <div class="feat-item">
+                <div class="feat-icon">🏬</div>
+                <div>
+                    <div class="feat-title">146 MMR Dark Stores</div>
+                    <div class="feat-desc">Store IDs and coordinates covering Mumbai, Thane, Navi Mumbai, Kalyan-Dombivli, Vasai-Virar, Panvel and Alibag.</div>
+                </div>
+            </div>
+            <div class="feat-item">
+                <div class="feat-icon">🐢</div>
+                <div>
+                    <div class="feat-title">Rate-Limit Safe</div>
+                    <div class="feat-desc">Adjustable delay between stores, exponential backoff on HTTP 429, and an automatic retry pass for any store that still failed.</div>
+                </div>
+            </div>
+            <div class="feat-item">
+                <div class="feat-icon">💸</div>
+                <div>
+                    <div class="feat-title">Cheapest Store First</div>
+                    <div class="feat-desc">Live price, MRP, stock count and merchant ID per store, sorted so the best deal sits on top.</div>
+                </div>
+            </div>
+            <div class="feat-item">
+                <div class="feat-icon">📊</div>
+                <div>
+                    <div class="feat-title">Full Results Page</div>
+                    <div class="feat-desc">Sortable table with live summary tiles, a <b>Hide accessories</b> filter that strips cases and tempered glass, plus JSON &amp; CSV export.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Built for Blinkit Mumbai MMR • Hosted on GitHub Pages: <a href="https://github.com/asad0406/asad0406.github.io" target="_blank" style="color: #a16207; text-decoration: none;">asad0406.github.io</a>
+        </div>
+
+    </div>
+
+    <script>
+        const bookmarkletCode = "javascript:(function(){fetch('https://asad0406.github.io/blinkit/blinkit-hunter.js?t='+Date.now()).then(r=>r.text()).then(t=>new Function(t)()).catch(e=>alert('Hunter error: '+e));})();";
+
+        function copyBookmarklet() {
+            navigator.clipboard.writeText(bookmarkletCode).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.innerText = '✓ Copied to Clipboard!';
+                btn.style.background = '#10b981';
+                btn.style.color = '#ffffff';
+                btn.style.borderColor = '#10b981';
+                setTimeout(() => {
+                    btn.innerText = '📋 Copy Bookmarklet Code';
+                    btn.style.background = '#ffffff';
+                    btn.style.color = '#a16207';
+                    btn.style.borderColor = '#cbd5e1';
+                }, 2000);
+            }).catch(err => {
+                alert('Could not copy automatically. Code: ' + bookmarkletCode);
+            });
+        }
+    </script>
+</body>
+</html>

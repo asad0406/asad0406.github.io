@@ -13,6 +13,7 @@
             --border: #334155;
             --swiggy: #ff7a1a;
             --fk-blue: #2874f0;
+            --blinkit: #f8cb46;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -84,6 +85,10 @@
             border-color: rgba(0, 229, 190, 0.5);
             box-shadow: 0 20px 40px rgba(0, 229, 190, 0.15);
         }
+        .card.blinkit:hover {
+            border-color: rgba(248, 203, 70, 0.5);
+            box-shadow: 0 20px 40px rgba(248, 203, 70, 0.15);
+        }
         .icon {
             font-size: 40px;
             margin-bottom: 16px;
@@ -108,6 +113,11 @@
             background: rgba(40, 116, 240, 0.15);
             color: #60a5fa;
             border: 1px solid rgba(40, 116, 240, 0.3);
+        }
+        .card.blinkit .badge {
+            background: rgba(248, 203, 70, 0.15);
+            color: var(--blinkit);
+            border: 1px solid rgba(248, 203, 70, 0.3);
         }
         .card.croma .badge {
             background: rgba(0, 229, 190, 0.15);
@@ -153,6 +163,14 @@
         .card.flipkart .btn:hover {
             box-shadow: 0 6px 20px rgba(40, 116, 240, 0.45);
         }
+        .card.blinkit .btn {
+            background: linear-gradient(135deg, #eab308 0%, #f8cb46 100%);
+            color: #0f172a;
+            box-shadow: 0 4px 14px rgba(248, 203, 70, 0.3);
+        }
+        .card.blinkit .btn:hover {
+            box-shadow: 0 6px 20px rgba(248, 203, 70, 0.45);
+        }
         .card.croma .btn {
             background: linear-gradient(135deg, #008f72 0%, #00e5be 100%);
             color: #0b1118;
@@ -178,6 +196,7 @@
 
         <div class="grid">
             <!-- Swiggy Instamart Card -->
+            <div class="card swiggy">
                 <div>
                     <div class="icon">🛵</div>
                     <span class="badge">112 Mumbai Dark Stores</span>
@@ -186,7 +205,6 @@
                 </div>
                 <div style="display:flex;gap:10px;flex-direction:column;">
                     <a href="swiggy-instamart/" class="btn">🛵 Launch Swiggy Hunter ↗</a>
-                    <a href="swiggy-instamart/map.html" class="btn" style="background:#334155;color:#f8fafc;box-shadow:none;">🗺️ Interactive Pods Map (112 Stores) ↗</a>
                 </div>
             </div>
 
@@ -199,6 +217,17 @@
                     <p>Scans hyperlocal deal pricing, live inventory, and delivery SLAs across 55 Mumbai dark stores directly on Flipkart with interactive maps.</p>
                 </div>
                 <a href="flipkart-minutes/" class="btn">⚡ Launch Flipkart Hunter ↗</a>
+            </div>
+
+            <!-- Blinkit MMR Hunter Card -->
+            <div class="card blinkit">
+                <div>
+                    <div class="icon">🛒</div>
+                    <span class="badge">146 MMR Dark Stores</span>
+                    <h2>Blinkit MMR Hunter</h2>
+                    <p>Scans live prices, MRP, stock counts, and merchant IDs across all 146 Blinkit dark stores in the Mumbai Metropolitan Region, cheapest store first.</p>
+                </div>
+                <a href="blinkit/" class="btn">🛒 Launch Blinkit Hunter ↗</a>
             </div>
 
             <!-- Croma Mumbai Hunter Card -->
