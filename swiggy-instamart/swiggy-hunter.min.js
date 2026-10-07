@@ -1,7 +1,7 @@
 /**
- * 🛵 Swiggy Instamart Multi-Store Hunter v1.0
+ * 🛵 Swiggy Instamart Multi-Store Hunter & Real-Time Health Auditor v2.0
  * Injects a floating interactive search GUI directly on swiggy.com/instamart
- * to scan all 112 Mumbai dark stores (with pre-saved live addresses).
+ * to scan products & audit store serviceability across all 112 Mumbai dark stores.
  */
 (function() {
   if (window.__SWIGGY_HUNTER_LOADED__) {
@@ -19,7 +19,7 @@
   const IMG_BASE = 'https://instamart-media-assets.swiggy.com/swiggy/image/upload/';
 
   let lastRequestAt = 0;
-  const REQUEST_GAP_MS = 1100;
+  const REQUEST_GAP_MS = 1000;
 
   async function rateLimitedFetch(...args) {
     const wait = lastRequestAt + REQUEST_GAP_MS - Date.now();
@@ -47,21 +47,128 @@
     const json = await res.json();
     if (json.statusCode === 400) throw new Error(`not serviceable (${lat}, ${lng})`);
     if (json.statusCode !== 0) throw new Error('select-location statusCode ' + json.statusCode + ' ' + (json.statusMessage || ''));
+    return json;
   }
 
-  async function getAddressViaApi(lat, lng) {
-    const res = await rateLimitedFetch(`/api/instamart/maps/address-widgets/v2?lat=${lat}&lng=${lng}`, {
-      method: 'GET',
-      credentials: 'same-origin',
-      headers: { accept: '*/*' },
-    });
-    if (!res.ok) throw new Error('address-widgets HTTP ' + res.status);
+  async function checkStoreStatusViaApi(store) {
+    const [podId, loc, lat, lng, defaultAddress, defaultPin] = store;
+    const label = loc || `${lat}, ${lng}`;
+    
+    let res;
+    try {
+      res = await rateLimitedFetch('/api/instamart/home/select-location/v2', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json', accept: '*/*' },
+        body: JSON.stringify({ data: { lat, lng, address: label, addressId: '', annotation: label, clientId: 'INSTAMART-APP' } }),
+      });
+    } catch (e) {
+      return {
+        store_id: podId || '',
+        store_locality: loc || '',
+        store_address: defaultAddress || '',
+        store_pincode: defaultPin || '',
+        maps_url: `https://www.google.com/maps?q=${lat},${lng}`,
+        status: 'Unserviceable',
+        status_type: 'unserviceable',
+        eta: '-',
+        message: 'Network / connection error',
+        is_health: true
+      };
+    }
+
+    if (!res.ok) {
+      return {
+        store_id: podId || '',
+        store_locality: loc || '',
+        store_address: defaultAddress || '',
+        store_pincode: defaultPin || '',
+        maps_url: `https://www.google.com/maps?q=${lat},${lng}`,
+        status: res.status === 400 ? 'Unserviceable' : 'Error',
+        status_type: res.status === 400 ? 'unserviceable' : 'error',
+        eta: '-',
+        message: `HTTP ${res.status}`,
+        is_health: true
+      };
+    }
+
     const json = await res.json();
-    const addr = (json.data && json.data.address) || {};
-    const meta = addr.metadata || {};
+    if (json.statusCode === 400) {
+      return {
+        store_id: podId || '',
+        store_locality: loc || '',
+        store_address: defaultAddress || '',
+        store_pincode: defaultPin || '',
+        maps_url: `https://www.google.com/maps?q=${lat},${lng}`,
+        status: 'Unserviceable',
+        status_type: 'unserviceable',
+        eta: '-',
+        message: 'Out of Swiggy delivery coverage',
+        is_health: true
+      };
+    }
+
+    const cards = (json.data && json.data.cards) || [];
+    let isClosed = false;
+    let isComingSoon = false;
+    let eta = '';
+    let statusMsg = '';
+
+    for (const c of cards) {
+      const cardData = c.card && c.card.card;
+      if (!cardData) continue;
+      
+      const layout = cardData.layout || {};
+      const bgAsset = String(layout.backgroundAssetId || '');
+      if (bgAsset.toLowerCase().includes('closed')) {
+        isClosed = true;
+      }
+
+      const elements = (cardData.gridElements && cardData.gridElements.infoWithStyle && cardData.gridElements.infoWithStyle.info) || [];
+      for (const el of elements) {
+        const dyn = el.dynamicWidget;
+        if (dyn && dyn.templateValues) {
+          const titleText = dyn.templateValues.title && dyn.templateValues.title.value && dyn.templateValues.title.value.text;
+          if (titleText && titleText.toLowerCase().includes('coming soon')) {
+            isComingSoon = true;
+            statusMsg = titleText;
+          }
+        }
+      }
+
+      if (cardData.slaDetails && cardData.slaDetails.slaString) {
+        eta = cardData.slaDetails.slaString;
+      }
+    }
+
+    if (!eta) {
+      const rawText = JSON.stringify(cards);
+      const etaMatch = rawText.match(/(\d+\s*-\s*\d+\s*MINS?|\d+\s*MINS?)/i);
+      if (etaMatch) eta = etaMatch[1];
+    }
+
+    let status = 'Live & Active';
+    let statusType = 'live';
+
+    if (isComingSoon) {
+      status = 'Coming Soon';
+      statusType = 'coming_soon';
+    } else if (isClosed) {
+      status = 'Temporarily Closed';
+      statusType = 'closed';
+    }
+
     return {
-      address: meta.formattedAddress || addr.subtitle || addr.title || '',
-      pincode: meta.postalCode || '',
+      store_id: podId || '',
+      store_locality: loc || '',
+      store_address: defaultAddress || '',
+      store_pincode: defaultPin || '',
+      maps_url: `https://www.google.com/maps?q=${lat},${lng}`,
+      status: status,
+      status_type: statusType,
+      eta: eta || (statusType === 'live' ? 'Active' : '-'),
+      message: statusMsg || (statusType === 'live' ? 'Delivering now' : (statusType === 'closed' ? 'Store temporarily paused' : 'Coming soon to area')),
+      is_health: true
     };
   }
 
@@ -121,94 +228,6 @@
     return products;
   }
 
-  // DOM Search fallback
-  function realClick(el) {
-    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
-      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
-    }
-  }
-
-  function typeInto(input, text) {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    input.focus();
-    setter.call(input, text);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  async function waitForEl(fn, timeout = 7000, step = 150) {
-    const t0 = Date.now();
-    while (Date.now() - t0 < timeout) {
-      const v = fn();
-      if (v) return v;
-      await sleep(step);
-    }
-    throw new Error('timeout waiting for DOM element');
-  }
-
-  async function runSearchDom(query) {
-    let box = document.querySelector('[data-testid="search-page-header-search-bar-input"]');
-    if (!box) {
-      const trigger = document.querySelector('[data-testid="search-container"]');
-      if (trigger) realClick(trigger);
-      box = await waitForEl(() => document.querySelector('[data-testid="search-page-header-search-bar-input"]'));
-    }
-    typeInto(box, query);
-    await sleep(200);
-    const form = box.closest('form');
-    if (form) form.requestSubmit();
-    await waitForEl(() => document.querySelector('[data-testid="item-collection-card-full"]'), 10000, 100);
-  }
-
-  function findScroller() {
-    let el = document.querySelector('[data-testid="item-collection-card-full"]');
-    while (el) {
-      const oy = getComputedStyle(el).overflowY;
-      if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
-      el = el.parentElement;
-    }
-    return document.scrollingElement || document.body;
-  }
-
-  async function loadAllResultsDom(maxRounds = 40, patienceMs = 1200) {
-    const scroller = findScroller();
-    const cardCount = () => document.querySelectorAll('[data-testid="item-collection-card-full"]').length;
-    let last = cardCount(), lastHeight = scroller.scrollHeight, idle = 0;
-    for (let i = 0; i < maxRounds && idle < 2; i++) {
-      scroller.scrollTop = scroller.scrollHeight;
-      const t0 = Date.now();
-      let grew = false;
-      while (Date.now() - t0 < patienceMs) {
-        await sleep(90);
-        if (cardCount() > last || scroller.scrollHeight > lastHeight) { grew = true; break; }
-      }
-      if (grew) await sleep(150);
-      last = cardCount();
-      lastHeight = scroller.scrollHeight;
-      idle = grew ? 0 : idle + 1;
-    }
-  }
-
-  function cardDataFiber(card) {
-    const rk = Object.keys(card).find(k => k.startsWith('__reactInternalInstance') || k.startsWith('__reactFiber'));
-    let fiber = rk ? card[rk] : null;
-    for (let i = 0; fiber && i < 10; i++, fiber = fiber['return']) {
-      const d = fiber.memoizedProps && fiber.memoizedProps.data;
-      if (d && Array.isArray(d.variations)) return d;
-    }
-    return null;
-  }
-
-  async function searchViaDom(query) {
-    await runSearchDom(query);
-    await loadAllResultsDom();
-    const products = [];
-    for (const card of document.querySelectorAll('[data-testid="item-collection-card-full"]')) {
-      const d = cardDataFiber(card);
-      if (d) products.push(d);
-    }
-    return products;
-  }
-
   function productsToRows(products, store) {
     const seen = new Set();
     const rows = [];
@@ -258,6 +277,8 @@
   let isScanning = false;
   let abortScan = false;
   let searchResults = [];
+  let healthResults = [];
+  let currentMode = 'search'; // 'search' | 'health'
   let resultsOpenedForScan = false;
 
   // 1. Inject Styles
@@ -349,12 +370,42 @@
       transform: scale(1.05);
     }
 
+    /* Mode Tabs */
+    .sw-h-tabs {
+      display: flex;
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .sw-h-tab {
+      flex: 1;
+      padding: 7px 10px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .sw-h-tab.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
     .sw-h-body {
       padding: 16px 18px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 13px;
+      gap: 12px;
     }
 
     /* Search row */
@@ -390,7 +441,7 @@
       border: none;
       background: transparent;
       padding: 10px 0;
-      font-size: 13.5px;
+      font-size: 13px;
       color: #0f172a;
       outline: none;
       font-weight: 500;
@@ -414,14 +465,14 @@
     }
     .sw-h-clear-btn:hover { background: #cbd5e1; color: #0f172a; }
 
-    /* Scan Action Button (Primary) */
+    /* Action Buttons */
     .sw-h-submit {
       background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
       color: #ffffff;
       border: none;
-      padding: 10px 18px;
+      padding: 10px 16px;
       border-radius: 10px;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -439,6 +490,24 @@
     .sw-h-submit.scanning {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+    }
+
+    /* Health Mode Box */
+    .sw-h-health-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .sw-h-health-desc {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+      flex: 1;
     }
 
     /* Filter Options Row */
@@ -603,7 +672,7 @@
 
     /* Live Preview Table */
     .sw-h-results-box {
-      max-height: 190px;
+      max-height: 180px;
       overflow-y: auto;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
@@ -669,6 +738,22 @@
     .sw-h-stock { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
     .sw-h-in { background: #ecfdf5; color: #065f46; }
     .sw-h-out { background: #fef2f2; color: #991b1b; }
+
+    /* Store Health Badges in HUD */
+    .sw-h-health-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sw-h-health-pill.live { background: #ecfdf5; color: #065f46; }
+    .sw-h-health-pill.closed { background: #fffbeb; color: #92400e; }
+    .sw-h-health-pill.coming_soon { background: #fef2f2; color: #991b1b; }
+    .sw-h-health-pill.unserviceable { background: #f1f5f9; color: #475569; }
 
     /* Results Ready Banner */
     .sw-h-banner {
@@ -808,24 +893,43 @@
       </div>
     </div>
     <div class="sw-h-body">
+      <!-- Mode Tabs -->
+      <div class="sw-h-tabs">
+        <button class="sw-h-tab active" id="sw-tab-search">🔍 Search Products</button>
+        <button class="sw-h-tab" id="sw-tab-health">🏥 Store Health Audit</button>
+      </div>
+
       <!-- Search Input Area -->
-      <div class="sw-h-search-box">
-        <div class="sw-h-input-wrap">
-          <span class="sw-h-search-icon">🔍</span>
-          <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, butter, atta)..." autocomplete="off" />
-          <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
+      <div id="sw-h-search-section">
+        <div class="sw-h-search-box">
+          <div class="sw-h-input-wrap">
+            <span class="sw-h-search-icon">🔍</span>
+            <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, mobile, lays)..." autocomplete="off" />
+            <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
+          </div>
+          <button id="sw-h-start-btn" class="sw-h-submit">▶ Start Scan</button>
         </div>
-        <button id="sw-h-start-btn" class="sw-h-submit">▶ Start Scan</button>
+      </div>
+
+      <!-- Store Health Audit Area -->
+      <div id="sw-h-health-section" style="display: none;">
+        <div class="sw-h-health-box">
+          <div class="sw-h-health-desc">
+            <b>⚡ Real-Time Pod Health Audit</b><br>
+            Pings Swiggy's live API to verify which of the 112 dark stores are actively delivering, closed, or coming soon.
+          </div>
+          <button id="sw-h-health-btn" class="sw-h-submit" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); box-shadow: 0 3px 10px rgba(5, 150, 105, 0.35);">⚡ Run Audit</button>
+        </div>
       </div>
 
       <!-- Settings Row -->
       <div class="sw-h-options">
-        <label class="sw-h-check">
+        <label class="sw-h-check" id="sw-h-instock-wrap">
           <input type="checkbox" id="sw-h-instock" checked />
           <span>In-Stock Only</span>
         </label>
         <div class="sw-h-store-wrap">
-          <span>Store:</span>
+          <span>Target:</span>
           <select id="sw-h-store" class="sw-h-select">
             <option value="all">All ${STORES.length} Stores</option>
             ${STORES.map((s, i) => `<option value="${i}">${s[1]}</option>`).join('')}
@@ -841,7 +945,7 @@
           <div class="sw-h-live-store-info">
             <span class="sw-h-pulse-dot"></span>
             <div>
-              <div class="sw-h-live-store-title" id="sw-live-store-title">Ready to scan...</div>
+              <div class="sw-h-live-store-title" id="sw-live-store-title">Ready...</div>
               <div class="sw-h-live-store-sub" id="sw-live-store-sub">Ready</div>
             </div>
           </div>
@@ -857,23 +961,23 @@
       <!-- Live Stats -->
       <div class="sw-h-summary" id="sw-h-summary">
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-items">0</div>
-          <div class="sw-h-sum-lbl">Items Found</div>
+          <div class="sw-h-sum-val" id="sw-sum-val1">0</div>
+          <div class="sw-h-sum-lbl" id="sw-sum-lbl1">Items Found</div>
         </div>
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-stores">0</div>
-          <div class="sw-h-sum-lbl">Stores w/ Stock</div>
+          <div class="sw-h-sum-val" id="sw-sum-val2">0</div>
+          <div class="sw-h-sum-lbl" id="sw-sum-lbl2">Stores w/ Stock</div>
         </div>
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-min" style="color: #059669;">-</div>
-          <div class="sw-h-sum-lbl">Lowest Price</div>
+          <div class="sw-h-sum-val" id="sw-sum-val3" style="color: #059669;">-</div>
+          <div class="sw-h-sum-lbl" id="sw-sum-lbl3">Lowest Price</div>
         </div>
       </div>
 
       <!-- Live Preview Table -->
       <div class="sw-h-results-box" id="sw-h-results">
         <table class="sw-h-table">
-          <thead>
+          <thead id="sw-h-thead">
             <tr>
               <th>Product</th>
               <th>Locality</th>
@@ -921,9 +1025,15 @@
   document.body.appendChild(launcher);
 
   // UI Event Handlers
+  const tabSearch = document.getElementById('sw-tab-search');
+  const tabHealth = document.getElementById('sw-tab-health');
+  const searchSection = document.getElementById('sw-h-search-section');
+  const healthSection = document.getElementById('sw-h-health-section');
+  const instockWrap = document.getElementById('sw-h-instock-wrap');
   const queryInput = document.getElementById('sw-h-query');
   const clearBtn = document.getElementById('sw-h-clear');
   const startBtn = document.getElementById('sw-h-start-btn');
+  const healthBtn = document.getElementById('sw-h-health-btn');
   const closeBtn = document.getElementById('sw-h-close');
   const minBtn = document.getElementById('sw-h-min');
   const liveCard = document.getElementById('sw-h-live-card');
@@ -933,8 +1043,15 @@
   const banner = document.getElementById('sw-h-banner');
   const pbar = document.getElementById('sw-h-pbar');
   const resultsBox = document.getElementById('sw-h-results');
+  const thead = document.getElementById('sw-h-thead');
   const tableBody = document.getElementById('sw-h-table-body');
   const summaryBox = document.getElementById('sw-h-summary');
+  const sumVal1 = document.getElementById('sw-sum-val1');
+  const sumVal2 = document.getElementById('sw-sum-val2');
+  const sumVal3 = document.getElementById('sw-sum-val3');
+  const sumLbl1 = document.getElementById('sw-sum-lbl1');
+  const sumLbl2 = document.getElementById('sw-sum-lbl2');
+  const sumLbl3 = document.getElementById('sw-sum-lbl3');
   const csvBtn = document.getElementById('sw-h-csv');
   const pageBtn = document.getElementById('sw-h-page');
   const storeSelect = document.getElementById('sw-h-store');
@@ -945,6 +1062,39 @@
   function updateStatusWarn(text) {
     if (liveStoreSub) liveStoreSub.textContent = text;
   }
+
+  // Switch Tabs
+  tabSearch.onclick = () => {
+    if (isScanning) return;
+    currentMode = 'search';
+    tabSearch.classList.add('active');
+    tabHealth.classList.remove('active');
+    searchSection.style.display = 'block';
+    healthSection.style.display = 'none';
+    instockWrap.style.display = 'flex';
+    thead.innerHTML = '<tr><th>Product</th><th>Locality</th><th>Price</th><th>Stock</th></tr>';
+    sumLbl1.textContent = 'Items Found';
+    sumLbl2.textContent = 'Stores w/ Stock';
+    sumLbl3.textContent = 'Lowest Price';
+    sumVal3.style.color = '#059669';
+    updateResultsButton(searchResults.length);
+  };
+
+  tabHealth.onclick = () => {
+    if (isScanning) return;
+    currentMode = 'health';
+    tabHealth.classList.add('active');
+    tabSearch.classList.remove('active');
+    searchSection.style.display = 'none';
+    healthSection.style.display = 'block';
+    instockWrap.style.display = 'none';
+    thead.innerHTML = '<tr><th>Locality</th><th>Status</th><th>ETA</th><th>Pincode</th></tr>';
+    sumLbl1.textContent = '🟢 Live Stores';
+    sumLbl2.textContent = '🟡 Closed Stores';
+    sumLbl3.textContent = '🔴 Coming Soon';
+    sumVal3.style.color = '#991b1b';
+    updateResultsButton(healthResults.length);
+  };
 
   // Clear button
   queryInput.oninput = () => {
@@ -995,29 +1145,42 @@
   };
 
   function updateResultsButton(count) {
-    if (count > 0) {
-      pageBtn.className = 'sw-h-page-btn ready';
-      pageBtn.innerHTML = `📊 Open Results Table (${count.toLocaleString()} Items) ↗`;
+    if (currentMode === 'health') {
+      if (count > 0) {
+        pageBtn.className = 'sw-h-page-btn ready';
+        pageBtn.innerHTML = `📊 View Health Report (${count} Stores) ↗`;
+      } else {
+        pageBtn.className = 'sw-h-page-btn';
+        pageBtn.innerHTML = '📊 View Health Report (Not run yet)';
+      }
     } else {
-      pageBtn.className = 'sw-h-page-btn';
-      pageBtn.innerHTML = '📊 Results Table (No results yet)';
+      if (count > 0) {
+        pageBtn.className = 'sw-h-page-btn ready';
+        pageBtn.innerHTML = `📊 Open Results Table (${count.toLocaleString()} Items) ↗`;
+      } else {
+        pageBtn.className = 'sw-h-page-btn';
+        pageBtn.innerHTML = '📊 Results Table (No results yet)';
+      }
     }
   }
 
   function showResultsReadyBanner(items, query, opened) {
     if (!banner) return;
     banner.style.display = 'flex';
+    const isHealth = (query === 'Store Health Audit');
+    const noun = isHealth ? 'store audits' : 'products';
+
     if (opened) {
       banner.className = 'sw-h-banner opened';
       banner.innerHTML = `
-        <span>✨ <b>${items.length.toLocaleString()}</b> products found! Table opened in new tab ↗</span>
+        <span>✨ <b>${items.length.toLocaleString()}</b> ${noun} ready! Table opened in new tab ↗</span>
         <button id="sw-h-banner-btn" class="sw-h-banner-btn">View Again</button>
       `;
     } else {
       banner.className = 'sw-h-banner blocked';
       banner.innerHTML = `
-        <span>🛵 <b>${items.length.toLocaleString()}</b> products ready! Click to open table ↗</span>
-        <button id="sw-h-banner-btn" class="sw-h-banner-btn">Open Results</button>
+        <span>🛵 <b>${items.length.toLocaleString()}</b> ${noun} ready! Click to open report ↗</span>
+        <button id="sw-h-banner-btn" class="sw-h-banner-btn">Open Report</button>
       `;
     }
     const bBtn = document.getElementById('sw-h-banner-btn');
@@ -1043,7 +1206,7 @@
     if (e.key === 'Enter') startBtn.click();
   });
 
-  // Main Search Runner
+  // 1. PRODUCT SEARCH SCANNER
   startBtn.onclick = async () => {
     const query = queryInput.value.trim();
     if (!query) {
@@ -1097,21 +1260,8 @@
       liveStoreSub.textContent = defaultAddress ? `📍 ${defaultAddress}` : 'Connecting to Swiggy pod...';
 
       try {
-        // Location update via Swiggy API
         await setLocationViaApi({ lat, lng, address: loc });
-
-        let products = [];
-        try {
-          products = await searchViaApi(query);
-        } catch (err) {
-          if (err.rateLimited) {
-            liveStoreSub.textContent = `Rate limit reached for ${loc}. Using DOM fallback...`;
-            products = await searchViaDom(query);
-          } else {
-            throw err;
-          }
-        }
-
+        const products = await searchViaApi(query);
         const rows = productsToRows(products, store);
         let storeAdded = false;
 
@@ -1124,7 +1274,6 @@
           const price = row.selling_price_inr;
           if (price && price < minPriceFound) minPriceFound = price;
 
-          // Append preview row to UI table
           const tr = document.createElement('tr');
           const imgTag = row.image_1
             ? `<img src="${row.image_1}" class="sw-h-thumb" onerror="this.outerHTML='<span style=\\'font-size:15px;\\'>🛵</span>'">`
@@ -1148,10 +1297,9 @@
 
         if (storeAdded) storesWithItems++;
 
-        // Update live metrics & footer button
-        document.getElementById('sw-sum-items').textContent = searchResults.length.toLocaleString();
-        document.getElementById('sw-sum-stores').textContent = `${storesWithItems}/${targetStores.length}`;
-        document.getElementById('sw-sum-min').textContent = minPriceFound < 999999 ? `₹${minPriceFound}` : '-';
+        sumVal1.textContent = searchResults.length.toLocaleString();
+        sumVal2.textContent = `${storesWithItems}/${targetStores.length}`;
+        sumVal3.textContent = minPriceFound < 999999 ? `₹${minPriceFound}` : '-';
         updateResultsButton(searchResults.length);
 
       } catch (err) {
@@ -1175,21 +1323,122 @@
     window.swiggyResults = searchResults;
     updateResultsButton(searchResults.length);
 
-    // Auto open results once done or stopped
     if (searchResults.length > 0 && !resultsOpenedForScan) {
       resultsOpenedForScan = true;
       openBlankResultsTable(searchResults, query, true);
     }
   };
 
-  const TABLE_PAGE_HTML = "<!doctype html>\r\n<html lang=\"en\">\r\n<head>\r\n  <meta charset=\"utf-8\">\r\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n  <title>🛵 Swiggy Instamart — Results</title>\r\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n  <link href=\"https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n  <style id=\"app-style\">\r\n    :root {\r\n      --ink: #1f1b16;\r\n      --paper: #edebdf;\r\n      --card: #ffffff;\r\n      --crate: #2b5235;\r\n      --crate-tint: #e4ede3;\r\n      --brick: #a6402b;\r\n      --brick-tint: #f4e5e0;\r\n      --swiggy: #ff7a1a;\r\n      --swiggy-dim: #e5660a;\r\n      --stone: #5b5648;\r\n      --line: #dcd8c8;\r\n      --display: \"Space Grotesk\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, system-ui, sans-serif;\r\n      --body: \"IBM Plex Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, system-ui, sans-serif;\r\n    }\r\n    * { box-sizing: border-box; }\r\n    body {\r\n      margin: 0;\r\n      font: 400 13px/1.5 var(--body);\r\n      background: var(--paper);\r\n      color: var(--ink);\r\n    }\r\n\r\n    header {\r\n      position: sticky;\r\n      top: 0;\r\n      z-index: 10;\r\n      background: var(--paper);\r\n      border-bottom: 2px solid var(--ink);\r\n      padding: 14px 20px 12px;\r\n    }\r\n    .top-row {\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: space-between;\r\n      gap: 14px;\r\n      flex-wrap: wrap;\r\n    }\r\n    .title-row {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 10px;\r\n    }\r\n    .title-logo {\r\n      font-size: 24px;\r\n      line-height: 1;\r\n      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));\r\n    }\r\n    .query-tag {\r\n      font-family: var(--display);\r\n      font-weight: 700;\r\n      font-size: 19px;\r\n      letter-spacing: -.01em;\r\n      background: var(--ink);\r\n      color: var(--paper);\r\n      padding: 5px 14px 6px;\r\n      border-radius: 3px;\r\n      transform: rotate(-.6deg);\r\n      display: inline-flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n    }\r\n    .query-tag .q-mark {\r\n      color: var(--swiggy);\r\n    }\r\n\r\n    #metaCard {\r\n      flex: none;\r\n      display: flex;\r\n      gap: 6px;\r\n      flex-wrap: wrap;\r\n    }\r\n    #metaCard .stat {\r\n      font-family: var(--display);\r\n      border: 1.5px solid var(--ink);\r\n      border-radius: 3px;\r\n      padding: 5px 11px;\r\n      color: var(--ink);\r\n      font-size: 11.5px;\r\n      font-weight: 600;\r\n      white-space: nowrap;\r\n      background: var(--card);\r\n    }\r\n    #metaCard .stat b {\r\n      color: var(--swiggy-dim);\r\n      font-weight: 700;\r\n    }\r\n\r\n    .toolbar {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 8px;\r\n      margin-top: 12px;\r\n      flex-wrap: nowrap;\r\n      overflow-x: auto;\r\n      white-space: nowrap;\r\n      padding-bottom: 2px;\r\n    }\r\n    .toolbar::-webkit-scrollbar {\r\n      height: 4px;\r\n    }\r\n    .toolbar::-webkit-scrollbar-thumb {\r\n      background: var(--line);\r\n      border-radius: 4px;\r\n    }\r\n    .toolbar .spacer {\r\n      flex: 1;\r\n      min-width: 8px;\r\n    }\r\n    input#filter, select.filter-select {\r\n      padding: 6px 11px;\r\n      border: 1.5px solid var(--line);\r\n      border-radius: 20px;\r\n      font-size: 12px;\r\n      background: var(--card);\r\n      color: var(--ink);\r\n      flex: 0 0 auto;\r\n      font-family: var(--body);\r\n      outline: none;\r\n      white-space: nowrap;\r\n    }\r\n    select.filter-select {\r\n      max-width: 140px;\r\n      cursor: pointer;\r\n    }\r\n    input#filter {\r\n      width: 160px;\r\n      flex: 0 1 auto;\r\n    }\r\n    input#filter:focus, select.filter-select:focus {\r\n      border-color: var(--swiggy);\r\n    }\r\n    button.tool-btn {\r\n      padding: 6px 13px;\r\n      border: 1.5px solid var(--line);\r\n      border-radius: 20px;\r\n      background: var(--card);\r\n      color: var(--ink);\r\n      font-size: 12px;\r\n      font-weight: 600;\r\n      cursor: pointer;\r\n      flex: 0 0 auto;\r\n      white-space: nowrap;\r\n      font-family: var(--body);\r\n      transition: all 0.15s;\r\n    }\r\n    button.tool-btn:hover {\r\n      border-color: var(--swiggy);\r\n    }\r\n    button.tool-btn.active {\r\n      background: var(--crate);\r\n      border-color: var(--crate);\r\n      color: #fff;\r\n    }\r\n    button.btn-primary {\r\n      background: var(--swiggy);\r\n      border: none;\r\n      color: #ffffff;\r\n      font-family: var(--display);\r\n      font-weight: 700;\r\n      padding: 7px 16px;\r\n      flex: 0 0 auto;\r\n      white-space: nowrap;\r\n    }\r\n    button.btn-primary:hover {\r\n      background: var(--swiggy-dim);\r\n    }\r\n\r\n    #tableWrap {\r\n      overflow: auto;\r\n      max-height: calc(100vh - 128px);\r\n      padding: 0 20px 20px;\r\n    }\r\n    table {\r\n      border-collapse: collapse;\r\n      width: 100%;\r\n      font-size: 12.5px;\r\n    }\r\n    thead th {\r\n      position: sticky;\r\n      top: 0;\r\n      background: var(--paper);\r\n      text-align: left;\r\n      padding: 10px 10px 8px;\r\n      border-bottom: 2px solid var(--ink);\r\n      font-weight: 600;\r\n      font-family: var(--display);\r\n      color: var(--ink);\r\n      white-space: nowrap;\r\n      cursor: pointer;\r\n      user-select: none;\r\n    }\r\n    thead th:hover {\r\n      color: var(--swiggy);\r\n    }\r\n    tbody td {\r\n      padding: 9px 10px;\r\n      border-bottom: 1px solid var(--line);\r\n      font-weight: 400;\r\n      max-width: 280px;\r\n      white-space: normal;\r\n      overflow-wrap: break-word;\r\n      vertical-align: middle;\r\n    }\r\n    tbody tr {\r\n      border-left: 4px solid transparent;\r\n      transition: background 0.1s;\r\n    }\r\n    tbody td.nowrap {\r\n      max-width: none;\r\n      white-space: nowrap;\r\n    }\r\n    tbody tr:hover {\r\n      background: #ffffff;\r\n    }\r\n    tbody tr.sold-out {\r\n      background: var(--brick-tint);\r\n      border-left-color: var(--brick);\r\n    }\r\n    tbody tr.sold-out:hover {\r\n      background: #efd6cf;\r\n    }\r\n    tbody tr.in-stock {\r\n      background: var(--crate-tint);\r\n      border-left-color: var(--crate);\r\n    }\r\n    tbody tr.in-stock:hover {\r\n      background: #d6e5d4;\r\n    }\r\n    td.num {\r\n      text-align: right;\r\n      font-variant-numeric: tabular-nums;\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n    }\r\n    td a {\r\n      color: var(--swiggy-dim);\r\n      text-decoration: none;\r\n      font-weight: 600;\r\n    }\r\n    td a:hover {\r\n      text-decoration: underline;\r\n    }\r\n\r\n    .prod-link {\r\n      color: var(--ink);\r\n      font-weight: 600;\r\n      line-height: 1.35;\r\n      display: -webkit-box;\r\n      -webkit-line-clamp: 2;\r\n      -webkit-box-orient: vertical;\r\n      overflow: hidden;\r\n    }\r\n    .prod-link:hover {\r\n      color: var(--swiggy-dim);\r\n    }\r\n    .brand-tag {\r\n      font-size: 10px;\r\n      font-weight: 700;\r\n      color: var(--stone);\r\n      text-transform: uppercase;\r\n      letter-spacing: 0.03em;\r\n      margin-bottom: 2px;\r\n    }\r\n    .qty-tag {\r\n      font-size: 11px;\r\n      font-weight: 600;\r\n      color: var(--stone);\r\n    }\r\n    .thumb {\r\n      height: 36px;\r\n      width: 36px;\r\n      object-fit: contain;\r\n      border-radius: 4px;\r\n      vertical-align: middle;\r\n      cursor: zoom-in;\r\n      background: #ffffff;\r\n      border: 1px solid var(--line);\r\n    }\r\n    .thumb-fallback {\r\n      height: 36px;\r\n      width: 36px;\r\n      border-radius: 4px;\r\n      background: var(--card);\r\n      border: 1px solid var(--line);\r\n      display: inline-flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      font-size: 16px;\r\n      color: var(--stone);\r\n      vertical-align: middle;\r\n    }\r\n\r\n    .view-btn {\r\n      border: 1.5px solid var(--line);\r\n      background: var(--card);\r\n      border-radius: 5px;\r\n      width: 26px;\r\n      height: 26px;\r\n      cursor: pointer;\r\n      font-size: 13px;\r\n      display: inline-flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      transition: all 0.15s;\r\n    }\r\n    .view-btn:hover {\r\n      border-color: var(--swiggy);\r\n      transform: scale(1.08);\r\n    }\r\n\r\n    #empty {\r\n      padding: 60px 20px;\r\n      text-align: center;\r\n      color: var(--stone);\r\n      font-family: var(--display);\r\n      font-size: 15px;\r\n      font-weight: 600;\r\n    }\r\n\r\n    /* Modals */\r\n    .modal-overlay {\r\n      position: fixed;\r\n      inset: 0;\r\n      background: rgba(31, 27, 22, .55);\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      z-index: 100;\r\n      padding: 20px;\r\n    }\r\n    .modal-card {\r\n      background: var(--card);\r\n      border-radius: 4px;\r\n      width: 490px;\r\n      max-width: 100%;\r\n      max-height: 88vh;\r\n      overflow-y: auto;\r\n      box-shadow: 0 24px 60px rgba(31,27,22,.4);\r\n      position: relative;\r\n    }\r\n    .modal-card::before {\r\n      content: \"\";\r\n      position: absolute;\r\n      top: -10px;\r\n      left: 50%;\r\n      transform: translateX(-50%);\r\n      width: 20px;\r\n      height: 20px;\r\n      background: radial-gradient(circle, transparent 60%, var(--card) 61%);\r\n    }\r\n    .modal-head {\r\n      display: flex;\r\n      gap: 12px;\r\n      align-items: center;\r\n      padding: 20px 20px 16px;\r\n      border-bottom: 2px dashed var(--line);\r\n      position: sticky;\r\n      top: 0;\r\n      background: var(--card);\r\n      z-index: 2;\r\n    }\r\n    .modal-head img {\r\n      width: 48px;\r\n      height: 48px;\r\n      border-radius: 6px;\r\n      object-fit: contain;\r\n      flex: none;\r\n      background: var(--paper);\r\n      border: 1px solid var(--line);\r\n    }\r\n    .modal-head .name {\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n      font-size: 14.5px;\r\n      line-height: 1.3;\r\n      flex: 1;\r\n    }\r\n    .modal-close {\r\n      cursor: pointer;\r\n      color: var(--stone);\r\n      font-size: 14px;\r\n      line-height: 1;\r\n      flex: none;\r\n      width: 26px;\r\n      height: 26px;\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      border-radius: 50%;\r\n      background: var(--paper);\r\n      user-select: none;\r\n    }\r\n    .modal-close:hover {\r\n      background: var(--line);\r\n      color: var(--ink);\r\n    }\r\n\r\n    .modal-grid {\r\n      display: grid;\r\n      grid-template-columns: 1fr 1fr;\r\n      gap: 14px;\r\n      padding: 16px 20px;\r\n    }\r\n    .modal-grid .full {\r\n      grid-column: 1 / -1;\r\n    }\r\n    .modal-field .k {\r\n      font-family: var(--display);\r\n      font-size: 10.5px;\r\n      font-weight: 600;\r\n      color: var(--stone);\r\n      margin-bottom: 3px;\r\n      border-left: 2px solid var(--swiggy);\r\n      padding-left: 6px;\r\n    }\r\n    .modal-field .v {\r\n      font-size: 12.5px;\r\n      line-height: 1.45;\r\n      word-break: break-word;\r\n      padding-left: 8px;\r\n    }\r\n\r\n    .modal-section {\r\n      padding: 14px 20px 18px;\r\n      border-top: 2px dashed var(--line);\r\n    }\r\n    .modal-section .sec-title {\r\n      font-family: var(--display);\r\n      font-size: 11px;\r\n      font-weight: 600;\r\n      color: var(--ink);\r\n      border-left: 2px solid var(--swiggy);\r\n      padding-left: 6px;\r\n    }\r\n    .price-row {\r\n      display: flex;\r\n      justify-content: space-between;\r\n      align-items: center;\r\n      gap: 10px;\r\n      padding: 8px 10px;\r\n      border-radius: 4px;\r\n      font-size: 12.5px;\r\n      margin-bottom: 4px;\r\n    }\r\n    .price-row .store {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n      flex: 1;\r\n      min-width: 0;\r\n      flex-wrap: wrap;\r\n    }\r\n    .price-row .amount {\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n      font-variant-numeric: tabular-nums;\r\n      flex: none;\r\n      white-space: nowrap;\r\n    }\r\n    .price-row.best {\r\n      background: var(--crate-tint);\r\n    }\r\n    .price-row.worst {\r\n      background: var(--brick-tint);\r\n    }\r\n    .price-row .amount.best {\r\n      color: var(--crate);\r\n    }\r\n    .price-row .amount.worst {\r\n      color: var(--brick);\r\n    }\r\n    .pill {\r\n      font-family: var(--display);\r\n      font-size: 9.5px;\r\n      font-weight: 700;\r\n      padding: 2px 7px;\r\n      border-radius: 3px;\r\n      display: inline-block;\r\n      width: fit-content;\r\n      color: #fff;\r\n    }\r\n    .pill.best {\r\n      background: var(--crate);\r\n    }\r\n    .pill.worst {\r\n      background: var(--brick);\r\n    }\r\n    .price-row .soldout {\r\n      color: var(--stone);\r\n      font-size: 11px;\r\n    }\r\n\r\n    .price-compare {\r\n      display: flex;\r\n      gap: 8px;\r\n      margin-bottom: 6px;\r\n    }\r\n    .price-card {\r\n      flex: 1 1 0;\r\n      min-width: 0;\r\n      display: flex;\r\n      flex-direction: column;\r\n      align-items: flex-start;\r\n      gap: 3px;\r\n      padding: 10px 12px;\r\n      border-radius: 4px;\r\n    }\r\n    .price-card.best {\r\n      background: var(--crate-tint);\r\n    }\r\n    .price-card.worst {\r\n      background: var(--brick-tint);\r\n    }\r\n    .price-card .pc-label {\r\n      font-size: 11.5px;\r\n      color: var(--stone);\r\n      margin-top: 3px;\r\n    }\r\n    .pc-amount-row {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n      margin-top: 2px;\r\n    }\r\n    .price-card .pc-amount {\r\n      font-family: var(--display);\r\n      font-size: 17px;\r\n      font-weight: 700;\r\n      font-variant-numeric: tabular-nums;\r\n    }\r\n    .price-card .pc-amount.best {\r\n      color: var(--crate);\r\n    }\r\n    .price-card .pc-amount.worst {\r\n      color: var(--brick);\r\n    }\r\n    .save-tag {\r\n      font-family: var(--body);\r\n      font-size: 10.5px;\r\n      font-weight: 600;\r\n      color: #fff;\r\n      padding: 2px 7px;\r\n      border-radius: 10px;\r\n      background: var(--crate);\r\n    }\r\n\r\n    .toggle-stores {\r\n      display: inline-block;\r\n      cursor: pointer;\r\n      color: var(--swiggy-dim);\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n      font-size: 11.5px;\r\n      margin: 6px 0 0 8px;\r\n      user-select: none;\r\n    }\r\n    .toggle-stores:hover {\r\n      color: var(--ink);\r\n      text-decoration: underline;\r\n    }\r\n\r\n    .table-status-bar {\r\n      text-align: center;\r\n      padding: 16px 20px 24px;\r\n      font-size: 12px;\r\n      color: var(--stone);\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n    }\r\n    #empty {\r\n      text-align: center;\r\n      padding: 60px 20px;\r\n      font-size: 15px;\r\n      color: var(--stone);\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n    }\r\n\r\n    @media (max-width: 800px) {\r\n      header { padding: 12px 14px; }\r\n      .toolbar { gap: 6px; }\r\n      #tableWrap { padding: 0 10px 14px; }\r\n    }\r\n  </style>\r\n</head>\r\n<body>\r\n\r\n  <header>\r\n    <div class=\"top-row\">\r\n      <div class=\"title-row\">\r\n        <span class=\"title-logo\">🛵</span>\r\n        <span class=\"query-tag\" id=\"titleTag\">\r\n          <span class=\"q-mark\">#</span><span id=\"queryLabel\">Instamart Hunter</span>\r\n        </span>\r\n      </div>\r\n      <div id=\"metaCard\"></div>\r\n    </div>\r\n    <div class=\"toolbar\">\r\n      <select id=\"filterStore\" class=\"filter-select\">\r\n        <option value=\"\">All stores</option>\r\n      </select>\r\n      <select id=\"filterBrand\" class=\"filter-select\">\r\n        <option value=\"\">All brands</option>\r\n      </select>\r\n      <select id=\"filterCategory\" class=\"filter-select\">\r\n        <option value=\"\">All categories</option>\r\n      </select>\r\n      <select id=\"filterStock\" class=\"filter-select\">\r\n        <option value=\"\">All stock</option>\r\n        <option value=\"In stock\">In stock</option>\r\n        <option value=\"Sold out\">Sold out</option>\r\n      </select>\r\n      <select id=\"sortSelect\" class=\"filter-select\">\r\n        <option value=\"price-asc\">💵 Price: Low to High</option>\r\n        <option value=\"price-desc\">💎 Price: High to Low</option>\r\n        <option value=\"discount-desc\">🔥 Highest Discount %</option>\r\n        <option value=\"brand-asc\">🏷️ Brand: A to Z</option>\r\n        <option value=\"title-asc\">🔤 Product: A to Z</option>\r\n        <option value=\"store-asc\">📍 Store: A to Z</option>\r\n      </select>\r\n      <input id=\"filter\" type=\"text\" placeholder=\"Search product, brand, store...\">\r\n      <button id=\"filterVariation\" class=\"tool-btn\">Price varies by store</button>\r\n      <div class=\"spacer\"></div>\r\n      <button id=\"download\" class=\"tool-btn btn-primary\">Download CSV</button>\r\n    </div>\r\n  </header>\r\n\r\n  <div id=\"tableWrap\"></div>\r\n\r\n  <script id=\"app-script\">\r\n    const tableWrap = document.getElementById('tableWrap');\r\n    const filterEl = document.getElementById('filter');\r\n    const storeSel = document.getElementById('filterStore');\r\n    const brandSel = document.getElementById('filterBrand');\r\n    const catSel = document.getElementById('filterCategory');\r\n    const stockSel = document.getElementById('filterStock');\r\n    const sortSel = document.getElementById('sortSelect');\r\n    const variationBtn = document.getElementById('filterVariation');\r\n\r\n    const PAGE_CHUNK = 100;\r\n    let visibleCount = PAGE_CHUNK;\r\n    let renderedCount = 0;\r\n    let filteredRows = [];\r\n\r\n    const COLUMN_ORDER = [\r\n      'store_locality',\r\n      'name',\r\n      'brand',\r\n      'quantity',\r\n      'stock',\r\n      'mrp_inr',\r\n      'selling_price_inr',\r\n      'discount_pct',\r\n      'category',\r\n      'image_1',\r\n      'maps_url'\r\n    ];\r\n\r\n    const COLUMN_LABELS = {\r\n      store_locality: 'Store / Locality',\r\n      name: 'Product',\r\n      brand: 'Brand',\r\n      quantity: 'Quantity',\r\n      stock: 'Stock',\r\n      mrp_inr: 'MRP (₹)',\r\n      selling_price_inr: 'Price (₹)',\r\n      discount_pct: 'Discount %',\r\n      category: 'Category',\r\n      image_1: 'Image',\r\n      maps_url: 'Map',\r\n      store_id: 'Store ID',\r\n      store_pincode: 'Pincode',\r\n      store_address: 'Store Address',\r\n      sub_category: 'Sub-category',\r\n      product_id: 'Product ID'\r\n    };\r\n\r\n    const DETAIL_COLS = ['store_locality', 'store_id', 'store_pincode', 'brand', 'quantity', 'selling_price_inr', 'mrp_inr', 'discount_pct', 'stock', 'category', 'sub_category', 'store_address'];\r\n    const DETAIL_FULL_WIDTH = new Set(['store_address']);\r\n    const NUMERIC_COLS = new Set(['mrp_inr', 'selling_price_inr', 'discount_pct']);\r\n    const NOWRAP_COLS = new Set(['stock', 'quantity', 'image_1', 'maps_url']);\r\n\r\n    const label = c => COLUMN_LABELS[c] || c;\r\n\r\n    let DATA = [];\r\n    let allRows = [];\r\n    let currentQuery = '';\r\n    let sortCol = null, sortDir = 1;\r\n    let onlyVariation = false;\r\n    let cheapestByKey = new Map();\r\n    let variantsMap = new Map();\r\n\r\n    const variantKey = r => `${r.name || ''}__${r.brand || ''}__${r.quantity || ''}`.trim().toLowerCase();\r\n\r\n    function normalizeRow(r) {\r\n      const avail = (r.stock === 'In stock' || r.inStock === true || r.availability === 'IN_STOCK') ? 'In stock' : 'Sold out';\r\n      const title = (r.name || r.title || r.titles?.title || '-').trim();\r\n      const loc = r.store_locality || r.locality || '-';\r\n      const storeId = r.store_id || r.podId || r.storeId || '-';\r\n      const pin = r.store_pincode || r.pincode || '';\r\n      const addr = r.store_address || r.deliveryLocation || '';\r\n      const brand = r.brand || '';\r\n      const qty = r.quantity || '';\r\n      const cat = r.category || '';\r\n      const subCat = r.sub_category || '';\r\n\r\n      const searchStr = `${title} ${brand} ${qty} ${loc} ${storeId} ${pin} ${addr} ${cat} ${subCat}`.toLowerCase();\r\n\r\n      return {\r\n        store_locality: loc,\r\n        store_id: storeId,\r\n        store_pincode: pin,\r\n        store_address: addr,\r\n        maps_url: r.maps_url || r.mapsUrl || '',\r\n        name: title,\r\n        brand: brand,\r\n        quantity: qty,\r\n        stock: avail,\r\n        mrp_inr: r.mrp_inr != null ? Number(r.mrp_inr) : (r.mrp != null ? Number(r.mrp) : null),\r\n        selling_price_inr: r.selling_price_inr != null ? Number(r.selling_price_inr) : (r.price != null ? Number(r.price) : null),\r\n        discount_pct: r.discount_pct != null ? Number(r.discount_pct) : (r.discount != null ? Number(r.discount) : 0),\r\n        category: cat,\r\n        sub_category: subCat,\r\n        product_id: r.product_id || r.productId || '',\r\n        image_1: r.image_1 || r.imageUrl || '',\r\n        product_url: r.product_url || (r.product_id ? `https://www.swiggy.com/instamart/item/${r.product_id}` : '#'),\r\n        _search: searchStr\r\n      };\r\n    }\r\n\r\n    function priceAcrossStores(row) {\r\n      const k = variantKey(row);\r\n      const group = variantsMap.get(k) || [];\r\n      return group\r\n        .filter(r => r.stock === 'In stock' && r.selling_price_inr != null)\r\n        .map(r => ({ store: r.store_locality, price: r.selling_price_inr, stock: r.stock }))\r\n        .sort((a, b) => a.price - b.price);\r\n    }\r\n\r\n    function computeVariationKeys() {\r\n      const byKey = new Map();\r\n      variantsMap = new Map();\r\n\r\n      for (let i = 0; i < allRows.length; i++) {\r\n        const r = allRows[i];\r\n        const k = variantKey(r);\r\n        let group = variantsMap.get(k);\r\n        if (!group) {\r\n          group = [];\r\n          variantsMap.set(k, group);\r\n        }\r\n        group.push(r);\r\n\r\n        if (r.stock !== 'In stock' || r.selling_price_inr == null) continue;\r\n        const price = r.selling_price_inr;\r\n        const e = byKey.get(k);\r\n        if (!e) byKey.set(k, { min: price, max: price, cheapest: r });\r\n        else {\r\n          e.min = Math.min(e.min, price);\r\n          e.max = Math.max(e.max, price);\r\n          if (price < (e.cheapest.selling_price_inr ?? 999999)) e.cheapest = r;\r\n        }\r\n      }\r\n      cheapestByKey = new Map([...byKey].filter(([, v]) => v.min !== v.max).map(([k, v]) => [k, v.cheapest]));\r\n      if (variationBtn) {\r\n        variationBtn.textContent = `Price varies by store (${cheapestByKey.size})`;\r\n      }\r\n    }\r\n\r\n    function buildPriceSection(prices) {\r\n      const min = prices[0].price, max = prices[prices.length - 1].price;\r\n      const toggle = `<span class=\"toggle-stores\">Show all ${prices.length} stores</span>`;\r\n\r\n      if (min === max) {\r\n        return `<div class=\"modal-section\"><div class=\"sec-title\">Price across stores</div>` +\r\n          `<div class=\"price-row\"><span class=\"store\">${prices.length} stores have the same price</span>` +\r\n          `<span class=\"amount\">₹${min}</span></div>${toggle}</div>`;\r\n      }\r\n\r\n      const cheapest = prices.filter(p => p.price === min);\r\n      const restCount = prices.length - cheapest.length;\r\n      const savings = Math.round(((max - min) / max) * 100);\r\n      const cheapestLabel = cheapest.length === 1 ? cheapest[0].store : `${cheapest.length} stores`;\r\n\r\n      return `<div class=\"modal-section\"><div class=\"sec-title\">Price across stores</div>` +\r\n        `<div class=\"price-compare\">` +\r\n        `<div class=\"price-card best\">` +\r\n        `<span class=\"pill best\">cheapest</span>` +\r\n        `<span class=\"pc-label\">${cheapestLabel}</span>` +\r\n        `<span class=\"pc-amount-row\">${savings > 0 ? `<span class=\"save-tag\">save ${savings}%</span>` : ''}<span class=\"pc-amount best\">₹${min}</span></span></div>` +\r\n        `<div class=\"price-card worst\">` +\r\n        `<span class=\"pill worst\">priciest</span>` +\r\n        `<span class=\"pc-label\">${restCount} other store${restCount > 1 ? 's' : ''}</span>` +\r\n        `<span class=\"pc-amount worst\">₹${max}</span></div>` +\r\n        `</div>${toggle}</div>`;\r\n    }\r\n\r\n    function openStoreListModal(prices) {\r\n      const modal = document.createElement('div');\r\n      modal.className = 'modal-overlay';\r\n      const rows = prices.map(p =>\r\n        `<div class=\"price-row\"><span class=\"store\">${p.store}${p.stock === 'Sold out' ? ' <span class=\"soldout\">(sold out)</span>' : ''}</span>` +\r\n        `<span class=\"amount\">₹${p.price}</span></div>`\r\n      ).join('');\r\n      modal.innerHTML =\r\n        `<div class=\"modal-card\" style=\"width:360px;\">` +\r\n        `<div class=\"modal-head\"><div class=\"name\">All ${prices.length} stores</div>` +\r\n        `<span class=\"modal-close\">✕</span></div>` +\r\n        `<div class=\"modal-section\" style=\"border-top:none;\">${rows}</div></div>`;\r\n      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\r\n      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\r\n      document.body.appendChild(modal);\r\n    }\r\n\r\n    function openDetail(row) {\r\n      const modal = document.createElement('div');\r\n      modal.className = 'modal-overlay';\r\n\r\n      const fields = DETAIL_COLS.map(c => {\r\n        let val = row[c] ?? '-';\r\n        if (c === 'selling_price_inr' && val !== '-') val = `<b>₹${val}</b>`;\r\n        if (c === 'mrp_inr' && val !== '-') val = `₹${val}`;\r\n        if (c === 'discount_pct' && val) val = `${val}% OFF`;\r\n        if (c === 'store_address' && row.maps_url) {\r\n          val = `${val} <br><a href=\"${row.maps_url}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-weight:700;display:inline-block;margin-top:4px;\">📍 Open in Google Maps ↗</a>`;\r\n        }\r\n        return `<div class=\"modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}\">` +\r\n          `<div class=\"k\">${label(c)}</div><div class=\"v\">${val}</div></div>`;\r\n      }).join('');\r\n\r\n      const prices = priceAcrossStores(row);\r\n      const priceSection = prices.length > 1 ? buildPriceSection(prices) : '';\r\n\r\n      const img = row.image_1\r\n        ? `<img src=\"${row.image_1}\" alt=\"${row.name}\" onerror=\"this.style.display='none'\">`\r\n        : `<div style=\"width:48px;height:48px;border-radius:6px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;\">🛵</div>`;\r\n\r\n      modal.innerHTML =\r\n        `<div class=\"modal-card\">` +\r\n        `<div class=\"modal-head\">${img}` +\r\n        `<div class=\"name\"><a href=\"${row.product_url}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\" style=\"font-size:15px;\">${row.name}</a></div>` +\r\n        `<span class=\"modal-close\">✕</span></div>` +\r\n        `<div class=\"modal-grid\">${fields}</div>` +\r\n        priceSection + `</div>`;\r\n\r\n      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\r\n      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\r\n      const toggleEl = modal.querySelector('.toggle-stores');\r\n      if (toggleEl) {\r\n        toggleEl.addEventListener('click', () => openStoreListModal(prices));\r\n      }\r\n      document.body.appendChild(modal);\r\n    }\r\n\r\n    function openImage(src) {\r\n      if (!src) return;\r\n      const modal = document.createElement('div');\r\n      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;' +\r\n        'align-items:center;justify-content:center;z-index:100;cursor:zoom-out;';\r\n      modal.innerHTML = `<img src=\"${src}\" style=\"max-width:85vw;max-height:85vh;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,.5);background:#fff;padding:8px;\">`;\r\n      modal.addEventListener('click', () => modal.remove());\r\n      document.body.appendChild(modal);\r\n    }\r\n\r\n    function cellValue(row, col) {\r\n      const v = row[col] ?? '';\r\n      if (col === 'image_1') {\r\n        return v\r\n          ? `<img src=\"${v}\" loading=\"lazy\" class=\"thumb\" data-src=\"${v}\" onerror=\"this.outerHTML='<span class=\\\\'thumb-fallback\\\\'>🛵</span>'\">`\r\n          : `<span class=\"thumb-fallback\">🛵</span>`;\r\n      }\r\n      if (col === 'name') {\r\n        return `<a href=\"${row.product_url}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\">${v}</a>`;\r\n      }\r\n      if (col === 'quantity') {\r\n        return v ? `<span class=\"qty-tag\">${v}</span>` : '-';\r\n      }\r\n      if (col === 'selling_price_inr') {\r\n        return v != null ? `₹${v}` : '-';\r\n      }\r\n      if (col === 'mrp_inr') {\r\n        return (v && v > row.selling_price_inr) ? `₹${v}` : '-';\r\n      }\r\n      if (col === 'discount_pct') {\r\n        return v > 0 ? `<span style=\"color:var(--crate);font-weight:700;\">${v}%</span>` : '-';\r\n      }\r\n      if (col === 'maps_url') {\r\n        return v ? `<a href=\"${v}\" target=\"_blank\" rel=\"noopener noreferrer\">📍 Map ↗</a>` : '-';\r\n      }\r\n      return String(v).replace(/</g, '&lt;');\r\n    }\r\n\r\n    function sortRows(rows) {\r\n      if (!sortCol) return rows;\r\n      const numeric = NUMERIC_COLS.has(sortCol);\r\n      return [...rows].sort((a, b) => {\r\n        let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';\r\n        const cmp = numeric ? ((Number(av) || 0) - (Number(bv) || 0)) : String(av).localeCompare(String(bv));\r\n        return cmp * sortDir;\r\n      });\r\n    }\r\n\r\n    function renderRowHtml(r, i) {\r\n      const trClass = r.stock === 'Sold out' ? 'sold-out' : 'in-stock';\r\n      const cols = COLUMN_ORDER.filter(c => c in r);\r\n      return `<tr class=\"${trClass}\"><td class=\"nowrap\"><button data-idx=\"${i}\" class=\"view-btn\" title=\"View details\">👁</button></td>` +\r\n        cols.map(c => {\r\n          const cls = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : ''].filter(Boolean).join(' ');\r\n          return `<td class=\"${cls}\">${cellValue(r, c)}</td>`;\r\n        }).join('') + '</tr>';\r\n    }\r\n\r\n    function updateTableStatus() {\r\n      const statusEl = document.getElementById('tableStatus');\r\n      if (!statusEl) return;\r\n      const total = filteredRows.length;\r\n      if (total === 0) {\r\n        statusEl.textContent = '';\r\n      } else if (renderedCount >= total) {\r\n        statusEl.textContent = `✓ Showing all ${total.toLocaleString()} products`;\r\n      } else {\r\n        statusEl.textContent = `Showing ${renderedCount.toLocaleString()} of ${total.toLocaleString()} products • Scroll down to load more`;\r\n      }\r\n    }\r\n\r\n    function appendNextChunk() {\r\n      if (renderedCount >= filteredRows.length) return;\r\n      const tbody = document.getElementById('tableBody');\r\n      if (!tbody) return;\r\n\r\n      const nextBatch = filteredRows.slice(renderedCount, renderedCount + PAGE_CHUNK);\r\n      let html = '';\r\n      for (let i = 0; i < nextBatch.length; i++) {\r\n        html += renderRowHtml(nextBatch[i], renderedCount + i);\r\n      }\r\n      tbody.insertAdjacentHTML('beforeend', html);\r\n      renderedCount += nextBatch.length;\r\n      updateTableStatus();\r\n    }\r\n\r\n    function renderInitialTable() {\r\n      if (!filteredRows.length) {\r\n        tableWrap.innerHTML = '<div id=\"empty\">No products match your filter criteria.</div>';\r\n        return;\r\n      }\r\n      const cols = COLUMN_ORDER.filter(c => c in filteredRows[0]);\r\n      const head = '<thead><tr><th></th>' + cols.map(c => {\r\n        const arrow = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';\r\n        return `<th data-col=\"${c}\">${label(c)}${arrow}</th>`;\r\n      }).join('') + '</tr></thead>';\r\n\r\n      renderedCount = Math.min(PAGE_CHUNK, filteredRows.length);\r\n      let bodyHtml = '';\r\n      for (let i = 0; i < renderedCount; i++) {\r\n        bodyHtml += renderRowHtml(filteredRows[i], i);\r\n      }\r\n\r\n      tableWrap.innerHTML = `<table>${head}<tbody id=\"tableBody\">${bodyHtml}</tbody></table><div id=\"tableStatus\" class=\"table-status-bar\"></div>`;\r\n      updateTableStatus();\r\n      tableWrap.scrollTop = 0;\r\n    }\r\n\r\n    function applyFilter() {\r\n      const q = filterEl.value.trim().toLowerCase();\r\n      const store = storeSel.value;\r\n      const brand = brandSel.value;\r\n      const cat = catSel.value;\r\n      const stock = stockSel.value;\r\n      const base = onlyVariation ? [...cheapestByKey.values()] : allRows;\r\n\r\n      const qTokens = q ? q.split(/\\s+/).filter(Boolean) : [];\r\n\r\n      const filtered = base.filter(r => {\r\n        if (store && r.store_id !== store && r.store_locality !== store) return false;\r\n        if (brand && r.brand !== brand) return false;\r\n        if (cat && r.category !== cat) return false;\r\n        if (stock && r.stock !== stock) return false;\r\n        if (qTokens.length > 0) {\r\n          const search = r._search;\r\n          for (let i = 0; i < qTokens.length; i++) {\r\n            if (!search.includes(qTokens[i])) return false;\r\n          }\r\n        }\r\n        return true;\r\n      });\r\n\r\n      filteredRows = sortRows(filtered);\r\n      renderInitialTable();\r\n      updateMetaRibbon();\r\n    }\r\n\r\n    // Event delegation on tableWrap for high performance (zero per-row event listeners)\r\n    tableWrap.addEventListener('click', (e) => {\r\n      const th = e.target.closest('th[data-col]');\r\n      if (th) {\r\n        const col = th.dataset.col;\r\n        sortDir = sortCol === col ? -sortDir : 1;\r\n        sortCol = col;\r\n        applyFilter();\r\n        return;\r\n      }\r\n\r\n      const viewBtn = e.target.closest('.view-btn');\r\n      if (viewBtn) {\r\n        const idx = Number(viewBtn.dataset.idx);\r\n        if (filteredRows[idx]) openDetail(filteredRows[idx]);\r\n        return;\r\n      }\r\n\r\n      const thumb = e.target.closest('.thumb');\r\n      if (thumb) {\r\n        openImage(thumb.dataset.src);\r\n        return;\r\n      }\r\n    });\r\n\r\n    // Infinite scroll listener throttled by rAF\r\n    let scrollScheduled = false;\r\n    tableWrap.addEventListener('scroll', () => {\r\n      if (scrollScheduled) return;\r\n      scrollScheduled = true;\r\n      requestAnimationFrame(() => {\r\n        scrollScheduled = false;\r\n        if (renderedCount >= filteredRows.length) return;\r\n        const scrollBottom = tableWrap.scrollHeight - tableWrap.scrollTop - tableWrap.clientHeight;\r\n        if (scrollBottom < 600) {\r\n          appendNextChunk();\r\n        }\r\n      });\r\n    }, { passive: true });\r\n\r\n    function updateMetaRibbon() {\r\n      const allStoresSet = new Set(allRows.map(r => r.store_id || r.store_locality));\r\n      const filteredStoresSet = new Set(filteredRows.map(r => r.store_id || r.store_locality));\r\n      const prices = (filteredRows.length ? filteredRows : allRows).map(r => r.selling_price_inr).filter(p => p != null);\r\n      const minPrice = prices.length ? Math.min(...prices) : null;\r\n\r\n      const isFiltered = (filteredRows.length < allRows.length) || (filterEl.value.trim() !== '') || (storeSel.value !== '') || (brandSel.value !== '') || (catSel.value !== '') || (stockSel.value !== '') || onlyVariation;\r\n\r\n      const rowCountStr = isFiltered\r\n        ? `<b>${filteredRows.length.toLocaleString()}</b> / ${allRows.length.toLocaleString()} rows`\r\n        : `<b>${allRows.length.toLocaleString()}</b> rows`;\r\n\r\n      const storeCountStr = isFiltered\r\n        ? `<b>${filteredStoresSet.size}</b> / ${allStoresSet.size} stores`\r\n        : `<b>${allStoresSet.size}</b> stores`;\r\n\r\n      const metaEl = document.getElementById('metaCard');\r\n      if (metaEl) {\r\n        metaEl.innerHTML =\r\n          `<span class=\"stat\">${rowCountStr}</span>` +\r\n          `<span class=\"stat\">${storeCountStr}</span>` +\r\n          (minPrice != null ? `<span class=\"stat\">min <b>₹${minPrice}</b></span>` : '') +\r\n          `<span class=\"stat\">${new Date().toLocaleTimeString()}</span>`;\r\n      }\r\n    }\r\n\r\n    function fillStoreOptions() {\r\n      const storeMap = new Map();\r\n      allRows.forEach(r => {\r\n        const id = r.store_id || r.store_locality;\r\n        if (!storeMap.has(id)) {\r\n          storeMap.set(id, {\r\n            id: id,\r\n            locality: r.store_locality,\r\n            count: 0\r\n          });\r\n        }\r\n        storeMap.get(id).count++;\r\n      });\r\n\r\n      const stores = [...storeMap.values()].sort((a, b) => a.locality.localeCompare(b.locality));\r\n      storeSel.innerHTML = '<option value=\"\">All stores (' + stores.length + ')</option>';\r\n      stores.forEach(s => {\r\n        const opt = document.createElement('option');\r\n        opt.value = s.id;\r\n        opt.textContent = `${s.locality} (${s.count})`;\r\n        storeSel.appendChild(opt);\r\n      });\r\n    }\r\n\r\n    function fillBrandOptions() {\r\n      const brandCount = new Map();\r\n      allRows.forEach(r => {\r\n        if (r.brand) brandCount.set(r.brand, (brandCount.get(r.brand) || 0) + 1);\r\n      });\r\n      const brands = [...brandCount.keys()].sort((a, b) => a.localeCompare(b));\r\n      brandSel.innerHTML = '<option value=\"\">All brands (' + brands.length + ')</option>';\r\n      brands.forEach(b => {\r\n        const opt = document.createElement('option');\r\n        opt.value = b;\r\n        opt.textContent = `${b} (${brandCount.get(b)})`;\r\n        brandSel.appendChild(opt);\r\n      });\r\n    }\r\n\r\n    function fillCategoryOptions() {\r\n      const catCount = new Map();\r\n      allRows.forEach(r => {\r\n        if (r.category) catCount.set(r.category, (catCount.get(r.category) || 0) + 1);\r\n      });\r\n      const cats = [...catCount.keys()].sort((a, b) => a.localeCompare(b));\r\n      catSel.innerHTML = '<option value=\"\">All categories (' + cats.length + ')</option>';\r\n      cats.forEach(c => {\r\n        const opt = document.createElement('option');\r\n        opt.value = c;\r\n        opt.textContent = `${c} (${catCount.get(c)})`;\r\n        catSel.appendChild(opt);\r\n      });\r\n    }\r\n\r\n    function exportCSV() {\r\n      const rowsToExport = filteredRows.length ? filteredRows : allRows;\r\n      if (!rowsToExport.length) return alert('No data to download.');\r\n      const headers = ['#', 'Store_Locality', 'Store_ID', 'Store_Address', 'Store_Pincode', 'Brand', 'Product_Title', 'Quantity', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Stock', 'Category', 'Sub_Category', 'Google_Maps_URL', 'Product_URL'];\r\n      const rows = rowsToExport.map((r, i) => [\r\n        i + 1,\r\n        `\"${(r.store_locality || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${r.store_id || ''}\"`,\r\n        `\"${(r.store_address || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${r.store_pincode || ''}\"`,\r\n        `\"${(r.brand || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${(r.name || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${(r.quantity || '').replace(/\"/g, '\"\"')}\"`,\r\n        r.selling_price_inr ?? '',\r\n        r.mrp_inr ?? '',\r\n        r.discount_pct || 0,\r\n        `\"${r.stock || ''}\"`,\r\n        `\"${(r.category || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${(r.sub_category || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${r.maps_url || ''}\"`,\r\n        `\"${r.product_url || ''}\"`\r\n      ]);\r\n      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');\r\n      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });\r\n      const a = document.createElement('a');\r\n      a.href = URL.createObjectURL(blob);\r\n      a.download = `swiggy_instamart_${currentQuery || 'results'}_${Date.now()}.csv`;\r\n      document.body.appendChild(a);\r\n      a.click();\r\n      a.remove();\r\n    }\r\n\r\n    function initData(items, query) {\r\n      currentQuery = query || '';\r\n      if (document.getElementById('queryLabel')) {\r\n        document.getElementById('queryLabel').textContent = currentQuery ? currentQuery : 'Instamart Hunter';\r\n      }\r\n      allRows = (items || []).map(normalizeRow);\r\n      updateMetaRibbon();\r\n      fillStoreOptions();\r\n      fillBrandOptions();\r\n      fillCategoryOptions();\r\n      computeVariationKeys();\r\n      applyFilter();\r\n    }\r\n\r\n    // Debounced text filter\r\n    let filterDebounce = null;\r\n    filterEl.addEventListener('input', () => {\r\n      clearTimeout(filterDebounce);\r\n      filterDebounce = setTimeout(applyFilter, 120);\r\n    });\r\n\r\n    storeSel.addEventListener('change', applyFilter);\r\n    brandSel.addEventListener('change', applyFilter);\r\n    catSel.addEventListener('change', applyFilter);\r\n    stockSel.addEventListener('change', applyFilter);\r\n    sortSel.addEventListener('change', () => {\r\n      const v = sortSel.value;\r\n      if (v === 'price-asc') { sortCol = 'selling_price_inr'; sortDir = 1; }\r\n      else if (v === 'price-desc') { sortCol = 'selling_price_inr'; sortDir = -1; }\r\n      else if (v === 'discount-desc') { sortCol = 'discount_pct'; sortDir = -1; }\r\n      else if (v === 'brand-asc') { sortCol = 'brand'; sortDir = 1; }\r\n      else if (v === 'title-asc') { sortCol = 'name'; sortDir = 1; }\r\n      else if (v === 'store-asc') { sortCol = 'store_locality'; sortDir = 1; }\r\n      applyFilter();\r\n    });\r\n\r\n    variationBtn.addEventListener('click', () => {\r\n      onlyVariation = !onlyVariation;\r\n      variationBtn.classList.toggle('active', onlyVariation);\r\n      applyFilter();\r\n    });\r\n\r\n    document.getElementById('download').addEventListener('click', exportCSV);\r\n\r\n    /* __DATA_INJECTION__ */\r\n\r\n    // Fallback: window.opener\r\n    try {\r\n      if (!allRows.length && window.opener && window.opener.swiggyResults && window.opener.swiggyResults.length) {\r\n        const q = window.opener.document?.getElementById('sw-h-query')?.value?.trim() || '';\r\n        initData(window.opener.swiggyResults, q);\r\n      }\r\n    } catch(e) {}\r\n\r\n    // Fallback: URL hash\r\n    try {\r\n      if (!allRows.length && location.hash && location.hash.length > 2) {\r\n        const raw = decodeURIComponent(location.hash.slice(1));\r\n        const parsed = JSON.parse(raw);\r\n        if (Array.isArray(parsed)) initData(parsed, '');\r\n        else if (parsed.items) initData(parsed.items, parsed.query || '');\r\n      }\r\n    } catch(e) {}\r\n  </script>\r\n</body>\r\n</html>\r\n";
+  // 2. STORE HEALTH AUDITOR
+  healthBtn.onclick = async () => {
+    if (isScanning) {
+      abortScan = true;
+      healthBtn.textContent = 'Stopping...';
+      healthBtn.disabled = true;
+      if (healthResults.length > 0 && !resultsOpenedForScan) {
+        resultsOpenedForScan = true;
+        openBlankResultsTable(healthResults, 'Store Health Audit', false);
+      }
+      return;
+    }
+
+    isScanning = true;
+    abortScan = false;
+    resultsOpenedForScan = false;
+    healthBtn.innerHTML = '⏹ Stop Audit';
+    healthBtn.classList.add('scanning');
+    liveCard.style.display = 'flex';
+    pbar.style.width = '0%';
+    resultsBox.style.display = 'block';
+    summaryBox.style.display = 'grid';
+    if (banner) banner.style.display = 'none';
+    tableBody.innerHTML = '';
+    healthResults = [];
+    updateResultsButton(0);
+
+    const storeChoice = document.getElementById('sw-h-store').value;
+    const targetStores = storeChoice === 'all' ? STORES : [STORES[parseInt(storeChoice, 10)]];
+
+    let liveCount = 0, closedCount = 0, comingCount = 0;
+
+    for (let i = 0; i < targetStores.length; i++) {
+      if (abortScan) break;
+      const store = targetStores[i];
+      const [podId, loc, lat, lng, defaultAddress, defaultPin] = store;
+
+      const pct = Math.round(((i + 1) / targetStores.length) * 100);
+      pbar.style.width = `${pct}%`;
+      livePct.textContent = `${pct}%`;
+      liveStoreTitle.textContent = `[${i + 1}/${targetStores.length}] ${loc}`;
+      liveStoreSub.textContent = 'Checking real-time serviceability...';
+
+      try {
+        const auditRes = await checkStoreStatusViaApi(store);
+        healthResults.push(auditRes);
+
+        if (auditRes.status_type === 'live') liveCount++;
+        else if (auditRes.status_type === 'closed') closedCount++;
+        else comingCount++;
+
+        liveStoreSub.textContent = `${auditRes.status} • ${auditRes.eta !== '-' ? 'ETA: ' + auditRes.eta : auditRes.message}`;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><b>${auditRes.store_locality}</b></td>
+          <td><span class="sw-h-health-pill ${auditRes.status_type}">${auditRes.status}</span></td>
+          <td>${auditRes.eta !== '-' ? '⚡ ' + auditRes.eta : '-'}</td>
+          <td><span class="sw-h-loc-pill">${auditRes.store_pincode || '-'}</span></td>
+        `;
+        tableBody.appendChild(tr);
+        if (tableBody.children.length > 50) {
+          tableBody.removeChild(tableBody.firstElementChild);
+        }
+
+        sumVal1.textContent = liveCount;
+        sumVal2.textContent = closedCount;
+        sumVal3.textContent = comingCount;
+        updateResultsButton(healthResults.length);
+
+      } catch (err) {
+        console.warn('Audit error for', loc, err);
+        liveStoreSub.textContent = `${loc} skipped (${err.message})`;
+      }
+
+      if (i < targetStores.length - 1 && !abortScan) {
+        await sleep(350);
+      }
+    }
+
+    isScanning = false;
+    healthBtn.innerHTML = '⚡ Run Audit';
+    healthBtn.classList.remove('scanning');
+    healthBtn.disabled = false;
+    liveStoreTitle.textContent = abortScan
+      ? `Audit stopped (${healthResults.length} stores checked)`
+      : `✓ Audit Complete! (${liveCount} Live, ${closedCount} Closed, ${comingCount} Coming Soon)`;
+    liveStoreSub.textContent = `Checked ${healthResults.length} of ${targetStores.length} dark stores in real time.`;
+    window.swiggyHealthResults = healthResults;
+    updateResultsButton(healthResults.length);
+
+    if (healthResults.length > 0 && !resultsOpenedForScan) {
+      resultsOpenedForScan = true;
+      openBlankResultsTable(healthResults, 'Store Health Audit', true);
+    }
+  };
+
+  const TABLE_PAGE_HTML = "<!doctype html>\r\n<html lang=\"en\">\r\n<head>\r\n  <meta charset=\"utf-8\">\r\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n  <title>🛵 Swiggy Instamart — Results</title>\r\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n  <link href=\"https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n  <style id=\"app-style\">\r\n    :root {\r\n      --ink: #1f1b16;\r\n      --paper: #edebdf;\r\n      --card: #ffffff;\r\n      --crate: #2b5235;\r\n      --crate-tint: #e4ede3;\r\n      --brick: #a6402b;\r\n      --brick-tint: #f4e5e0;\r\n      --swiggy: #ff7a1a;\r\n      --swiggy-dim: #e5660a;\r\n      --stone: #5b5648;\r\n      --line: #dcd8c8;\r\n      --display: \"Space Grotesk\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, system-ui, sans-serif;\r\n      --body: \"IBM Plex Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, system-ui, sans-serif;\r\n    }\r\n    * { box-sizing: border-box; }\r\n    body {\r\n      margin: 0;\r\n      font: 400 13px/1.5 var(--body);\r\n      background: var(--paper);\r\n      color: var(--ink);\r\n    }\r\n\r\n    header {\r\n      position: sticky;\r\n      top: 0;\r\n      z-index: 10;\r\n      background: var(--paper);\r\n      border-bottom: 2px solid var(--ink);\r\n      padding: 14px 20px 12px;\r\n    }\r\n    .top-row {\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: space-between;\r\n      gap: 14px;\r\n      flex-wrap: wrap;\r\n    }\r\n    .title-row {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 10px;\r\n    }\r\n    .title-logo {\r\n      font-size: 24px;\r\n      line-height: 1;\r\n      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));\r\n    }\r\n    .query-tag {\r\n      font-family: var(--display);\r\n      font-weight: 700;\r\n      font-size: 19px;\r\n      letter-spacing: -.01em;\r\n      background: var(--ink);\r\n      color: var(--paper);\r\n      padding: 5px 14px 6px;\r\n      border-radius: 3px;\r\n      transform: rotate(-.6deg);\r\n      display: inline-flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n    }\r\n    .query-tag .q-mark {\r\n      color: var(--swiggy);\r\n    }\r\n\r\n    #metaCard {\r\n      flex: none;\r\n      display: flex;\r\n      gap: 6px;\r\n      flex-wrap: wrap;\r\n    }\r\n    #metaCard .stat {\r\n      font-family: var(--display);\r\n      border: 1.5px solid var(--ink);\r\n      border-radius: 3px;\r\n      padding: 5px 11px;\r\n      color: var(--ink);\r\n      font-size: 11.5px;\r\n      font-weight: 600;\r\n      white-space: nowrap;\r\n      background: var(--card);\r\n    }\r\n    #metaCard .stat b {\r\n      color: var(--swiggy-dim);\r\n      font-weight: 700;\r\n    }\r\n\r\n    .toolbar {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 8px;\r\n      margin-top: 12px;\r\n      flex-wrap: nowrap;\r\n      overflow-x: auto;\r\n      white-space: nowrap;\r\n      padding-bottom: 2px;\r\n    }\r\n    .toolbar::-webkit-scrollbar {\r\n      height: 4px;\r\n    }\r\n    .toolbar::-webkit-scrollbar-thumb {\r\n      background: var(--line);\r\n      border-radius: 4px;\r\n    }\r\n    .toolbar .spacer {\r\n      flex: 1;\r\n      min-width: 8px;\r\n    }\r\n    input#filter, select.filter-select {\r\n      padding: 6px 11px;\r\n      border: 1.5px solid var(--line);\r\n      border-radius: 20px;\r\n      font-size: 12px;\r\n      background: var(--card);\r\n      color: var(--ink);\r\n      flex: 0 0 auto;\r\n      font-family: var(--body);\r\n      outline: none;\r\n      white-space: nowrap;\r\n    }\r\n    select.filter-select {\r\n      max-width: 140px;\r\n      cursor: pointer;\r\n    }\r\n    input#filter {\r\n      width: 160px;\r\n      flex: 0 1 auto;\r\n    }\r\n    input#filter:focus, select.filter-select:focus {\r\n      border-color: var(--swiggy);\r\n    }\r\n    button.tool-btn {\r\n      padding: 6px 13px;\r\n      border: 1.5px solid var(--line);\r\n      border-radius: 20px;\r\n      background: var(--card);\r\n      color: var(--ink);\r\n      font-size: 12px;\r\n      font-weight: 600;\r\n      cursor: pointer;\r\n      flex: 0 0 auto;\r\n      white-space: nowrap;\r\n      font-family: var(--body);\r\n      transition: all 0.15s;\r\n    }\r\n    button.tool-btn:hover {\r\n      border-color: var(--swiggy);\r\n    }\r\n    button.tool-btn.active {\r\n      background: var(--crate);\r\n      border-color: var(--crate);\r\n      color: #fff;\r\n    }\r\n    button.btn-primary {\r\n      background: var(--swiggy);\r\n      border: none;\r\n      color: #ffffff;\r\n      font-family: var(--display);\r\n      font-weight: 700;\r\n      padding: 7px 16px;\r\n      flex: 0 0 auto;\r\n      white-space: nowrap;\r\n    }\r\n    button.btn-primary:hover {\r\n      background: var(--swiggy-dim);\r\n    }\r\n\r\n    #tableWrap {\r\n      overflow: auto;\r\n      max-height: calc(100vh - 128px);\r\n      padding: 0 20px 20px;\r\n    }\r\n    table {\r\n      border-collapse: collapse;\r\n      width: 100%;\r\n      font-size: 12.5px;\r\n    }\r\n    thead th {\r\n      position: sticky;\r\n      top: 0;\r\n      background: var(--paper);\r\n      text-align: left;\r\n      padding: 10px 10px 8px;\r\n      border-bottom: 2px solid var(--ink);\r\n      font-weight: 600;\r\n      font-family: var(--display);\r\n      color: var(--ink);\r\n      white-space: nowrap;\r\n      cursor: pointer;\r\n      user-select: none;\r\n    }\r\n    thead th:hover {\r\n      color: var(--swiggy);\r\n    }\r\n    tbody td {\r\n      padding: 9px 10px;\r\n      border-bottom: 1px solid var(--line);\r\n      font-weight: 400;\r\n      max-width: 280px;\r\n      white-space: normal;\r\n      overflow-wrap: break-word;\r\n      vertical-align: middle;\r\n    }\r\n    tbody tr {\r\n      border-left: 4px solid transparent;\r\n      transition: background 0.1s;\r\n    }\r\n    tbody td.nowrap {\r\n      max-width: none;\r\n      white-space: nowrap;\r\n    }\r\n    tbody tr:hover {\r\n      background: #ffffff;\r\n    }\r\n    tbody tr.sold-out {\r\n      background: var(--brick-tint);\r\n      border-left-color: var(--brick);\r\n    }\r\n    tbody tr.sold-out:hover {\r\n      background: #efd6cf;\r\n    }\r\n    tbody tr.in-stock {\r\n      background: var(--crate-tint);\r\n      border-left-color: var(--crate);\r\n    }\r\n    tbody tr.in-stock:hover {\r\n      background: #d6e5d4;\r\n    }\r\n    td.num {\r\n      text-align: right;\r\n      font-variant-numeric: tabular-nums;\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n    }\r\n    td a {\r\n      color: var(--swiggy-dim);\r\n      text-decoration: none;\r\n      font-weight: 600;\r\n    }\r\n    td a:hover {\r\n      text-decoration: underline;\r\n    }\r\n\r\n    .prod-link {\r\n      color: var(--ink);\r\n      font-weight: 600;\r\n      line-height: 1.35;\r\n      display: -webkit-box;\r\n      -webkit-line-clamp: 2;\r\n      -webkit-box-orient: vertical;\r\n      overflow: hidden;\r\n    }\r\n    .prod-link:hover {\r\n      color: var(--swiggy-dim);\r\n    }\r\n    .brand-tag {\r\n      font-size: 10px;\r\n      font-weight: 700;\r\n      color: var(--stone);\r\n      text-transform: uppercase;\r\n      letter-spacing: 0.03em;\r\n      margin-bottom: 2px;\r\n    }\r\n    .qty-tag {\r\n      font-size: 11px;\r\n      font-weight: 600;\r\n      color: var(--stone);\r\n    }\r\n    .thumb {\r\n      height: 36px;\r\n      width: 36px;\r\n      object-fit: contain;\r\n      border-radius: 4px;\r\n      vertical-align: middle;\r\n      cursor: zoom-in;\r\n      background: #ffffff;\r\n      border: 1px solid var(--line);\r\n    }\r\n    .thumb-fallback {\r\n      height: 36px;\r\n      width: 36px;\r\n      border-radius: 4px;\r\n      background: var(--card);\r\n      border: 1px solid var(--line);\r\n      display: inline-flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      font-size: 16px;\r\n      color: var(--stone);\r\n      vertical-align: middle;\r\n    }\r\n\r\n    .view-btn {\r\n      border: 1.5px solid var(--line);\r\n      background: var(--card);\r\n      border-radius: 5px;\r\n      width: 26px;\r\n      height: 26px;\r\n      cursor: pointer;\r\n      font-size: 13px;\r\n      display: inline-flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      transition: all 0.15s;\r\n    }\r\n    .view-btn:hover {\r\n      border-color: var(--swiggy);\r\n      transform: scale(1.08);\r\n    }\r\n\r\n    /* Store Health Pill Styles */\r\n    .health-pill {\r\n      font-size: 11.5px;\r\n      font-weight: 700;\r\n      padding: 3px 9px;\r\n      border-radius: 6px;\r\n      display: inline-flex;\r\n      align-items: center;\r\n      gap: 5px;\r\n      white-space: nowrap;\r\n    }\r\n    .health-pill.live { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }\r\n    .health-pill.closed { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }\r\n    .health-pill.coming_soon, .health-pill.coming { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }\r\n    .health-pill.unserviceable, .health-pill.error { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }\r\n    .eta-pill {\r\n      font-size: 11px;\r\n      font-weight: 700;\r\n      color: #059669;\r\n      background: #f0fdf4;\r\n      padding: 3px 8px;\r\n      border-radius: 5px;\r\n      border: 1px solid #bbf7d0;\r\n      white-space: nowrap;\r\n      display: inline-flex;\r\n      align-items: center;\r\n      gap: 4px;\r\n    }\r\n\r\n    #empty {\r\n      padding: 60px 20px;\r\n      text-align: center;\r\n      color: var(--stone);\r\n      font-family: var(--display);\r\n      font-size: 15px;\r\n      font-weight: 600;\r\n    }\r\n\r\n    /* Modals */\r\n    .modal-overlay {\r\n      position: fixed;\r\n      inset: 0;\r\n      background: rgba(31, 27, 22, .55);\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      z-index: 100;\r\n      padding: 20px;\r\n    }\r\n    .modal-card {\r\n      background: var(--card);\r\n      border-radius: 4px;\r\n      width: 490px;\r\n      max-width: 100%;\r\n      max-height: 88vh;\r\n      overflow-y: auto;\r\n      box-shadow: 0 24px 60px rgba(31,27,22,.4);\r\n      position: relative;\r\n    }\r\n    .modal-card::before {\r\n      content: \"\";\r\n      position: absolute;\r\n      top: -10px;\r\n      left: 50%;\r\n      transform: translateX(-50%);\r\n      width: 20px;\r\n      height: 20px;\r\n      background: radial-gradient(circle, transparent 60%, var(--card) 61%);\r\n    }\r\n    .modal-head {\r\n      display: flex;\r\n      gap: 12px;\r\n      align-items: center;\r\n      padding: 20px 20px 16px;\r\n      border-bottom: 2px dashed var(--line);\r\n      position: sticky;\r\n      top: 0;\r\n      background: var(--card);\r\n      z-index: 2;\r\n    }\r\n    .modal-head img {\r\n      width: 48px;\r\n      height: 48px;\r\n      border-radius: 6px;\r\n      object-fit: contain;\r\n      flex: none;\r\n      background: var(--paper);\r\n      border: 1px solid var(--line);\r\n    }\r\n    .modal-head .name {\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n      font-size: 14.5px;\r\n      line-height: 1.3;\r\n      flex: 1;\r\n    }\r\n    .modal-close {\r\n      cursor: pointer;\r\n      color: var(--stone);\r\n      font-size: 14px;\r\n      line-height: 1;\r\n      flex: none;\r\n      width: 26px;\r\n      height: 26px;\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: center;\r\n      border-radius: 50%;\r\n      background: var(--paper);\r\n      user-select: none;\r\n    }\r\n    .modal-close:hover {\r\n      background: var(--line);\r\n      color: var(--ink);\r\n    }\r\n\r\n    .modal-grid {\r\n      display: grid;\r\n      grid-template-columns: 1fr 1fr;\r\n      gap: 14px;\r\n      padding: 16px 20px;\r\n    }\r\n    .modal-grid .full {\r\n      grid-column: 1 / -1;\r\n    }\r\n    .modal-field .k {\r\n      font-family: var(--display);\r\n      font-size: 10.5px;\r\n      font-weight: 600;\r\n      color: var(--stone);\r\n      margin-bottom: 3px;\r\n      border-left: 2px solid var(--swiggy);\r\n      padding-left: 6px;\r\n    }\r\n    .modal-field .v {\r\n      font-size: 12.5px;\r\n      line-height: 1.45;\r\n      word-break: break-word;\r\n      padding-left: 8px;\r\n    }\r\n\r\n    .modal-section {\r\n      padding: 14px 20px 18px;\r\n      border-top: 2px dashed var(--line);\r\n    }\r\n    .modal-section .sec-title {\r\n      font-family: var(--display);\r\n      font-size: 11px;\r\n      font-weight: 600;\r\n      color: var(--ink);\r\n      border-left: 2px solid var(--swiggy);\r\n      padding-left: 6px;\r\n    }\r\n    .price-row {\r\n      display: flex;\r\n      justify-content: space-between;\r\n      align-items: center;\r\n      gap: 10px;\r\n      padding: 8px 10px;\r\n      border-radius: 4px;\r\n      font-size: 12.5px;\r\n      margin-bottom: 4px;\r\n    }\r\n    .price-row .store {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n      flex: 1;\r\n      min-width: 0;\r\n      flex-wrap: wrap;\r\n    }\r\n    .price-row .amount {\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n      font-variant-numeric: tabular-nums;\r\n      flex: none;\r\n      white-space: nowrap;\r\n    }\r\n    .price-row.best {\r\n      background: var(--crate-tint);\r\n    }\r\n    .price-row.worst {\r\n      background: var(--brick-tint);\r\n    }\r\n    .price-row .amount.best {\r\n      color: var(--crate);\r\n    }\r\n    .price-row .amount.worst {\r\n      color: var(--brick);\r\n    }\r\n    .pill {\r\n      font-family: var(--display);\r\n      font-size: 9.5px;\r\n      font-weight: 700;\r\n      padding: 2px 7px;\r\n      border-radius: 3px;\r\n      display: inline-block;\r\n      width: fit-content;\r\n      color: #fff;\r\n    }\r\n    .pill.best {\r\n      background: var(--crate);\r\n    }\r\n    .pill.worst {\r\n      background: var(--brick);\r\n    }\r\n    .price-row .soldout {\r\n      color: var(--stone);\r\n      font-size: 11px;\r\n    }\r\n\r\n    .price-compare {\r\n      display: flex;\r\n      gap: 8px;\r\n      margin-bottom: 6px;\r\n    }\r\n    .price-card {\r\n      flex: 1 1 0;\r\n      min-width: 0;\r\n      display: flex;\r\n      flex-direction: column;\r\n      align-items: flex-start;\r\n      gap: 3px;\r\n      padding: 10px 12px;\r\n      border-radius: 4px;\r\n    }\r\n    .price-card.best {\r\n      background: var(--crate-tint);\r\n    }\r\n    .price-card.worst {\r\n      background: var(--brick-tint);\r\n    }\r\n    .price-card .pc-label {\r\n      font-size: 11.5px;\r\n      color: var(--stone);\r\n      margin-top: 3px;\r\n    }\r\n    .pc-amount-row {\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n      margin-top: 2px;\r\n    }\r\n    .price-card .pc-amount {\r\n      font-family: var(--display);\r\n      font-size: 17px;\r\n      font-weight: 700;\r\n      font-variant-numeric: tabular-nums;\r\n    }\r\n    .price-card .pc-amount.best {\r\n      color: var(--crate);\r\n    }\r\n    .price-card .pc-amount.worst {\r\n      color: var(--brick);\r\n    }\r\n    .save-tag {\r\n      font-family: var(--body);\r\n      font-size: 10.5px;\r\n      font-weight: 600;\r\n      color: #fff;\r\n      padding: 2px 7px;\r\n      border-radius: 10px;\r\n      background: var(--crate);\r\n    }\r\n\r\n    .toggle-stores {\r\n      display: inline-block;\r\n      cursor: pointer;\r\n      color: var(--swiggy-dim);\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n      font-size: 11.5px;\r\n      margin: 6px 0 0 8px;\r\n      user-select: none;\r\n    }\r\n    .toggle-stores:hover {\r\n      color: var(--ink);\r\n      text-decoration: underline;\r\n    }\r\n\r\n    .table-status-bar {\r\n      text-align: center;\r\n      padding: 16px 20px 24px;\r\n      font-size: 12px;\r\n      color: var(--stone);\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n    }\r\n    #empty {\r\n      text-align: center;\r\n      padding: 60px 20px;\r\n      font-size: 15px;\r\n      color: var(--stone);\r\n      font-family: var(--display);\r\n      font-weight: 600;\r\n    }\r\n\r\n    @media (max-width: 800px) {\r\n      header { padding: 12px 14px; }\r\n      .toolbar { gap: 6px; }\r\n      #tableWrap { padding: 0 10px 14px; }\r\n    }\r\n  </style>\r\n</head>\r\n<body>\r\n\r\n  <header>\r\n    <div class=\"top-row\">\r\n      <div class=\"title-row\">\r\n        <span class=\"title-logo\">🛵</span>\r\n        <span class=\"query-tag\" id=\"titleTag\">\r\n          <span class=\"q-mark\">#</span><span id=\"queryLabel\">Instamart Hunter</span>\r\n        </span>\r\n      </div>\r\n      <div id=\"metaCard\"></div>\r\n    </div>\r\n    <div class=\"toolbar\">\r\n      <select id=\"filterStore\" class=\"filter-select\">\r\n        <option value=\"\">All stores</option>\r\n      </select>\r\n      <select id=\"filterBrand\" class=\"filter-select\">\r\n        <option value=\"\">All brands</option>\r\n      </select>\r\n      <select id=\"filterCategory\" class=\"filter-select\">\r\n        <option value=\"\">All categories</option>\r\n      </select>\r\n      <select id=\"filterStock\" class=\"filter-select\">\r\n        <option value=\"\">All stock</option>\r\n        <option value=\"In stock\">In stock</option>\r\n        <option value=\"Sold out\">Sold out</option>\r\n      </select>\r\n      <select id=\"sortSelect\" class=\"filter-select\">\r\n        <option value=\"price-asc\">💵 Price: Low to High</option>\r\n        <option value=\"price-desc\">💎 Price: High to Low</option>\r\n        <option value=\"discount-desc\">🔥 Highest Discount %</option>\r\n        <option value=\"brand-asc\">🏷️ Brand: A to Z</option>\r\n        <option value=\"title-asc\">🔤 Product: A to Z</option>\r\n        <option value=\"store-asc\">📍 Store: A to Z</option>\r\n      </select>\r\n      <input id=\"filter\" type=\"text\" placeholder=\"Search product, brand, store...\">\r\n      <button id=\"filterVariation\" class=\"tool-btn\">Price varies by store</button>\r\n      <div class=\"spacer\"></div>\r\n      <button id=\"download\" class=\"tool-btn btn-primary\">Download CSV</button>\r\n    </div>\r\n  </header>\r\n\r\n  <div id=\"tableWrap\"></div>\r\n\r\n  <script id=\"app-script\">\r\n    const tableWrap = document.getElementById('tableWrap');\r\n    const filterEl = document.getElementById('filter');\r\n    const storeSel = document.getElementById('filterStore');\r\n    const brandSel = document.getElementById('filterBrand');\r\n    const catSel = document.getElementById('filterCategory');\r\n    const stockSel = document.getElementById('filterStock');\r\n    const sortSel = document.getElementById('sortSelect');\r\n    const variationBtn = document.getElementById('filterVariation');\r\n\r\n    let isHealthMode = false;\r\n\r\n    const COLUMN_ORDER_PRODUCTS = [\r\n      'store_locality',\r\n      'name',\r\n      'brand',\r\n      'quantity',\r\n      'stock',\r\n      'mrp_inr',\r\n      'selling_price_inr',\r\n      'discount_pct',\r\n      'category',\r\n      'image_1',\r\n      'maps_url'\r\n    ];\r\n\r\n    const COLUMN_ORDER_HEALTH = [\r\n      'store_locality',\r\n      'status',\r\n      'eta',\r\n      'store_id',\r\n      'store_pincode',\r\n      'store_address',\r\n      'maps_url'\r\n    ];\r\n\r\n    const COLUMN_LABELS = {\r\n      store_locality: 'Store / Locality',\r\n      name: 'Product',\r\n      brand: 'Brand',\r\n      quantity: 'Quantity',\r\n      stock: 'Stock',\r\n      mrp_inr: 'MRP (₹)',\r\n      selling_price_inr: 'Price (₹)',\r\n      discount_pct: 'Discount %',\r\n      category: 'Category',\r\n      image_1: 'Image',\r\n      maps_url: 'Map',\r\n      store_id: 'Pod ID',\r\n      store_pincode: 'Pincode',\r\n      store_address: 'Store Address',\r\n      sub_category: 'Sub-category',\r\n      product_id: 'Product ID',\r\n      status: 'Live Status',\r\n      eta: 'Delivery ETA'\r\n    };\r\n\r\n    const DETAIL_COLS = ['store_locality', 'store_id', 'store_pincode', 'brand', 'quantity', 'selling_price_inr', 'mrp_inr', 'discount_pct', 'stock', 'category', 'sub_category', 'store_address'];\r\n    const DETAIL_COLS_HEALTH = ['store_locality', 'store_id', 'status', 'eta', 'store_pincode', 'store_address', 'message'];\r\n    const DETAIL_FULL_WIDTH = new Set(['store_address']);\r\n    const NUMERIC_COLS = new Set(['mrp_inr', 'selling_price_inr', 'discount_pct']);\r\n    const NOWRAP_COLS = new Set(['stock', 'quantity', 'image_1', 'maps_url', 'status', 'eta']);\r\n\r\n    const label = c => COLUMN_LABELS[c] || c;\r\n\r\n    let DATA = [];\r\n    let allRows = [];\r\n    let currentQuery = '';\r\n    let sortCol = null, sortDir = 1;\r\n    let onlyVariation = false;\r\n    let cheapestByKey = new Map();\r\n    let variantsMap = new Map();\r\n\r\n    const variantKey = r => `${r.name || ''}__${r.brand || ''}__${r.quantity || ''}`.trim().toLowerCase();\r\n\r\n    function normalizeRow(r) {\r\n      if (r.status || r.eta || r.is_health) {\r\n        isHealthMode = true;\r\n        const loc = r.store_locality || r.locality || '-';\r\n        const storeId = r.store_id || r.podId || '-';\r\n        const pin = r.store_pincode || r.pincode || '';\r\n        const addr = r.store_address || r.address || '';\r\n        const status = r.status || 'Live & Active';\r\n        const eta = r.eta || '-';\r\n        const msg = r.message || '';\r\n        const maps = r.maps_url || r.mapsUrl || `https://www.google.com/maps?q=${r.latitude || ''},${r.longitude || ''}`;\r\n        const stType = r.status_type || (status.includes('Live') ? 'live' : status.includes('Closed') ? 'closed' : status.includes('Coming') ? 'coming_soon' : 'unserviceable');\r\n        return {\r\n          is_health: true,\r\n          store_locality: loc,\r\n          status: status,\r\n          status_type: stType,\r\n          eta: eta,\r\n          store_id: storeId,\r\n          store_pincode: pin,\r\n          store_address: addr,\r\n          message: msg,\r\n          maps_url: maps,\r\n          _search: `${loc} ${storeId} ${pin} ${addr} ${status} ${eta} ${msg}`.toLowerCase()\r\n        };\r\n      }\r\n\r\n      const avail = (r.stock === 'In stock' || r.inStock === true || r.availability === 'IN_STOCK') ? 'In stock' : 'Sold out';\r\n      const title = (r.name || r.title || r.titles?.title || '-').trim();\r\n      const loc = r.store_locality || r.locality || '-';\r\n      const storeId = r.store_id || r.podId || r.storeId || '-';\r\n      const pin = r.store_pincode || r.pincode || '';\r\n      const addr = r.store_address || r.deliveryLocation || '';\r\n      const brand = r.brand || '';\r\n      const qty = r.quantity || '';\r\n      const cat = r.category || '';\r\n      const subCat = r.sub_category || '';\r\n\r\n      const searchStr = `${title} ${brand} ${qty} ${loc} ${storeId} ${pin} ${addr} ${cat} ${subCat}`.toLowerCase();\r\n\r\n      return {\r\n        store_locality: loc,\r\n        store_id: storeId,\r\n        store_pincode: pin,\r\n        store_address: addr,\r\n        maps_url: r.maps_url || r.mapsUrl || '',\r\n        name: title,\r\n        brand: brand,\r\n        quantity: qty,\r\n        stock: avail,\r\n        mrp_inr: r.mrp_inr != null ? Number(r.mrp_inr) : (r.mrp != null ? Number(r.mrp) : null),\r\n        selling_price_inr: r.selling_price_inr != null ? Number(r.selling_price_inr) : (r.price != null ? Number(r.price) : null),\r\n        discount_pct: r.discount_pct != null ? Number(r.discount_pct) : (r.discount != null ? Number(r.discount) : 0),\r\n        category: cat,\r\n        sub_category: subCat,\r\n        product_id: r.product_id || r.productId || '',\r\n        image_1: r.image_1 || r.imageUrl || '',\r\n        product_url: r.product_url || (r.product_id ? `https://www.swiggy.com/instamart/item/${r.product_id}` : '#'),\r\n        _search: searchStr\r\n      };\r\n    }\r\n\r\n    function priceAcrossStores(row) {\r\n      const k = variantKey(row);\r\n      const group = variantsMap.get(k) || [];\r\n      return group\r\n        .filter(r => r.stock === 'In stock' && r.selling_price_inr != null)\r\n        .map(r => ({ store: r.store_locality, price: r.selling_price_inr, stock: r.stock }))\r\n        .sort((a, b) => a.price - b.price);\r\n    }\r\n\r\n    function computeVariationKeys() {\r\n      const byKey = new Map();\r\n      variantsMap = new Map();\r\n\r\n      for (let i = 0; i < allRows.length; i++) {\r\n        const r = allRows[i];\r\n        const k = variantKey(r);\r\n        let group = variantsMap.get(k);\r\n        if (!group) {\r\n          group = [];\r\n          variantsMap.set(k, group);\r\n        }\r\n        group.push(r);\r\n\r\n        if (r.stock !== 'In stock' || r.selling_price_inr == null) continue;\r\n        const price = r.selling_price_inr;\r\n        const e = byKey.get(k);\r\n        if (!e) byKey.set(k, { min: price, max: price, cheapest: r });\r\n        else {\r\n          e.min = Math.min(e.min, price);\r\n          e.max = Math.max(e.max, price);\r\n          if (price < (e.cheapest.selling_price_inr ?? 999999)) e.cheapest = r;\r\n        }\r\n      }\r\n      cheapestByKey = new Map([...byKey].filter(([, v]) => v.min !== v.max).map(([k, v]) => [k, v.cheapest]));\r\n      if (variationBtn) {\r\n        variationBtn.textContent = `Price varies by store (${cheapestByKey.size})`;\r\n      }\r\n    }\r\n\r\n    function buildPriceSection(prices) {\r\n      const min = prices[0].price, max = prices[prices.length - 1].price;\r\n      const toggle = `<span class=\"toggle-stores\">Show all ${prices.length} stores</span>`;\r\n\r\n      if (min === max) {\r\n        return `<div class=\"modal-section\"><div class=\"sec-title\">Price across stores</div>` +\r\n          `<div class=\"price-row\"><span class=\"store\">${prices.length} stores have the same price</span>` +\r\n          `<span class=\"amount\">₹${min}</span></div>${toggle}</div>`;\r\n      }\r\n\r\n      const cheapest = prices.filter(p => p.price === min);\r\n      const restCount = prices.length - cheapest.length;\r\n      const savings = Math.round(((max - min) / max) * 100);\r\n      const cheapestLabel = cheapest.length === 1 ? cheapest[0].store : `${cheapest.length} stores`;\r\n\r\n      return `<div class=\"modal-section\"><div class=\"sec-title\">Price across stores</div>` +\r\n        `<div class=\"price-compare\">` +\r\n        `<div class=\"price-card best\">` +\r\n        `<span class=\"pill best\">cheapest</span>` +\r\n        `<span class=\"pc-label\">${cheapestLabel}</span>` +\r\n        `<span class=\"pc-amount-row\">${savings > 0 ? `<span class=\"save-tag\">save ${savings}%</span>` : ''}<span class=\"pc-amount best\">₹${min}</span></span></div>` +\r\n        `<div class=\"price-card worst\">` +\r\n        `<span class=\"pill worst\">priciest</span>` +\r\n        `<span class=\"pc-label\">${restCount} other store${restCount > 1 ? 's' : ''}</span>` +\r\n        `<span class=\"pc-amount worst\">₹${max}</span></div>` +\r\n        `</div>${toggle}</div>`;\r\n    }\r\n\r\n    function openStoreListModal(prices) {\r\n      const modal = document.createElement('div');\r\n      modal.className = 'modal-overlay';\r\n      const rows = prices.map(p =>\r\n        `<div class=\"price-row\"><span class=\"store\">${p.store}${p.stock === 'Sold out' ? ' <span class=\"soldout\">(sold out)</span>' : ''}</span>` +\r\n        `<span class=\"amount\">₹${p.price}</span></div>`\r\n      ).join('');\r\n      modal.innerHTML =\r\n        `<div class=\"modal-card\" style=\"width:360px;\">` +\r\n        `<div class=\"modal-head\"><div class=\"name\">All ${prices.length} stores</div>` +\r\n        `<span class=\"modal-close\">✕</span></div>` +\r\n        `<div class=\"modal-section\" style=\"border-top:none;\">${rows}</div></div>`;\r\n      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\r\n      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\r\n      document.body.appendChild(modal);\r\n    }\r\n\r\n    function openDetail(row) {\r\n      const modal = document.createElement('div');\r\n      modal.className = 'modal-overlay';\r\n\r\n      const fields = DETAIL_COLS.map(c => {\r\n        let val = row[c] ?? '-';\r\n        if (c === 'selling_price_inr' && val !== '-') val = `<b>₹${val}</b>`;\r\n        if (c === 'mrp_inr' && val !== '-') val = `₹${val}`;\r\n        if (c === 'discount_pct' && val) val = `${val}% OFF`;\r\n        if (c === 'store_address' && row.maps_url) {\r\n          val = `${val} <br><a href=\"${row.maps_url}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-weight:700;display:inline-block;margin-top:4px;\">📍 Open in Google Maps ↗</a>`;\r\n        }\r\n        return `<div class=\"modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}\">` +\r\n          `<div class=\"k\">${label(c)}</div><div class=\"v\">${val}</div></div>`;\r\n      }).join('');\r\n\r\n      const prices = priceAcrossStores(row);\r\n      const priceSection = prices.length > 1 ? buildPriceSection(prices) : '';\r\n\r\n      const img = row.image_1\r\n        ? `<img src=\"${row.image_1}\" alt=\"${row.name}\" onerror=\"this.style.display='none'\">`\r\n        : `<div style=\"width:48px;height:48px;border-radius:6px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;\">🛵</div>`;\r\n\r\n      modal.innerHTML =\r\n        `<div class=\"modal-card\">` +\r\n        `<div class=\"modal-head\">${img}` +\r\n        `<div class=\"name\"><a href=\"${row.product_url}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\" style=\"font-size:15px;\">${row.name}</a></div>` +\r\n        `<span class=\"modal-close\">✕</span></div>` +\r\n        `<div class=\"modal-grid\">${fields}</div>` +\r\n    function openDetail(row) {\r\n      const modal = document.createElement('div');\r\n      modal.className = 'modal-overlay';\r\n\r\n      if (isHealthMode) {\r\n        const fields = DETAIL_COLS_HEALTH.map(c => {\r\n          let val = row[c] ?? '-';\r\n          if (c === 'status') {\r\n            const st = row.status_type || 'live';\r\n            val = `<span class=\"health-pill ${st}\">${row.status}</span>`;\r\n          }\r\n          if (c === 'eta') {\r\n            val = row.eta && row.eta !== '-' ? `<span class=\"eta-pill\">⚡ ${row.eta}</span>` : 'Not available';\r\n          }\r\n          if (c === 'store_address' && row.maps_url) {\r\n            val = `${val} <br><a href=\"${row.maps_url}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-weight:700;display:inline-block;margin-top:6px;\">📍 Open in Google Maps ↗</a>`;\r\n          }\r\n          return `<div class=\"modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}\">` +\r\n            `<div class=\"k\">${label(c)}</div><div class=\"v\">${val}</div></div>`;\r\n        }).join('');\r\n\r\n        modal.innerHTML =\r\n          `<div class=\"modal-card\">` +\r\n          `<div class=\"modal-head\"><div style=\"font-size:24px;\">🏪</div>` +\r\n          `<div class=\"name\" style=\"font-size:16px;\">${row.store_locality} (Pod #${row.store_id})</div>` +\r\n          `<span class=\"modal-close\">✕</span></div>` +\r\n          `<div class=\"modal-grid\">${fields}</div></div>`;\r\n\r\n        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\r\n        modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\r\n        document.body.appendChild(modal);\r\n        return;\r\n      }\r\n\r\n      const fields = DETAIL_COLS.map(c => {\r\n        let val = row[c] ?? '-';\r\n        if (c === 'selling_price_inr' && val !== '-') val = `<b>₹${val}</b>`;\r\n        if (c === 'mrp_inr' && val !== '-') val = `₹${val}`;\r\n        if (c === 'discount_pct' && val) val = `${val}% OFF`;\r\n        if (c === 'store_address' && row.maps_url) {\r\n          val = `${val} <br><a href=\"${row.maps_url}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-weight:700;display:inline-block;margin-top:4px;\">📍 Open in Google Maps ↗</a>`;\r\n        }\r\n        return `<div class=\"modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}\">` +\r\n          `<div class=\"k\">${label(c)}</div><div class=\"v\">${val}</div></div>`;\r\n      }).join('');\r\n\r\n      const prices = priceAcrossStores(row);\r\n      const priceSection = prices.length > 1 ? buildPriceSection(prices) : '';\r\n\r\n      const img = row.image_1\r\n        ? `<img src=\"${row.image_1}\" alt=\"${row.name}\" onerror=\"this.style.display='none'\">`\r\n        : `<div style=\"width:48px;height:48px;border-radius:6px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;\">🛵</div>`;\r\n\r\n      modal.innerHTML =\r\n        `<div class=\"modal-card\">` +\r\n        `<div class=\"modal-head\">${img}` +\r\n        `<div class=\"name\"><a href=\"${row.product_url}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\" style=\"font-size:15px;\">${row.name}</a></div>` +\r\n        `<span class=\"modal-close\">✕</span></div>` +\r\n        `<div class=\"modal-grid\">${fields}</div>` +\r\n        priceSection + `</div>`;\r\n\r\n      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });\r\n      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());\r\n      const toggleEl = modal.querySelector('.toggle-stores');\r\n      if (toggleEl) {\r\n        toggleEl.addEventListener('click', () => openStoreListModal(prices));\r\n      }\r\n      document.body.appendChild(modal);\r\n    }\r\n\r\n    function openImage(src) {\r\n      if (!src) return;\r\n      const modal = document.createElement('div');\r\n      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;' +\r\n        'align-items:center;justify-content:center;z-index:100;cursor:zoom-out;';\r\n      modal.innerHTML = `<img src=\"${src}\" style=\"max-width:85vw;max-height:85vh;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,.5);background:#fff;padding:8px;\">`;\r\n      modal.addEventListener('click', () => modal.remove());\r\n      document.body.appendChild(modal);\r\n    }\r\n\r\n    function cellValue(row, col) {\r\n      const v = row[col] ?? '';\r\n      if (col === 'status') {\r\n        const st = row.status_type || (String(row.status || '').includes('Live') ? 'live' : String(row.status || '').includes('Closed') ? 'closed' : String(row.status || '').includes('Coming') ? 'coming_soon' : 'unserviceable');\r\n        return `<span class=\"health-pill ${st}\">${row.status || 'Live'}</span>`;\r\n      }\r\n      if (col === 'eta') {\r\n        return (row.eta && row.eta !== '-') ? `<span class=\"eta-pill\">⚡ ${row.eta}</span>` : '-';\r\n      }\r\n      if (col === 'image_1') {\r\n        return v\r\n          ? `<img src=\"${v}\" loading=\"lazy\" class=\"thumb\" data-src=\"${v}\" onerror=\"this.outerHTML='<span class=\\\\'thumb-fallback\\\\'>🛵</span>'\">`\r\n          : `<span class=\"thumb-fallback\">🛵</span>`;\r\n      }\r\n      if (col === 'name') {\r\n        return `<a href=\"${row.product_url}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"prod-link\">${v}</a>`;\r\n      }\r\n      if (col === 'quantity') {\r\n        return v ? `<span class=\"qty-tag\">${v}</span>` : '-';\r\n      }\r\n      if (col === 'selling_price_inr') {\r\n        return v != null ? `₹${v}` : '-';\r\n      }\r\n      if (col === 'mrp_inr') {\r\n        return (v && v > row.selling_price_inr) ? `₹${v}` : '-';\r\n      }\r\n      if (col === 'discount_pct') {\r\n        return v > 0 ? `<span style=\"color:var(--crate);font-weight:700;\">${v}%</span>` : '-';\r\n      }\r\n      if (col === 'maps_url') {\r\n        return v ? `<a href=\"${v}\" target=\"_blank\" rel=\"noopener noreferrer\">📍 Map ↗</a>` : '-';\r\n      }\r\n      return String(v).replace(/</g, '&lt;');\r\n    }\r\n\r\n    function sortRows(rows) {\r\n      if (!sortCol) return rows;\r\n      const numeric = NUMERIC_COLS.has(sortCol);\r\n      return [...rows].sort((a, b) => {\r\n        let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';\r\n        const cmp = numeric ? ((Number(av) || 0) - (Number(bv) || 0)) : String(av).localeCompare(String(bv));\r\n        return cmp * sortDir;\r\n      });\r\n    }\r\n\r\n    function renderRowHtml(r, i) {\r\n      let trClass = 'in-stock';\r\n      if (isHealthMode) {\r\n        trClass = r.status_type === 'live' ? 'in-stock' : (r.status_type === 'closed' ? 'sold-out' : 'sold-out');\r\n      } else {\r\n        trClass = r.stock === 'Sold out' ? 'sold-out' : 'in-stock';\r\n      }\r\n      const order = isHealthMode ? COLUMN_ORDER_HEALTH : COLUMN_ORDER_PRODUCTS;\r\n      const cols = order.filter(c => c in r);\r\n      return `<tr class=\"${trClass}\"><td class=\"nowrap\"><button data-idx=\"${i}\" class=\"view-btn\" title=\"View details\">👁</button></td>` +\r\n        cols.map(c => {\r\n          const cls = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : ''].filter(Boolean).join(' ');\r\n          return `<td class=\"${cls}\">${cellValue(r, c)}</td>`;\r\n        }).join('') + '</tr>';\r\n    }\r\n\r\n    function updateTableStatus() {\r\n      const statusEl = document.getElementById('tableStatus');\r\n      if (!statusEl) return;\r\n      const total = filteredRows.length;\r\n      const noun = isHealthMode ? 'stores' : 'products';\r\n      if (total === 0) {\r\n        statusEl.textContent = '';\r\n      } else if (renderedCount >= total) {\r\n        statusEl.textContent = `✓ Showing all ${total.toLocaleString()} ${noun}`;\r\n      } else {\r\n        statusEl.textContent = `Showing ${renderedCount.toLocaleString()} of ${total.toLocaleString()} ${noun} • Scroll down to load more`;\r\n      }\r\n    }\r\n\r\n    function appendNextChunk() {\r\n      if (renderedCount >= filteredRows.length) return;\r\n      const tbody = document.getElementById('tableBody');\r\n      if (!tbody) return;\r\n\r\n      const nextBatch = filteredRows.slice(renderedCount, renderedCount + PAGE_CHUNK);\r\n      let html = '';\r\n      for (let i = 0; i < nextBatch.length; i++) {\r\n        html += renderRowHtml(nextBatch[i], renderedCount + i);\r\n      }\r\n      tbody.insertAdjacentHTML('beforeend', html);\r\n      renderedCount += nextBatch.length;\r\n      updateTableStatus();\r\n    }\r\n\r\n    function renderInitialTable() {\r\n      if (!filteredRows.length) {\r\n        tableWrap.innerHTML = `<div id=\"empty\">No ${isHealthMode ? 'stores' : 'products'} match your filter criteria.</div>`;\r\n        return;\r\n      }\r\n      const order = isHealthMode ? COLUMN_ORDER_HEALTH : COLUMN_ORDER_PRODUCTS;\r\n      const cols = order.filter(c => c in filteredRows[0]);\r\n      const head = '<thead><tr><th></th>' + cols.map(c => {\r\n        const arrow = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';\r\n        return `<th data-col=\"${c}\">${label(c)}${arrow}</th>`;\r\n      }).join('') + '</tr></thead>';\r\n\r\n      renderedCount = Math.min(PAGE_CHUNK, filteredRows.length);\r\n      let bodyHtml = '';\r\n      for (let i = 0; i < renderedCount; i++) {\r\n        bodyHtml += renderRowHtml(filteredRows[i], i);\r\n      }\r\n\r\n      tableWrap.innerHTML = `<table>${head}<tbody id=\"tableBody\">${bodyHtml}</tbody></table><div id=\"tableStatus\" class=\"table-status-bar\"></div>`;\r\n      updateTableStatus();\r\n      tableWrap.scrollTop = 0;\r\n    }\r\n\r\n    function applyFilter() {\r\n      const q = filterEl.value.trim().toLowerCase();\r\n      const store = storeSel.value;\r\n      const brand = brandSel.value;\r\n      const cat = catSel.value;\r\n      const stock = stockSel.value;\r\n      const base = (!isHealthMode && onlyVariation) ? [...cheapestByKey.values()] : allRows;\r\n\r\n      const qTokens = q ? q.split(/\\s+/).filter(Boolean) : [];\r\n\r\n      const filtered = base.filter(r => {\r\n        if (store && r.store_id !== store && r.store_locality !== store) return false;\r\n        if (!isHealthMode && brand && r.brand !== brand) return false;\r\n        if (!isHealthMode && cat && r.category !== cat) return false;\r\n        if (!isHealthMode && stock && r.stock !== stock) return false;\r\n        if (isHealthMode && stock && r.status !== stock && r.status_type !== stock) return false;\r\n        if (qTokens.length > 0) {\r\n          const search = r._search;\r\n          for (let i = 0; i < qTokens.length; i++) {\r\n            if (!search.includes(qTokens[i])) return false;\r\n          }\r\n        }\r\n        return true;\r\n      });\r\n\r\n      filteredRows = sortRows(filtered);\r\n      renderInitialTable();\r\n      updateMetaRibbon();\r\n    }\r\n\r\n    // Event delegation on tableWrap for high performance (zero per-row event listeners)\r\n    tableWrap.addEventListener('click', (e) => {\r\n      const th = e.target.closest('th[data-col]');\r\n      if (th) {\r\n        const col = th.dataset.col;\r\n        sortDir = sortCol === col ? -sortDir : 1;\r\n        sortCol = col;\r\n        applyFilter();\r\n        return;\r\n      }\r\n\r\n      const viewBtn = e.target.closest('.view-btn');\r\n      if (viewBtn) {\r\n        const idx = Number(viewBtn.dataset.idx);\r\n        if (filteredRows[idx]) openDetail(filteredRows[idx]);\r\n        return;\r\n      }\r\n\r\n      const thumb = e.target.closest('.thumb');\r\n      if (thumb) {\r\n        openImage(thumb.dataset.src);\r\n        return;\r\n      }\r\n    });\r\n\r\n    // Infinite scroll listener throttled by rAF\r\n    let scrollScheduled = false;\r\n    tableWrap.addEventListener('scroll', () => {\r\n      if (scrollScheduled) return;\r\n      scrollScheduled = true;\r\n      requestAnimationFrame(() => {\r\n        scrollScheduled = false;\r\n        if (renderedCount >= filteredRows.length) return;\r\n        const scrollBottom = tableWrap.scrollHeight - tableWrap.scrollTop - tableWrap.clientHeight;\r\n        if (scrollBottom < 600) {\r\n          appendNextChunk();\r\n        }\r\n      });\r\n    }, { passive: true });\r\n\r\n    function updateMetaRibbon() {\r\n      const metaEl = document.getElementById('metaCard');\r\n      if (!metaEl) return;\r\n\r\n      if (isHealthMode) {\r\n        const total = allRows.length;\r\n        const liveCount = allRows.filter(r => r.status_type === 'live' || r.status?.includes('Live')).length;\r\n        const closedCount = allRows.filter(r => r.status_type === 'closed' || r.status?.includes('Closed')).length;\r\n        const comingCount = allRows.filter(r => r.status_type === 'coming_soon' || r.status?.includes('Coming')).length;\r\n\r\n        const rowCountStr = (filteredRows.length < total)\r\n          ? `<b>${filteredRows.length}</b> / ${total} pods`\r\n          : `<b>${total}</b> Dark Stores Audited`;\r\n\r\n        metaEl.innerHTML =\r\n          `<span class=\"stat\">${rowCountStr}</span>` +\r\n          `<span class=\"stat\" style=\"color:#065f46;\">🟢 <b>${liveCount}</b> Live</span>` +\r\n          `<span class=\"stat\" style=\"color:#92400e;\">🟡 <b>${closedCount}</b> Closed</span>` +\r\n          `<span class=\"stat\" style=\"color:#991b1b;\">🔴 <b>${comingCount}</b> Coming Soon</span>` +\r\n          `<span class=\"stat\">${new Date().toLocaleTimeString()}</span>`;\r\n        return;\r\n      }\r\n\r\n      const allStoresSet = new Set(allRows.map(r => r.store_id || r.store_locality));\r\n      const filteredStoresSet = new Set(filteredRows.map(r => r.store_id || r.store_locality));\r\n      const prices = (filteredRows.length ? filteredRows : allRows).map(r => r.selling_price_inr).filter(p => p != null);\r\n      const minPrice = prices.length ? Math.min(...prices) : null;\r\n\r\n      const isFiltered = (filteredRows.length < allRows.length) || (filterEl.value.trim() !== '') || (storeSel.value !== '') || (brandSel.value !== '') || (catSel.value !== '') || (stockSel.value !== '') || onlyVariation;\r\n\r\n      const rowCountStr = isFiltered\r\n        ? `<b>${filteredRows.length.toLocaleString()}</b> / ${allRows.length.toLocaleString()} rows`\r\n        : `<b>${allRows.length.toLocaleString()}</b> rows`;\r\n\r\n      const storeCountStr = isFiltered\r\n        ? `<b>${filteredStoresSet.size}</b> / ${allStoresSet.size} stores`\r\n        : `<b>${allStoresSet.size}</b> stores`;\r\n\r\n      metaEl.innerHTML =\r\n        `<span class=\"stat\">${rowCountStr}</span>` +\r\n        `<span class=\"stat\">${storeCountStr}</span>` +\r\n        (minPrice != null ? `<span class=\"stat\">min <b>₹${minPrice}</b></span>` : '') +\r\n        `<span class=\"stat\">${new Date().toLocaleTimeString()}</span>`;\r\n    }\r\n\r\n    function fillStoreOptions() {\r\n      const storeMap = new Map();\r\n      allRows.forEach(r => {\r\n        const id = r.store_id || r.store_locality;\r\n        if (!storeMap.has(id)) {\r\n          storeMap.set(id, {\r\n            id: id,\r\n            locality: r.store_locality,\r\n            count: 0\r\n          });\r\n        }\r\n        storeMap.get(id).count++;\r\n      });\r\n\r\n      const stores = [...storeMap.values()].sort((a, b) => a.locality.localeCompare(b.locality));\r\n      storeSel.innerHTML = '<option value=\"\">All stores (' + stores.length + ')</option>';\r\n      stores.forEach(s => {\r\n        const opt = document.createElement('option');\r\n        opt.value = s.id;\r\n        opt.textContent = `${s.locality} (${s.count})`;\r\n        storeSel.appendChild(opt);\r\n      });\r\n    }\r\n\r\n    function fillBrandOptions() {\r\n      const brandCount = new Map();\r\n      allRows.forEach(r => {\r\n        if (r.brand) brandCount.set(r.brand, (brandCount.get(r.brand) || 0) + 1);\r\n      });\r\n      const brands = [...brandCount.keys()].sort((a, b) => a.localeCompare(b));\r\n      brandSel.innerHTML = '<option value=\"\">All brands (' + brands.length + ')</option>';\r\n      brands.forEach(b => {\r\n        const opt = document.createElement('option');\r\n        opt.value = b;\r\n        opt.textContent = `${b} (${brandCount.get(b)})`;\r\n        brandSel.appendChild(opt);\r\n      });\r\n    }\r\n\r\n    function fillCategoryOptions() {\r\n      const catCount = new Map();\r\n      allRows.forEach(r => {\r\n        if (r.category) catCount.set(r.category, (catCount.get(r.category) || 0) + 1);\r\n      });\r\n      const cats = [...catCount.keys()].sort((a, b) => a.localeCompare(b));\r\n      catSel.innerHTML = '<option value=\"\">All categories (' + cats.length + ')</option>';\r\n      cats.forEach(c => {\r\n        const opt = document.createElement('option');\r\n        opt.value = c;\r\n        opt.textContent = `${c} (${catCount.get(c)})`;\r\n        catSel.appendChild(opt);\r\n      });\r\n    }\r\n\r\n    function exportCSV() {\r\n      const rowsToExport = filteredRows.length ? filteredRows : allRows;\r\n      if (!rowsToExport.length) return alert('No data to download.');\r\n\r\n      if (isHealthMode) {\r\n        const headers = ['#', 'Store_Locality', 'Store_ID', 'Status', 'Delivery_ETA', 'Status_Message', 'Store_Address', 'Store_Pincode', 'Google_Maps_URL'];\r\n        const rows = rowsToExport.map((r, i) => [\r\n          i + 1,\r\n          `\"${(r.store_locality || '').replace(/\"/g, '\"\"')}\"`,\r\n          `\"${r.store_id || ''}\"`,\r\n          `\"${r.status || ''}\"`,\r\n          `\"${r.eta || ''}\"`,\r\n          `\"${(r.message || '').replace(/\"/g, '\"\"')}\"`,\r\n          `\"${(r.store_address || '').replace(/\"/g, '\"\"')}\"`,\r\n          `\"${r.store_pincode || ''}\"`,\r\n          `\"${r.maps_url || ''}\"`\r\n        ]);\r\n        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');\r\n        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });\r\n        const a = document.createElement('a');\r\n        a.href = URL.createObjectURL(blob);\r\n        a.download = `swiggy_store_health_${Date.now()}.csv`;\r\n        document.body.appendChild(a);\r\n        a.click();\r\n        a.remove();\r\n        return;\r\n      }\r\n\r\n      const headers = ['#', 'Store_Locality', 'Store_ID', 'Store_Address', 'Store_Pincode', 'Brand', 'Product_Title', 'Quantity', 'Selling_Price_INR', 'MRP_INR', 'Discount_Pct', 'Stock', 'Category', 'Sub_Category', 'Google_Maps_URL', 'Product_URL'];\r\n      const rows = rowsToExport.map((r, i) => [\r\n        i + 1,\r\n        `\"${(r.store_locality || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${r.store_id || ''}\"`,\r\n        `\"${(r.store_address || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${r.store_pincode || ''}\"`,\r\n        `\"${(r.brand || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${(r.name || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${(r.quantity || '').replace(/\"/g, '\"\"')}\"`,\r\n        r.selling_price_inr ?? '',\r\n        r.mrp_inr ?? '',\r\n        r.discount_pct || 0,\r\n        `\"${r.stock || ''}\"`,\r\n        `\"${(r.category || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${(r.sub_category || '').replace(/\"/g, '\"\"')}\"`,\r\n        `\"${r.maps_url || ''}\"`,\r\n        `\"${r.product_url || ''}\"`\r\n      ]);\r\n      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');\r\n      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });\r\n      const a = document.createElement('a');\r\n      a.href = URL.createObjectURL(blob);\r\n      a.download = `swiggy_instamart_${currentQuery || 'results'}_${Date.now()}.csv`;\r\n      document.body.appendChild(a);\r\n      a.click();\r\n      a.remove();\r\n    }\r\n\r\n    function initData(items, query) {\r\n      currentQuery = query || '';\r\n      isHealthMode = (query === 'Store Health Audit') || (items && items[0] && (items[0].status || items[0].eta || items[0].is_health));\r\n\r\n      if (document.getElementById('queryLabel')) {\r\n        document.getElementById('queryLabel').textContent = currentQuery ? currentQuery : (isHealthMode ? 'Store Health Audit' : 'Instamart Hunter');\r\n      }\r\n      allRows = (items || []).map(normalizeRow);\r\n\r\n      if (isHealthMode) {\r\n        brandSel.style.display = 'none';\r\n        catSel.style.display = 'none';\r\n        variationBtn.style.display = 'none';\r\n        stockSel.innerHTML = '<option value=\"\">All Statuses</option><option value=\"Live & Active\">🟢 Live & Active</option><option value=\"Temporarily Closed\">🟡 Temporarily Closed</option><option value=\"Coming Soon\">🔴 Coming Soon</option><option value=\"Unserviceable\">⚪ Unserviceable</option>';\r\n        sortSel.innerHTML = '<option value=\"store-asc\">📍 Locality: A to Z</option><option value=\"status-asc\">🟢 Status</option><option value=\"eta-asc\">⏱ Delivery ETA</option>';\r\n        filterEl.placeholder = 'Search locality, address, pincode, status...';\r\n      }\r\n\r\n      updateMetaRibbon();\r\n      fillStoreOptions();\r\n      if (!isHealthMode) {\r\n        fillBrandOptions();\r\n        fillCategoryOptions();\r\n        computeVariationKeys();\r\n      }\r\n      applyFilter();\r\n    }\r\n\r\n    // Debounced text filter\r\n    let filterDebounce = null;\r\n    filterEl.addEventListener('input', () => {\r\n      clearTimeout(filterDebounce);\r\n      filterDebounce = setTimeout(applyFilter, 120);\r\n    });\r\n\r\n    storeSel.addEventListener('change', applyFilter);\r\n    brandSel.addEventListener('change', applyFilter);\r\n    catSel.addEventListener('change', applyFilter);\r\n    stockSel.addEventListener('change', applyFilter);\r\n    sortSel.addEventListener('change', () => {\r\n      const v = sortSel.value;\r\n      if (v === 'price-asc') { sortCol = 'selling_price_inr'; sortDir = 1; }\r\n      else if (v === 'price-desc') { sortCol = 'selling_price_inr'; sortDir = -1; }\r\n      else if (v === 'discount-desc') { sortCol = 'discount_pct'; sortDir = -1; }\r\n      else if (v === 'brand-asc') { sortCol = 'brand'; sortDir = 1; }\r\n      else if (v === 'title-asc') { sortCol = 'name'; sortDir = 1; }\r\n      else if (v === 'store-asc') { sortCol = 'store_locality'; sortDir = 1; }\r\n      else if (v === 'status-asc') { sortCol = 'status'; sortDir = 1; }\r\n      else if (v === 'eta-asc') { sortCol = 'eta'; sortDir = 1; }\r\n      applyFilter();\r\n    });\r\n\r\n    variationBtn.addEventListener('click', () => {\r\n      onlyVariation = !onlyVariation;\r\n      variationBtn.classList.toggle('active', onlyVariation);\r\n      applyFilter();\r\n    });\r\n\r\n    document.getElementById('download').addEventListener('click', exportCSV);\r\n\r\n    /* __DATA_INJECTION__ */\r\n\r\n    // Fallback: window.opener\r\n    try {\r\n      if (!allRows.length && window.opener && window.opener.swiggyResults && window.opener.swiggyResults.length) {\r\n        const q = window.opener.document?.getElementById('sw-h-query')?.value?.trim() || '';\r\n        initData(window.opener.swiggyResults, q);\r\n      }\r\n    } catch(e) {}\r\n\r\n    // Fallback: URL hash\r\n    try {\r\n      if (!allRows.length && location.hash && location.hash.length > 2) {\r\n        const raw = decodeURIComponent(location.hash.slice(1));\r\n        const parsed = JSON.parse(raw);\r\n        if (Array.isArray(parsed)) initData(parsed, '');\r\n        else if (parsed.items) initData(parsed.items, parsed.query || '');\r\n      }\r\n    } catch(e) {}\r\n  </script>\r\n</body>\r\n</html>\r\n";
 
   function openBlankResultsTable(items, query, isAuto = false) {
     if (!items || !items.length) {
-      if (!isAuto) alert("No results yet. Run a search first!");
+      if (!isAuto) alert("No results yet. Run a search or health audit first!");
       return;
     }
-    window.swiggyResults = items;
+    if (currentMode === 'health' || query === 'Store Health Audit') {
+      window.swiggyHealthResults = items;
+    } else {
+      window.swiggyResults = items;
+    }
+
     let win = null;
     try {
       win = window.open("", "_blank");
@@ -1218,13 +1467,47 @@
   }
 
   document.getElementById('sw-h-page').onclick = () => {
-    const q = queryInput.value.trim() || '';
-    const items = searchResults.length ? searchResults : (window.swiggyResults || []);
-    openBlankResultsTable(items, q, false);
+    if (currentMode === 'health') {
+      const items = healthResults.length ? healthResults : (window.swiggyHealthResults || []);
+      openBlankResultsTable(items, 'Store Health Audit', false);
+    } else {
+      const q = queryInput.value.trim() || '';
+      const items = searchResults.length ? searchResults : (window.swiggyResults || []);
+      openBlankResultsTable(items, q, false);
+    }
   };
 
   // CSV Export
   csvBtn.onclick = () => {
+    if (currentMode === 'health') {
+      const items = healthResults.length ? healthResults : (window.swiggyHealthResults || []);
+      if (!items.length) {
+        alert('No audit results to export. Run Store Health Audit first.');
+        return;
+      }
+      const headers = ['#', 'Store_Locality', 'Store_ID', 'Status', 'Delivery_ETA', 'Status_Message', 'Store_Address', 'Store_Pincode', 'Google_Maps_URL'];
+      const rows = items.map((r, i) => [
+        i + 1,
+        `"${(r.store_locality || '').replace(/"/g, '""')}"`,
+        `"${r.store_id || ''}"`,
+        `"${r.status || ''}"`,
+        `"${r.eta || ''}"`,
+        `"${(r.message || '').replace(/"/g, '""')}"`,
+        `"${(r.store_address || '').replace(/"/g, '""')}"`,
+        `"${r.store_pincode || ''}"`,
+        `"${r.maps_url || ''}"`
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `swiggy_store_health_audit_${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+
     const items = searchResults.length ? searchResults : (window.swiggyResults || []);
     if (!items.length) {
       alert('No results to export.');
@@ -1234,8 +1517,10 @@
       '#',
       'Store_Locality',
       'Store_ID',
+      'Store_Address',
+      'Store_Pincode',
       'Brand',
-      'Product_Name',
+      'Product_Title',
       'Quantity',
       'Selling_Price_INR',
       'MRP_INR',
@@ -1243,14 +1528,15 @@
       'Stock',
       'Category',
       'Sub_Category',
-      'Store_Address',
       'Google_Maps_URL',
       'Product_URL'
     ];
-    const rows = searchResults.map((r, i) => [
+    const rows = items.map((r, i) => [
       i + 1,
       `"${(r.store_locality || '').replace(/"/g, '""')}"`,
       `"${r.store_id || ''}"`,
+      `"${(r.store_address || '').replace(/"/g, '""')}"`,
+      `"${r.store_pincode || ''}"`,
       `"${(r.brand || '').replace(/"/g, '""')}"`,
       `"${(r.name || '').replace(/"/g, '""')}"`,
       `"${(r.quantity || '').replace(/"/g, '""')}"`,
@@ -1260,7 +1546,6 @@
       `"${r.stock || ''}"`,
       `"${(r.category || '').replace(/"/g, '""')}"`,
       `"${(r.sub_category || '').replace(/"/g, '""')}"`,
-      `"${(r.store_address || '').replace(/"/g, '""')}"`,
       `"${r.maps_url || ''}"`,
       `"${r.product_url || ''}"`
     ]);

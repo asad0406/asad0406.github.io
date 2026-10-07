@@ -35,9 +35,9 @@ function generateHunterCode(stores, tableHtml) {
   const tableHtmlJson = JSON.stringify(tableHtml);
 
   return `/**
- * 🛵 Swiggy Instamart Multi-Store Hunter v1.0
+ * 🛵 Swiggy Instamart Multi-Store Hunter & Real-Time Health Auditor v2.0
  * Injects a floating interactive search GUI directly on swiggy.com/instamart
- * to scan all 112 Mumbai dark stores (with pre-saved live addresses).
+ * to scan products & audit store serviceability across all 112 Mumbai dark stores.
  */
 (function() {
   if (window.__SWIGGY_HUNTER_LOADED__) {
@@ -55,7 +55,7 @@ function generateHunterCode(stores, tableHtml) {
   const IMG_BASE = 'https://instamart-media-assets.swiggy.com/swiggy/image/upload/';
 
   let lastRequestAt = 0;
-  const REQUEST_GAP_MS = 1100;
+  const REQUEST_GAP_MS = 1000;
 
   async function rateLimitedFetch(...args) {
     const wait = lastRequestAt + REQUEST_GAP_MS - Date.now();
@@ -83,21 +83,128 @@ function generateHunterCode(stores, tableHtml) {
     const json = await res.json();
     if (json.statusCode === 400) throw new Error(\`not serviceable (\${lat}, \${lng})\`);
     if (json.statusCode !== 0) throw new Error('select-location statusCode ' + json.statusCode + ' ' + (json.statusMessage || ''));
+    return json;
   }
 
-  async function getAddressViaApi(lat, lng) {
-    const res = await rateLimitedFetch(\`/api/instamart/maps/address-widgets/v2?lat=\${lat}&lng=\${lng}\`, {
-      method: 'GET',
-      credentials: 'same-origin',
-      headers: { accept: '*/*' },
-    });
-    if (!res.ok) throw new Error('address-widgets HTTP ' + res.status);
+  async function checkStoreStatusViaApi(store) {
+    const [podId, loc, lat, lng, defaultAddress, defaultPin] = store;
+    const label = loc || \`\${lat}, \${lng}\`;
+    
+    let res;
+    try {
+      res = await rateLimitedFetch('/api/instamart/home/select-location/v2', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json', accept: '*/*' },
+        body: JSON.stringify({ data: { lat, lng, address: label, addressId: '', annotation: label, clientId: 'INSTAMART-APP' } }),
+      });
+    } catch (e) {
+      return {
+        store_id: podId || '',
+        store_locality: loc || '',
+        store_address: defaultAddress || '',
+        store_pincode: defaultPin || '',
+        maps_url: \`https://www.google.com/maps?q=\${lat},\${lng}\`,
+        status: 'Unserviceable',
+        status_type: 'unserviceable',
+        eta: '-',
+        message: 'Network / connection error',
+        is_health: true
+      };
+    }
+
+    if (!res.ok) {
+      return {
+        store_id: podId || '',
+        store_locality: loc || '',
+        store_address: defaultAddress || '',
+        store_pincode: defaultPin || '',
+        maps_url: \`https://www.google.com/maps?q=\${lat},\${lng}\`,
+        status: res.status === 400 ? 'Unserviceable' : 'Error',
+        status_type: res.status === 400 ? 'unserviceable' : 'error',
+        eta: '-',
+        message: \`HTTP \${res.status}\`,
+        is_health: true
+      };
+    }
+
     const json = await res.json();
-    const addr = (json.data && json.data.address) || {};
-    const meta = addr.metadata || {};
+    if (json.statusCode === 400) {
+      return {
+        store_id: podId || '',
+        store_locality: loc || '',
+        store_address: defaultAddress || '',
+        store_pincode: defaultPin || '',
+        maps_url: \`https://www.google.com/maps?q=\${lat},\${lng}\`,
+        status: 'Unserviceable',
+        status_type: 'unserviceable',
+        eta: '-',
+        message: 'Out of Swiggy delivery coverage',
+        is_health: true
+      };
+    }
+
+    const cards = (json.data && json.data.cards) || [];
+    let isClosed = false;
+    let isComingSoon = false;
+    let eta = '';
+    let statusMsg = '';
+
+    for (const c of cards) {
+      const cardData = c.card && c.card.card;
+      if (!cardData) continue;
+      
+      const layout = cardData.layout || {};
+      const bgAsset = String(layout.backgroundAssetId || '');
+      if (bgAsset.toLowerCase().includes('closed')) {
+        isClosed = true;
+      }
+
+      const elements = (cardData.gridElements && cardData.gridElements.infoWithStyle && cardData.gridElements.infoWithStyle.info) || [];
+      for (const el of elements) {
+        const dyn = el.dynamicWidget;
+        if (dyn && dyn.templateValues) {
+          const titleText = dyn.templateValues.title && dyn.templateValues.title.value && dyn.templateValues.title.value.text;
+          if (titleText && titleText.toLowerCase().includes('coming soon')) {
+            isComingSoon = true;
+            statusMsg = titleText;
+          }
+        }
+      }
+
+      if (cardData.slaDetails && cardData.slaDetails.slaString) {
+        eta = cardData.slaDetails.slaString;
+      }
+    }
+
+    if (!eta) {
+      const rawText = JSON.stringify(cards);
+      const etaMatch = rawText.match(/(\\d+\\s*-\\s*\\d+\\s*MINS?|\\d+\\s*MINS?)/i);
+      if (etaMatch) eta = etaMatch[1];
+    }
+
+    let status = 'Live & Active';
+    let statusType = 'live';
+
+    if (isComingSoon) {
+      status = 'Coming Soon';
+      statusType = 'coming_soon';
+    } else if (isClosed) {
+      status = 'Temporarily Closed';
+      statusType = 'closed';
+    }
+
     return {
-      address: meta.formattedAddress || addr.subtitle || addr.title || '',
-      pincode: meta.postalCode || '',
+      store_id: podId || '',
+      store_locality: loc || '',
+      store_address: defaultAddress || '',
+      store_pincode: defaultPin || '',
+      maps_url: \`https://www.google.com/maps?q=\${lat},\${lng}\`,
+      status: status,
+      status_type: statusType,
+      eta: eta || (statusType === 'live' ? 'Active' : '-'),
+      message: statusMsg || (statusType === 'live' ? 'Delivering now' : (statusType === 'closed' ? 'Store temporarily paused' : 'Coming soon to area')),
+      is_health: true
     };
   }
 
@@ -157,94 +264,6 @@ function generateHunterCode(stores, tableHtml) {
     return products;
   }
 
-  // DOM Search fallback
-  function realClick(el) {
-    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
-      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
-    }
-  }
-
-  function typeInto(input, text) {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    input.focus();
-    setter.call(input, text);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  async function waitForEl(fn, timeout = 7000, step = 150) {
-    const t0 = Date.now();
-    while (Date.now() - t0 < timeout) {
-      const v = fn();
-      if (v) return v;
-      await sleep(step);
-    }
-    throw new Error('timeout waiting for DOM element');
-  }
-
-  async function runSearchDom(query) {
-    let box = document.querySelector('[data-testid="search-page-header-search-bar-input"]');
-    if (!box) {
-      const trigger = document.querySelector('[data-testid="search-container"]');
-      if (trigger) realClick(trigger);
-      box = await waitForEl(() => document.querySelector('[data-testid="search-page-header-search-bar-input"]'));
-    }
-    typeInto(box, query);
-    await sleep(200);
-    const form = box.closest('form');
-    if (form) form.requestSubmit();
-    await waitForEl(() => document.querySelector('[data-testid="item-collection-card-full"]'), 10000, 100);
-  }
-
-  function findScroller() {
-    let el = document.querySelector('[data-testid="item-collection-card-full"]');
-    while (el) {
-      const oy = getComputedStyle(el).overflowY;
-      if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
-      el = el.parentElement;
-    }
-    return document.scrollingElement || document.body;
-  }
-
-  async function loadAllResultsDom(maxRounds = 40, patienceMs = 1200) {
-    const scroller = findScroller();
-    const cardCount = () => document.querySelectorAll('[data-testid="item-collection-card-full"]').length;
-    let last = cardCount(), lastHeight = scroller.scrollHeight, idle = 0;
-    for (let i = 0; i < maxRounds && idle < 2; i++) {
-      scroller.scrollTop = scroller.scrollHeight;
-      const t0 = Date.now();
-      let grew = false;
-      while (Date.now() - t0 < patienceMs) {
-        await sleep(90);
-        if (cardCount() > last || scroller.scrollHeight > lastHeight) { grew = true; break; }
-      }
-      if (grew) await sleep(150);
-      last = cardCount();
-      lastHeight = scroller.scrollHeight;
-      idle = grew ? 0 : idle + 1;
-    }
-  }
-
-  function cardDataFiber(card) {
-    const rk = Object.keys(card).find(k => k.startsWith('__reactInternalInstance') || k.startsWith('__reactFiber'));
-    let fiber = rk ? card[rk] : null;
-    for (let i = 0; fiber && i < 10; i++, fiber = fiber['return']) {
-      const d = fiber.memoizedProps && fiber.memoizedProps.data;
-      if (d && Array.isArray(d.variations)) return d;
-    }
-    return null;
-  }
-
-  async function searchViaDom(query) {
-    await runSearchDom(query);
-    await loadAllResultsDom();
-    const products = [];
-    for (const card of document.querySelectorAll('[data-testid="item-collection-card-full"]')) {
-      const d = cardDataFiber(card);
-      if (d) products.push(d);
-    }
-    return products;
-  }
-
   function productsToRows(products, store) {
     const seen = new Set();
     const rows = [];
@@ -294,6 +313,8 @@ function generateHunterCode(stores, tableHtml) {
   let isScanning = false;
   let abortScan = false;
   let searchResults = [];
+  let healthResults = [];
+  let currentMode = 'search'; // 'search' | 'health'
   let resultsOpenedForScan = false;
 
   // 1. Inject Styles
@@ -385,12 +406,42 @@ function generateHunterCode(stores, tableHtml) {
       transform: scale(1.05);
     }
 
+    /* Mode Tabs */
+    .sw-h-tabs {
+      display: flex;
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .sw-h-tab {
+      flex: 1;
+      padding: 7px 10px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .sw-h-tab.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
     .sw-h-body {
       padding: 16px 18px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 13px;
+      gap: 12px;
     }
 
     /* Search row */
@@ -426,7 +477,7 @@ function generateHunterCode(stores, tableHtml) {
       border: none;
       background: transparent;
       padding: 10px 0;
-      font-size: 13.5px;
+      font-size: 13px;
       color: #0f172a;
       outline: none;
       font-weight: 500;
@@ -450,14 +501,14 @@ function generateHunterCode(stores, tableHtml) {
     }
     .sw-h-clear-btn:hover { background: #cbd5e1; color: #0f172a; }
 
-    /* Scan Action Button (Primary) */
+    /* Action Buttons */
     .sw-h-submit {
       background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
       color: #ffffff;
       border: none;
-      padding: 10px 18px;
+      padding: 10px 16px;
       border-radius: 10px;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -475,6 +526,24 @@ function generateHunterCode(stores, tableHtml) {
     .sw-h-submit.scanning {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+    }
+
+    /* Health Mode Box */
+    .sw-h-health-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .sw-h-health-desc {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+      flex: 1;
     }
 
     /* Filter Options Row */
@@ -639,7 +708,7 @@ function generateHunterCode(stores, tableHtml) {
 
     /* Live Preview Table */
     .sw-h-results-box {
-      max-height: 190px;
+      max-height: 180px;
       overflow-y: auto;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
@@ -705,6 +774,22 @@ function generateHunterCode(stores, tableHtml) {
     .sw-h-stock { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
     .sw-h-in { background: #ecfdf5; color: #065f46; }
     .sw-h-out { background: #fef2f2; color: #991b1b; }
+
+    /* Store Health Badges in HUD */
+    .sw-h-health-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sw-h-health-pill.live { background: #ecfdf5; color: #065f46; }
+    .sw-h-health-pill.closed { background: #fffbeb; color: #92400e; }
+    .sw-h-health-pill.coming_soon { background: #fef2f2; color: #991b1b; }
+    .sw-h-health-pill.unserviceable { background: #f1f5f9; color: #475569; }
 
     /* Results Ready Banner */
     .sw-h-banner {
@@ -844,24 +929,43 @@ function generateHunterCode(stores, tableHtml) {
       </div>
     </div>
     <div class="sw-h-body">
+      <!-- Mode Tabs -->
+      <div class="sw-h-tabs">
+        <button class="sw-h-tab active" id="sw-tab-search">🔍 Search Products</button>
+        <button class="sw-h-tab" id="sw-tab-health">🏥 Store Health Audit</button>
+      </div>
+
       <!-- Search Input Area -->
-      <div class="sw-h-search-box">
-        <div class="sw-h-input-wrap">
-          <span class="sw-h-search-icon">🔍</span>
-          <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, butter, atta)..." autocomplete="off" />
-          <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
+      <div id="sw-h-search-section">
+        <div class="sw-h-search-box">
+          <div class="sw-h-input-wrap">
+            <span class="sw-h-search-icon">🔍</span>
+            <input type="text" id="sw-h-query" class="sw-h-input" placeholder="Search product (e.g. milk, mobile, lays)..." autocomplete="off" />
+            <button id="sw-h-clear" class="sw-h-clear-btn" title="Clear">✕</button>
+          </div>
+          <button id="sw-h-start-btn" class="sw-h-submit">▶ Start Scan</button>
         </div>
-        <button id="sw-h-start-btn" class="sw-h-submit">▶ Start Scan</button>
+      </div>
+
+      <!-- Store Health Audit Area -->
+      <div id="sw-h-health-section" style="display: none;">
+        <div class="sw-h-health-box">
+          <div class="sw-h-health-desc">
+            <b>⚡ Real-Time Pod Health Audit</b><br>
+            Pings Swiggy's live API to verify which of the 112 dark stores are actively delivering, closed, or coming soon.
+          </div>
+          <button id="sw-h-health-btn" class="sw-h-submit" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); box-shadow: 0 3px 10px rgba(5, 150, 105, 0.35);">⚡ Run Audit</button>
+        </div>
       </div>
 
       <!-- Settings Row -->
       <div class="sw-h-options">
-        <label class="sw-h-check">
+        <label class="sw-h-check" id="sw-h-instock-wrap">
           <input type="checkbox" id="sw-h-instock" checked />
           <span>In-Stock Only</span>
         </label>
         <div class="sw-h-store-wrap">
-          <span>Store:</span>
+          <span>Target:</span>
           <select id="sw-h-store" class="sw-h-select">
             <option value="all">All \${STORES.length} Stores</option>
             \${STORES.map((s, i) => \`<option value="\${i}">\${s[1]}</option>\`).join('')}
@@ -877,7 +981,7 @@ function generateHunterCode(stores, tableHtml) {
           <div class="sw-h-live-store-info">
             <span class="sw-h-pulse-dot"></span>
             <div>
-              <div class="sw-h-live-store-title" id="sw-live-store-title">Ready to scan...</div>
+              <div class="sw-h-live-store-title" id="sw-live-store-title">Ready...</div>
               <div class="sw-h-live-store-sub" id="sw-live-store-sub">Ready</div>
             </div>
           </div>
@@ -893,23 +997,23 @@ function generateHunterCode(stores, tableHtml) {
       <!-- Live Stats -->
       <div class="sw-h-summary" id="sw-h-summary">
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-items">0</div>
-          <div class="sw-h-sum-lbl">Items Found</div>
+          <div class="sw-h-sum-val" id="sw-sum-val1">0</div>
+          <div class="sw-h-sum-lbl" id="sw-sum-lbl1">Items Found</div>
         </div>
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-stores">0</div>
-          <div class="sw-h-sum-lbl">Stores w/ Stock</div>
+          <div class="sw-h-sum-val" id="sw-sum-val2">0</div>
+          <div class="sw-h-sum-lbl" id="sw-sum-lbl2">Stores w/ Stock</div>
         </div>
         <div class="sw-h-sum-item">
-          <div class="sw-h-sum-val" id="sw-sum-min" style="color: #059669;">-</div>
-          <div class="sw-h-sum-lbl">Lowest Price</div>
+          <div class="sw-h-sum-val" id="sw-sum-val3" style="color: #059669;">-</div>
+          <div class="sw-h-sum-lbl" id="sw-sum-lbl3">Lowest Price</div>
         </div>
       </div>
 
       <!-- Live Preview Table -->
       <div class="sw-h-results-box" id="sw-h-results">
         <table class="sw-h-table">
-          <thead>
+          <thead id="sw-h-thead">
             <tr>
               <th>Product</th>
               <th>Locality</th>
@@ -957,9 +1061,15 @@ function generateHunterCode(stores, tableHtml) {
   document.body.appendChild(launcher);
 
   // UI Event Handlers
+  const tabSearch = document.getElementById('sw-tab-search');
+  const tabHealth = document.getElementById('sw-tab-health');
+  const searchSection = document.getElementById('sw-h-search-section');
+  const healthSection = document.getElementById('sw-h-health-section');
+  const instockWrap = document.getElementById('sw-h-instock-wrap');
   const queryInput = document.getElementById('sw-h-query');
   const clearBtn = document.getElementById('sw-h-clear');
   const startBtn = document.getElementById('sw-h-start-btn');
+  const healthBtn = document.getElementById('sw-h-health-btn');
   const closeBtn = document.getElementById('sw-h-close');
   const minBtn = document.getElementById('sw-h-min');
   const liveCard = document.getElementById('sw-h-live-card');
@@ -969,8 +1079,15 @@ function generateHunterCode(stores, tableHtml) {
   const banner = document.getElementById('sw-h-banner');
   const pbar = document.getElementById('sw-h-pbar');
   const resultsBox = document.getElementById('sw-h-results');
+  const thead = document.getElementById('sw-h-thead');
   const tableBody = document.getElementById('sw-h-table-body');
   const summaryBox = document.getElementById('sw-h-summary');
+  const sumVal1 = document.getElementById('sw-sum-val1');
+  const sumVal2 = document.getElementById('sw-sum-val2');
+  const sumVal3 = document.getElementById('sw-sum-val3');
+  const sumLbl1 = document.getElementById('sw-sum-lbl1');
+  const sumLbl2 = document.getElementById('sw-sum-lbl2');
+  const sumLbl3 = document.getElementById('sw-sum-lbl3');
   const csvBtn = document.getElementById('sw-h-csv');
   const pageBtn = document.getElementById('sw-h-page');
   const storeSelect = document.getElementById('sw-h-store');
@@ -981,6 +1098,39 @@ function generateHunterCode(stores, tableHtml) {
   function updateStatusWarn(text) {
     if (liveStoreSub) liveStoreSub.textContent = text;
   }
+
+  // Switch Tabs
+  tabSearch.onclick = () => {
+    if (isScanning) return;
+    currentMode = 'search';
+    tabSearch.classList.add('active');
+    tabHealth.classList.remove('active');
+    searchSection.style.display = 'block';
+    healthSection.style.display = 'none';
+    instockWrap.style.display = 'flex';
+    thead.innerHTML = '<tr><th>Product</th><th>Locality</th><th>Price</th><th>Stock</th></tr>';
+    sumLbl1.textContent = 'Items Found';
+    sumLbl2.textContent = 'Stores w/ Stock';
+    sumLbl3.textContent = 'Lowest Price';
+    sumVal3.style.color = '#059669';
+    updateResultsButton(searchResults.length);
+  };
+
+  tabHealth.onclick = () => {
+    if (isScanning) return;
+    currentMode = 'health';
+    tabHealth.classList.add('active');
+    tabSearch.classList.remove('active');
+    searchSection.style.display = 'none';
+    healthSection.style.display = 'block';
+    instockWrap.style.display = 'none';
+    thead.innerHTML = '<tr><th>Locality</th><th>Status</th><th>ETA</th><th>Pincode</th></tr>';
+    sumLbl1.textContent = '🟢 Live Stores';
+    sumLbl2.textContent = '🟡 Closed Stores';
+    sumLbl3.textContent = '🔴 Coming Soon';
+    sumVal3.style.color = '#991b1b';
+    updateResultsButton(healthResults.length);
+  };
 
   // Clear button
   queryInput.oninput = () => {
@@ -1031,29 +1181,42 @@ function generateHunterCode(stores, tableHtml) {
   };
 
   function updateResultsButton(count) {
-    if (count > 0) {
-      pageBtn.className = 'sw-h-page-btn ready';
-      pageBtn.innerHTML = \`📊 Open Results Table (\${count.toLocaleString()} Items) ↗\`;
+    if (currentMode === 'health') {
+      if (count > 0) {
+        pageBtn.className = 'sw-h-page-btn ready';
+        pageBtn.innerHTML = \`📊 View Health Report (\${count} Stores) ↗\`;
+      } else {
+        pageBtn.className = 'sw-h-page-btn';
+        pageBtn.innerHTML = '📊 View Health Report (Not run yet)';
+      }
     } else {
-      pageBtn.className = 'sw-h-page-btn';
-      pageBtn.innerHTML = '📊 Results Table (No results yet)';
+      if (count > 0) {
+        pageBtn.className = 'sw-h-page-btn ready';
+        pageBtn.innerHTML = \`📊 Open Results Table (\${count.toLocaleString()} Items) ↗\`;
+      } else {
+        pageBtn.className = 'sw-h-page-btn';
+        pageBtn.innerHTML = '📊 Results Table (No results yet)';
+      }
     }
   }
 
   function showResultsReadyBanner(items, query, opened) {
     if (!banner) return;
     banner.style.display = 'flex';
+    const isHealth = (query === 'Store Health Audit');
+    const noun = isHealth ? 'store audits' : 'products';
+
     if (opened) {
       banner.className = 'sw-h-banner opened';
       banner.innerHTML = \`
-        <span>✨ <b>\${items.length.toLocaleString()}</b> products found! Table opened in new tab ↗</span>
+        <span>✨ <b>\${items.length.toLocaleString()}</b> \${noun} ready! Table opened in new tab ↗</span>
         <button id="sw-h-banner-btn" class="sw-h-banner-btn">View Again</button>
       \`;
     } else {
       banner.className = 'sw-h-banner blocked';
       banner.innerHTML = \`
-        <span>🛵 <b>\${items.length.toLocaleString()}</b> products ready! Click to open table ↗</span>
-        <button id="sw-h-banner-btn" class="sw-h-banner-btn">Open Results</button>
+        <span>🛵 <b>\${items.length.toLocaleString()}</b> \${noun} ready! Click to open report ↗</span>
+        <button id="sw-h-banner-btn" class="sw-h-banner-btn">Open Report</button>
       \`;
     }
     const bBtn = document.getElementById('sw-h-banner-btn');
@@ -1079,7 +1242,7 @@ function generateHunterCode(stores, tableHtml) {
     if (e.key === 'Enter') startBtn.click();
   });
 
-  // Main Search Runner
+  // 1. PRODUCT SEARCH SCANNER
   startBtn.onclick = async () => {
     const query = queryInput.value.trim();
     if (!query) {
@@ -1133,21 +1296,8 @@ function generateHunterCode(stores, tableHtml) {
       liveStoreSub.textContent = defaultAddress ? \`📍 \${defaultAddress}\` : 'Connecting to Swiggy pod...';
 
       try {
-        // Location update via Swiggy API
         await setLocationViaApi({ lat, lng, address: loc });
-
-        let products = [];
-        try {
-          products = await searchViaApi(query);
-        } catch (err) {
-          if (err.rateLimited) {
-            liveStoreSub.textContent = \`Rate limit reached for \${loc}. Using DOM fallback...\`;
-            products = await searchViaDom(query);
-          } else {
-            throw err;
-          }
-        }
-
+        const products = await searchViaApi(query);
         const rows = productsToRows(products, store);
         let storeAdded = false;
 
@@ -1160,7 +1310,6 @@ function generateHunterCode(stores, tableHtml) {
           const price = row.selling_price_inr;
           if (price && price < minPriceFound) minPriceFound = price;
 
-          // Append preview row to UI table
           const tr = document.createElement('tr');
           const imgTag = row.image_1
             ? \`<img src="\${row.image_1}" class="sw-h-thumb" onerror="this.outerHTML='<span style=\\\\'font-size:15px;\\\\'>🛵</span>'">\`
@@ -1184,10 +1333,9 @@ function generateHunterCode(stores, tableHtml) {
 
         if (storeAdded) storesWithItems++;
 
-        // Update live metrics & footer button
-        document.getElementById('sw-sum-items').textContent = searchResults.length.toLocaleString();
-        document.getElementById('sw-sum-stores').textContent = \`\${storesWithItems}/\${targetStores.length}\`;
-        document.getElementById('sw-sum-min').textContent = minPriceFound < 999999 ? \`₹\${minPriceFound}\` : '-';
+        sumVal1.textContent = searchResults.length.toLocaleString();
+        sumVal2.textContent = \`\${storesWithItems}/\${targetStores.length}\`;
+        sumVal3.textContent = minPriceFound < 999999 ? \`₹\${minPriceFound}\` : '-';
         updateResultsButton(searchResults.length);
 
       } catch (err) {
@@ -1211,10 +1359,106 @@ function generateHunterCode(stores, tableHtml) {
     window.swiggyResults = searchResults;
     updateResultsButton(searchResults.length);
 
-    // Auto open results once done or stopped
     if (searchResults.length > 0 && !resultsOpenedForScan) {
       resultsOpenedForScan = true;
       openBlankResultsTable(searchResults, query, true);
+    }
+  };
+
+  // 2. STORE HEALTH AUDITOR
+  healthBtn.onclick = async () => {
+    if (isScanning) {
+      abortScan = true;
+      healthBtn.textContent = 'Stopping...';
+      healthBtn.disabled = true;
+      if (healthResults.length > 0 && !resultsOpenedForScan) {
+        resultsOpenedForScan = true;
+        openBlankResultsTable(healthResults, 'Store Health Audit', false);
+      }
+      return;
+    }
+
+    isScanning = true;
+    abortScan = false;
+    resultsOpenedForScan = false;
+    healthBtn.innerHTML = '⏹ Stop Audit';
+    healthBtn.classList.add('scanning');
+    liveCard.style.display = 'flex';
+    pbar.style.width = '0%';
+    resultsBox.style.display = 'block';
+    summaryBox.style.display = 'grid';
+    if (banner) banner.style.display = 'none';
+    tableBody.innerHTML = '';
+    healthResults = [];
+    updateResultsButton(0);
+
+    const storeChoice = document.getElementById('sw-h-store').value;
+    const targetStores = storeChoice === 'all' ? STORES : [STORES[parseInt(storeChoice, 10)]];
+
+    let liveCount = 0, closedCount = 0, comingCount = 0;
+
+    for (let i = 0; i < targetStores.length; i++) {
+      if (abortScan) break;
+      const store = targetStores[i];
+      const [podId, loc, lat, lng, defaultAddress, defaultPin] = store;
+
+      const pct = Math.round(((i + 1) / targetStores.length) * 100);
+      pbar.style.width = \`\${pct}%\`;
+      livePct.textContent = \`\${pct}%\`;
+      liveStoreTitle.textContent = \`[\${i + 1}/\${targetStores.length}] \${loc}\`;
+      liveStoreSub.textContent = 'Checking real-time serviceability...';
+
+      try {
+        const auditRes = await checkStoreStatusViaApi(store);
+        healthResults.push(auditRes);
+
+        if (auditRes.status_type === 'live') liveCount++;
+        else if (auditRes.status_type === 'closed') closedCount++;
+        else comingCount++;
+
+        liveStoreSub.textContent = \`\${auditRes.status} • \${auditRes.eta !== '-' ? 'ETA: ' + auditRes.eta : auditRes.message}\`;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = \`
+          <td><b>\${auditRes.store_locality}</b></td>
+          <td><span class="sw-h-health-pill \${auditRes.status_type}">\${auditRes.status}</span></td>
+          <td>\${auditRes.eta !== '-' ? '⚡ ' + auditRes.eta : '-'}</td>
+          <td><span class="sw-h-loc-pill">\${auditRes.store_pincode || '-'}</span></td>
+        \`;
+        tableBody.appendChild(tr);
+        if (tableBody.children.length > 50) {
+          tableBody.removeChild(tableBody.firstElementChild);
+        }
+
+        sumVal1.textContent = liveCount;
+        sumVal2.textContent = closedCount;
+        sumVal3.textContent = comingCount;
+        updateResultsButton(healthResults.length);
+
+      } catch (err) {
+        console.warn('Audit error for', loc, err);
+        liveStoreSub.textContent = \`\${loc} skipped (\${err.message})\`;
+      }
+
+      if (i < targetStores.length - 1 && !abortScan) {
+        await sleep(350);
+      }
+    }
+
+    isScanning = false;
+    healthBtn.innerHTML = '⚡ Run Audit';
+    healthBtn.classList.remove('scanning');
+    healthBtn.disabled = false;
+    liveStoreTitle.textContent = abortScan
+      ? \`Audit stopped (\${healthResults.length} stores checked)\`
+      : \`✓ Audit Complete! (\${liveCount} Live, \${closedCount} Closed, \${comingCount} Coming Soon)\`;
+    liveStoreSub.textContent = \`Checked \${healthResults.length} of \${targetStores.length} dark stores in real time.\`;
+    window.swiggyHealthResults = healthResults;
+    updateResultsButton(healthResults.length);
+
+    if (healthResults.length > 0 && !resultsOpenedForScan) {
+      resultsOpenedForScan = true;
+      openBlankResultsTable(healthResults, 'Store Health Audit', true);
     }
   };
 
@@ -1222,10 +1466,15 @@ function generateHunterCode(stores, tableHtml) {
 
   function openBlankResultsTable(items, query, isAuto = false) {
     if (!items || !items.length) {
-      if (!isAuto) alert("No results yet. Run a search first!");
+      if (!isAuto) alert("No results yet. Run a search or health audit first!");
       return;
     }
-    window.swiggyResults = items;
+    if (currentMode === 'health' || query === 'Store Health Audit') {
+      window.swiggyHealthResults = items;
+    } else {
+      window.swiggyResults = items;
+    }
+
     let win = null;
     try {
       win = window.open("", "_blank");
@@ -1254,13 +1503,47 @@ function generateHunterCode(stores, tableHtml) {
   }
 
   document.getElementById('sw-h-page').onclick = () => {
-    const q = queryInput.value.trim() || '';
-    const items = searchResults.length ? searchResults : (window.swiggyResults || []);
-    openBlankResultsTable(items, q, false);
+    if (currentMode === 'health') {
+      const items = healthResults.length ? healthResults : (window.swiggyHealthResults || []);
+      openBlankResultsTable(items, 'Store Health Audit', false);
+    } else {
+      const q = queryInput.value.trim() || '';
+      const items = searchResults.length ? searchResults : (window.swiggyResults || []);
+      openBlankResultsTable(items, q, false);
+    }
   };
 
   // CSV Export
   csvBtn.onclick = () => {
+    if (currentMode === 'health') {
+      const items = healthResults.length ? healthResults : (window.swiggyHealthResults || []);
+      if (!items.length) {
+        alert('No audit results to export. Run Store Health Audit first.');
+        return;
+      }
+      const headers = ['#', 'Store_Locality', 'Store_ID', 'Status', 'Delivery_ETA', 'Status_Message', 'Store_Address', 'Store_Pincode', 'Google_Maps_URL'];
+      const rows = items.map((r, i) => [
+        i + 1,
+        \`"\${(r.store_locality || '').replace(/"/g, '""')}"\`,
+        \`"\${r.store_id || ''}"\`,
+        \`"\${r.status || ''}"\`,
+        \`"\${r.eta || ''}"\`,
+        \`"\${(r.message || '').replace(/"/g, '""')}"\`,
+        \`"\${(r.store_address || '').replace(/"/g, '""')}"\`,
+        \`"\${r.store_pincode || ''}"\`,
+        \`"\${r.maps_url || ''}"\`
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = \`swiggy_store_health_audit_\${Date.now()}.csv\`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+
     const items = searchResults.length ? searchResults : (window.swiggyResults || []);
     if (!items.length) {
       alert('No results to export.');
@@ -1270,8 +1553,10 @@ function generateHunterCode(stores, tableHtml) {
       '#',
       'Store_Locality',
       'Store_ID',
+      'Store_Address',
+      'Store_Pincode',
       'Brand',
-      'Product_Name',
+      'Product_Title',
       'Quantity',
       'Selling_Price_INR',
       'MRP_INR',
@@ -1279,14 +1564,15 @@ function generateHunterCode(stores, tableHtml) {
       'Stock',
       'Category',
       'Sub_Category',
-      'Store_Address',
       'Google_Maps_URL',
       'Product_URL'
     ];
-    const rows = searchResults.map((r, i) => [
+    const rows = items.map((r, i) => [
       i + 1,
       \`"\${(r.store_locality || '').replace(/"/g, '""')}"\`,
       \`"\${r.store_id || ''}"\`,
+      \`"\${(r.store_address || '').replace(/"/g, '""')}"\`,
+      \`"\${r.store_pincode || ''}"\`,
       \`"\${(r.brand || '').replace(/"/g, '""')}"\`,
       \`"\${(r.name || '').replace(/"/g, '""')}"\`,
       \`"\${(r.quantity || '').replace(/"/g, '""')}"\`,
@@ -1296,7 +1582,6 @@ function generateHunterCode(stores, tableHtml) {
       \`"\${r.stock || ''}"\`,
       \`"\${(r.category || '').replace(/"/g, '""')}"\`,
       \`"\${(r.sub_category || '').replace(/"/g, '""')}"\`,
-      \`"\${(r.store_address || '').replace(/"/g, '""')}"\`,
       \`"\${r.maps_url || ''}"\`,
       \`"\${r.product_url || ''}"\`
     ]);
@@ -1321,7 +1606,6 @@ fs.writeFileSync(hunterJsPath, fullScript, 'utf8');
 console.log(`Generated swiggy-hunter.js (${fullScript.length} bytes)`);
 
 // 4. Generate minified swiggy-hunter.min.js
-// Since TABLE_PAGE_HTML contains full HTML strings, we keep it intact and output directly
 fs.writeFileSync(hunterMinJsPath, fullScript, 'utf8');
 console.log(`Generated swiggy-hunter.min.js (${fullScript.length} bytes)`);
 console.log('Build completed successfully!');
