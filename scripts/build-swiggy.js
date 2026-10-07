@@ -144,10 +144,24 @@ function generateHunterCode(stores, tableHtml) {
       };
     }
 
+    const pageConfigs = json.data?.configs?.IM_PAGE_CONFIGS;
+    const toolbarConfigs = json.data?.configs?.IM_TOOL_BAR;
+    const podDetail = pageConfigs?.configInfo?.[0]?.card?.podDetailsList?.[0];
+    const tbSla = toolbarConfigs?.configInfo?.[0]?.card?.sla;
+
+    const servStatus = podDetail?.serviceabilityDetails?.serviceabilityStatus;
+    const isServiceable = (servStatus === 'SERVICEABILITY_STATUS_SERVICEABLE');
+    const isNonServiceable = (servStatus === 'SERVICEABILITY_STATUS_NON_SERVICEABLE');
+    const resolvedPodId = podDetail?.podId || podId || '';
+
+    // Direct SLA extraction from Swiggy's config objects
+    const slaVal = tbSla?.value || podDetail?.serviceabilityDetails?.sla?.value;
+    const slaUnit = tbSla?.unit || podDetail?.serviceabilityDetails?.sla?.unit || 'Mins';
+    let realEta = (isServiceable && slaVal) ? \`\${slaVal} \${slaUnit}\` : (isServiceable ? 'Active' : '-');
+
     const cards = (json.data && json.data.cards) || [];
     let isClosed = false;
-    let isComingSoon = false;
-    let eta = '';
+    let isComingSoon = isNonServiceable;
     let statusMsg = '';
 
     for (const c of cards) {
@@ -171,38 +185,30 @@ function generateHunterCode(stores, tableHtml) {
           }
         }
       }
-
-      if (cardData.slaDetails && cardData.slaDetails.slaString) {
-        eta = cardData.slaDetails.slaString;
-      }
-    }
-
-    if (!eta) {
-      const rawText = JSON.stringify(cards);
-      const etaMatch = rawText.match(/(\\d+\\s*-\\s*\\d+\\s*MINS?|\\d+\\s*MINS?)/i);
-      if (etaMatch) eta = etaMatch[1];
     }
 
     let status = 'Live & Active';
     let statusType = 'live';
 
-    if (isComingSoon) {
+    if (isComingSoon || isNonServiceable) {
       status = 'Coming Soon';
       statusType = 'coming_soon';
+      realEta = '-';
     } else if (isClosed) {
       status = 'Temporarily Closed';
       statusType = 'closed';
+      realEta = '-';
     }
 
     return {
-      store_id: podId || '',
+      store_id: resolvedPodId,
       store_locality: loc || '',
       store_address: defaultAddress || '',
       store_pincode: defaultPin || '',
       maps_url: \`https://www.google.com/maps?q=\${lat},\${lng}\`,
       status: status,
       status_type: statusType,
-      eta: eta || (statusType === 'live' ? 'Active' : '-'),
+      eta: realEta,
       message: statusMsg || (statusType === 'live' ? 'Delivering now' : (statusType === 'closed' ? 'Store temporarily paused' : 'Coming soon to area')),
       is_health: true
     };
