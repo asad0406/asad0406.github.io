@@ -1676,7 +1676,7 @@ const mapsHtmlPath = path.join(repoRoot, 'swiggy-instamart', 'maps.html');
 if (fs.existsSync(mapTemplatePath)) {
   let mapHtml = fs.readFileSync(mapTemplatePath, 'utf8');
   const rawPods = JSON.parse(fs.readFileSync(podsJsonPath, 'utf8'));
-  mapHtml = mapHtml.replace('/* __PODS_JSON__ */', `window.PODS_DATA = ${JSON.stringify(rawPods)};`);
+  mapHtml = mapHtml.replace(/\/\* __PODS_JSON__ \*\/|window\.PODS_DATA = \[[\s\S]*?\];/s, `window.PODS_DATA = ${JSON.stringify(rawPods)};`);
   fs.writeFileSync(mapTemplatePath, mapHtml, 'utf8');
   fs.writeFileSync(mapsHtmlPath, mapHtml, 'utf8');
   console.log(`Generated map.html and maps.html with ${rawPods.length} pods.`);
