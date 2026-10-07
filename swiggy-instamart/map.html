@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛵 Swiggy Instamart Mumbai - Dark Store Finder & Pods Map</title>
+    <title>🛵 Swiggy Instamart Mumbai - Dark Store Boundary Tracer & Pods Map</title>
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -25,6 +25,7 @@
             --line: #e2e8f0;
             --success: #059669;
             --gold: #d97706;
+            --purple: #7c3aed;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -54,7 +55,7 @@
             box-shadow: 0 6px 24px rgba(15, 23, 42, 0.16);
             display: flex;
             align-items: center;
-            gap: 9px;
+            gap: 8px;
             border: 1px solid rgba(226, 232, 240, 0.9);
             max-width: 96vw;
         }
@@ -100,7 +101,7 @@
             border-radius: 18px;
             border: 1.5px solid #cbd5e1;
             font-size: 12px;
-            width: 160px;
+            width: 155px;
             outline: none;
             transition: all 0.2s ease;
             background: #ffffff;
@@ -110,7 +111,7 @@
         .search-input:focus {
             border-color: var(--swiggy);
             box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.18);
-            width: 210px;
+            width: 200px;
         }
         .search-icon {
             position: absolute;
@@ -151,6 +152,17 @@
             color: #ffffff;
             border-color: #059669;
             box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+        }
+        .tool-toggle.tracer {
+            background: #faf5ff;
+            color: #6b21a8;
+            border-color: #d8b4fe;
+        }
+        .tool-toggle.tracer.active {
+            background: #7c3aed;
+            color: #ffffff;
+            border-color: #6d28d9;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
         }
 
         .pulse-live {
@@ -214,7 +226,7 @@
             border-color: var(--swiggy-border);
         }
 
-        /* Bottom Floating Status Hint */
+        /* Bottom Floating Status Hint & Probe HUD */
         .bottom-hint {
             position: absolute;
             bottom: 20px;
@@ -222,20 +234,23 @@
             transform: translateX(-50%);
             z-index: 1000;
             background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
             color: #ffffff;
-            padding: 8px 18px;
+            padding: 9px 20px;
             border-radius: 30px;
             font-size: 12px;
             font-weight: 600;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            pointer-events: none;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             animation: fadeIn 0.3s ease;
-            max-width: 90vw;
+            max-width: 92vw;
             text-align: center;
+        }
+        .bottom-hint.probing {
+            background: rgba(124, 58, 237, 0.92);
+            box-shadow: 0 6px 28px rgba(124, 58, 237, 0.45);
         }
         @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
@@ -318,6 +333,21 @@
         @keyframes radarPing {
             0% { transform: scale(0.3); opacity: 1; }
             100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        /* Active Boundary Probe Beam Marker */
+        .probe-beam-marker {
+            width: 14px;
+            height: 14px;
+            background: #7c3aed;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(124, 58, 237, 0.9);
+            animation: beamPulse 0.6s infinite alternate;
+        }
+        @keyframes beamPulse {
+            0% { transform: scale(0.8); }
+            100% { transform: scale(1.4); }
         }
 
         /* MarkerCluster Customization */
@@ -483,8 +513,28 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
-            margin-top: 2px;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .trace-btn {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            color: #ffffff;
+            border: none;
+            padding: 5px 11px;
+            border-radius: 7px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .trace-btn:hover {
+            box-shadow: 0 4px 10px rgba(124, 58, 237, 0.45);
+            transform: translateY(-1px);
         }
         .coords-tag {
             font-family: ui-monospace, SFMono-Regular, monospace;
@@ -503,20 +553,20 @@
             border-color: var(--swiggy-border);
         }
         .maps-link {
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 700;
-            color: #ffffff;
+            color: #ea580c;
             text-decoration: none;
-            padding: 4px 10px;
+            padding: 4px 8px;
             border-radius: 6px;
-            background: linear-gradient(135deg, #ff7a1a 0%, #ea580c 100%);
-            box-shadow: 0 2px 6px rgba(255, 122, 26, 0.3);
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
             transition: all 0.15s;
             white-space: nowrap;
         }
         .maps-link:hover {
-            box-shadow: 0 4px 10px rgba(255, 122, 26, 0.45);
-            transform: translateY(-1px);
+            background: #ea580c;
+            color: #ffffff;
         }
 
         @media (max-width: 768px) {
@@ -544,10 +594,13 @@
         <div class="stats-badge" id="statsWrap">
             <span id="activeCount">112</span> Pods <span id="newDiscoveredCount"></span>
         </div>
-        <button id="circlesToggle" class="tool-toggle active" title="Toggle store delivery coverage circles (~2.5 km)">
-            <span>⭕ Serving Circles</span>
+        <button id="circlesToggle" class="tool-toggle active" title="Toggle default coverage circles (~2.5 km)">
+            <span>⭕ Fixed Circles</span>
         </button>
-        <button id="finderToggle" class="tool-toggle finder active" title="Toggle click-to-discover store finder">
+        <button id="tracerToggle" class="tool-toggle tracer active" title="Toggle Boundary Tracer mode">
+            <span>📐 Dynamic Boundary Tracer</span>
+        </button>
+        <button id="finderToggle" class="tool-toggle finder" title="Toggle click-to-discover store finder">
             <span class="pulse-live"></span>
             <span>🎯 Store Finder</span>
         </button>
@@ -567,7 +620,7 @@
     <div id="map"></div>
 
     <div class="bottom-hint" id="bottomHint">
-        <span>🎯 <b>Store Finder Active:</b> Click anywhere on the map to discover the dark store serving that location!</span>
+        <span>📐 <b>Dynamic Boundary Tracer Active:</b> Click any store pin or popup to trace its real serving boundary polygon outward in all directions!</span>
     </div>
 
     <script id="pods-data">
@@ -575,7 +628,7 @@
     </script>
 
     <script>
-        // 1. Load Base Stores + Any Newly Discovered Pods from localStorage
+        // 1. Load Stores + Discovered Stores + Saved Polygons from localStorage
         let storesData = window.PODS_DATA || [];
         const baseCount = storesData.length;
 
@@ -623,16 +676,18 @@
             attribution: 'Tiles &copy; Esri, Earthstar Geographics'
         });
 
-        // Delivery Coverage Circles Layer Group
+        // Layer Groups
         const coverageCirclesGroup = L.layerGroup().addTo(map);
+        const dynamicBoundariesGroup = L.layerGroup().addTo(map);
+        const probeActiveGroup = L.layerGroup().addTo(map);
 
-        // Layer Switcher
         L.control.layers({
             "🗺️ OpenStreetMap": osmStandard,
             "🎨 OSM Humanitarian": osmHot,
             "🛰️ Satellite": satellite
         }, {
-            "⭕ Serving Circles (~2.5 km)": coverageCirclesGroup
+            "📐 Real Delivery Polygons": dynamicBoundariesGroup,
+            "⭕ Fixed Circles (~2.5 km)": coverageCirclesGroup
         }, { position: 'bottomleft' }).addTo(map);
 
         // Marker Icons
@@ -672,7 +727,6 @@
             }).catch(() => { el.innerText = 'Copied!'; });
         };
 
-        // Marker Cluster
         const clusterGroup = L.markerClusterGroup({
             showCoverageOnHover: false,
             maxClusterRadius: 32,
@@ -683,8 +737,9 @@
         const markers = [];
         const markerById = new Map();
         const circleById = new Map();
+        const polygonById = new Map();
 
-        const STANDARD_RADIUS_METERS = 2500; // ~2.5 km typical Swiggy Instamart delivery radius
+        const STANDARD_RADIUS_METERS = 2500;
 
         function addStoreMarker(store, animate = false) {
             const lat = store.coordinates?.latitude || 0;
@@ -692,11 +747,12 @@
             if (!lat || !lng) return;
 
             const isNew = !!store.is_newly_discovered;
+            const podId = String(store.podId || '');
             const formattedCoords = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            const icon = createSwiggyPointerIcon(store.podId || '', isNew);
+            const icon = createSwiggyPointerIcon(podId, isNew);
             const marker = L.marker([lat, lng], { icon: icon });
 
-            // 1. Draw Serving Region Circle
+            // 1. Default Fixed Circle
             const circleColor = isNew ? '#059669' : '#ea580c';
             const circleFill = isNew ? '#10b981' : '#ff7a1a';
 
@@ -706,26 +762,25 @@
                 weight: 1.5,
                 dashArray: '5, 8',
                 fillColor: circleFill,
-                fillOpacity: 0.09
+                fillOpacity: 0.08
             });
 
-            circle.bindTooltip(`🛵 <b>${store.locality}</b><br><span style="font-size:11px;color:#64748b;">Serving Region (~2.5 km Radius)</span>`, {
-                sticky: true,
-                className: 'circle-tooltip'
-            });
-
-            // Circle hover highlight
-            marker.on('mouseover', () => {
-                circle.setStyle({ weight: 3, fillOpacity: 0.22, dashArray: null });
-            });
-            marker.on('mouseout', () => {
-                circle.setStyle({ weight: 1.5, fillOpacity: 0.09, dashArray: '5, 8' });
+            circle.bindTooltip(`🛵 <b>${store.locality}</b><br><span style="font-size:11px;color:#64748b;">Estimated ~2.5 km Radius</span>`, {
+                sticky: true
             });
 
             coverageCirclesGroup.addLayer(circle);
-            if (store.podId) circleById.set(String(store.podId), circle);
+            if (podId) circleById.set(podId, circle);
 
-            // 2. Build Rich Popup
+            // 2. Load any saved dynamic polygon from localStorage
+            try {
+                const savedPoly = JSON.parse(localStorage.getItem('swiggy_traced_boundary_' + podId) || 'null');
+                if (savedPoly && Array.isArray(savedPoly) && savedPoly.length > 2) {
+                    renderStorePolygon(podId, store.locality, savedPoly, isNew);
+                }
+            } catch(e) {}
+
+            // 3. Build Rich Popup with "Trace Real Boundary" Button
             const darkStoreAddr = store.primaryServingAddress || store.address || 'Address not listed';
             const liveServingAddr = store.liveSwiggyAddress || store.deliveryLocation || '';
             const mapsUrl = store.mapsUrl || `https://www.google.com/maps?q=${lat},${lng}`;
@@ -734,12 +789,12 @@
                 <div class="popup-card">
                     <div class="popup-header">
                         <span class="popup-title">${store.locality}</span>
-                        <span class="pod-tag ${isNew ? 'new-badge' : ''}">${isNew ? '✨ NEW Pod #' + store.podId : 'Pod #' + store.podId}</span>
+                        <span class="pod-tag ${isNew ? 'new-badge' : ''}">${isNew ? '✨ NEW Pod #' + podId : 'Pod #' + podId}</span>
                     </div>
                     <div class="popup-sub">
                         <span class="status-badge">● Active Dark Store</span>
-                        <span style="background:#fff7ed;color:#ea580c;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10.5px;">⭕ ~2.5km Coverage</span>
                         ${store.pincode ? `<span class="pin-badge">📮 ${store.pincode}</span>` : ''}
+                        ${store.seller ? `<span class="seller-badge">${store.seller}</span>` : ''}
                     </div>
                     <div class="popup-addr-box">
                         <span class="addr-label">Dark Store Address</span>
@@ -751,11 +806,14 @@
                         <span class="addr-text">${liveServingAddr}</span>
                     </div>` : ''}
                     <div class="popup-actions">
+                        <button onclick="traceStoreBoundary('${podId}')" class="trace-btn">
+                            📐 Trace True Boundary
+                        </button>
                         <span class="coords-tag" onclick="copyCoords('${formattedCoords}', this)" title="Click to copy coordinates">
                             📍 ${formattedCoords}
                         </span>
                         <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="maps-link">
-                            Open in Maps ↗
+                            Maps ↗
                         </a>
                     </div>
                 </div>
@@ -765,7 +823,7 @@
 
             marker.storeData = {
                 locality: (store.locality || '').toLowerCase(),
-                podId: (store.podId || '').toLowerCase(),
+                podId: podId.toLowerCase(),
                 pincode: (store.pincode || '').toLowerCase(),
                 address: ((store.primaryServingAddress || '') + ' ' + (store.liveSwiggyAddress || '')).toLowerCase(),
                 seller: (store.seller || '').toLowerCase(),
@@ -775,14 +833,55 @@
                 circleRef: circle
             };
 
+            // Hover interactions
+            marker.on('mouseover', () => {
+                const poly = polygonById.get(podId);
+                if (poly) poly.setStyle({ weight: 3.5, fillOpacity: 0.35 });
+                else circle.setStyle({ weight: 3, fillOpacity: 0.22 });
+            });
+            marker.on('mouseout', () => {
+                const poly = polygonById.get(podId);
+                if (poly) poly.setStyle({ weight: 2.5, fillOpacity: 0.22 });
+                else circle.setStyle({ weight: 1.5, fillOpacity: 0.08 });
+            });
+
+            // If in Boundary Tracer mode, clicking marker starts boundary trace
+            marker.on('click', () => {
+                if (tracerMode && !isProbingActive) {
+                    setTimeout(() => traceStoreBoundary(podId), 350);
+                }
+            });
+
             markers.push(marker);
-            if (store.podId) markerById.set(String(store.podId), marker);
+            if (podId) markerById.set(podId, marker);
             clusterGroup.addLayer(marker);
 
             if (animate) {
                 map.setView([lat, lng], 15);
                 setTimeout(() => marker.openPopup(), 300);
             }
+        }
+
+        function renderStorePolygon(podId, locality, points, isNew = false) {
+            const existingPoly = polygonById.get(podId);
+            if (existingPoly) dynamicBoundariesGroup.removeLayer(existingPoly);
+
+            const polyColor = isNew ? '#059669' : '#ea580c';
+            const polyFill = isNew ? '#10b981' : '#ff7a1a';
+
+            const poly = L.polygon(points, {
+                color: polyColor,
+                weight: 2.5,
+                fillColor: polyFill,
+                fillOpacity: 0.22
+            });
+
+            poly.bindTooltip(`📐 <b>${locality}</b><br><span style="font-size:11px;color:#059669;font-weight:700;">✓ Live Traced Serving Boundary</span>`, {
+                sticky: true
+            });
+
+            dynamicBoundariesGroup.addLayer(poly);
+            polygonById.set(podId, poly);
         }
 
         // Render all initial stores
@@ -808,31 +907,65 @@
         }
         updateStatsUI();
 
-        // 2. TOGGLE CONTROLS: CIRCLES & STORE FINDER
+        // 2. TOGGLE CONTROLS: FIXED CIRCLES, DYNAMIC BOUNDARY TRACER, STORE FINDER
         let showCircles = true;
         const circlesToggleBtn = document.getElementById('circlesToggle');
         circlesToggleBtn.addEventListener('click', () => {
             showCircles = !showCircles;
             circlesToggleBtn.classList.toggle('active', showCircles);
-            if (showCircles) {
-                map.addLayer(coverageCirclesGroup);
-            } else {
-                map.removeLayer(coverageCirclesGroup);
-            }
+            if (showCircles) map.addLayer(coverageCirclesGroup);
+            else map.removeLayer(coverageCirclesGroup);
         });
 
-        let finderMode = true;
+        let tracerMode = true;
+        const tracerToggleBtn = document.getElementById('tracerToggle');
+        tracerToggleBtn.addEventListener('click', () => {
+            tracerMode = !tracerMode;
+            tracerToggleBtn.classList.toggle('active', tracerMode);
+            updateBottomHint();
+        });
+
+        let finderMode = false;
         const finderToggleBtn = document.getElementById('finderToggle');
         const bottomHint = document.getElementById('bottomHint');
 
         finderToggleBtn.addEventListener('click', () => {
             finderMode = !finderMode;
             finderToggleBtn.classList.toggle('active', finderMode);
-            bottomHint.style.display = finderMode ? 'flex' : 'none';
             map.getContainer().style.cursor = finderMode ? 'crosshair' : '';
+            updateBottomHint();
         });
 
-        // Communication bridge to Swiggy active tab
+        function updateBottomHint() {
+            if (isProbingActive) return;
+            if (tracerMode) {
+                bottomHint.style.display = 'flex';
+                bottomHint.className = 'bottom-hint';
+                bottomHint.innerHTML = '<span>📐 <b>Dynamic Boundary Tracer:</b> Click any store marker or "Trace True Boundary" button to probe delivery limits in all directions!</span>';
+            } else if (finderMode) {
+                bottomHint.style.display = 'flex';
+                bottomHint.className = 'bottom-hint';
+                bottomHint.innerHTML = '<span>🎯 <b>Store Finder Active:</b> Click anywhere on the map to discover the dark store serving that coordinate!</span>';
+            } else {
+                bottomHint.style.display = 'none';
+            }
+        }
+
+        // 3. RADIAL BOUNDARY PROBER & EXACT SERVING PERIMETER SEARCH
+        let isProbingActive = false;
+        let abortProbe = false;
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        // Offset coordinates in a given bearing angle (degrees) and distance (meters)
+        function offsetCoordinates(lat, lng, distanceMeters, bearingDegrees) {
+            const rad = bearingDegrees * (Math.PI / 180);
+            const latOffset = (distanceMeters * Math.cos(rad)) / 111320;
+            const lngOffset = (distanceMeters * Math.sin(rad)) / (111320 * Math.cos(lat * (Math.PI / 180)));
+            return [lat + latOffset, lng + lngOffset];
+        }
+
+        // API Discovery Query Bridge
         let pendingRequests = new Map();
         let reqIdCounter = 0;
 
@@ -848,14 +981,12 @@
         });
 
         async function querySwiggyDiscovery(lat, lng) {
-            // Check 1: Direct function on window.opener if opened from Swiggy Hunter
             if (window.opener && typeof window.opener.checkStoreStatusViaApi === 'function') {
                 try {
                     return await window.opener.checkStoreStatusViaApi([null, '', lat, lng, '', '']);
                 } catch(e) {}
             }
 
-            // Check 2: Direct select-location fetch if running on swiggy.com domain
             if (location.hostname.includes('swiggy.com')) {
                 try {
                     const res = await fetch('/api/instamart/home/select-location/v2', {
@@ -885,7 +1016,6 @@
                 } catch(e) {}
             }
 
-            // Check 3: PostMessage to opener
             if (window.opener) {
                 const reqId = ++reqIdCounter;
                 return new Promise((resolve) => {
@@ -901,54 +1031,157 @@
                 });
             }
 
-            // Fallback for standalone preview: Reverse geocode with OpenStreetMap Nominatim
-            try {
-                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-                const geoJson = await geoRes.json();
-                const localityName = geoJson.address?.suburb || geoJson.address?.neighbourhood || geoJson.address?.city_district || geoJson.address?.city || 'Mumbai Location';
-                const pincode = geoJson.address?.postcode || '';
-                const fullAddr = geoJson.display_name || `${lat}, ${lng}`;
+            // Fallback for preview: Geometric distance matching
+            let nearest = null, minDist = Infinity;
+            storesData.forEach(s => {
+                const d = Math.hypot((s.coordinates?.latitude || 0) - lat, (s.coordinates?.longitude || 0) - lng);
+                if (d < minDist) { minDist = d; nearest = s; }
+            });
 
-                let nearest = null, minDist = Infinity;
-                storesData.forEach(s => {
-                    const d = Math.hypot((s.coordinates?.latitude || 0) - lat, (s.coordinates?.longitude || 0) - lng);
-                    if (d < minDist) { minDist = d; nearest = s; }
-                });
-
-                if (minDist < 0.028 && nearest) {
-                    return {
-                        store_id: nearest.podId,
-                        store_locality: nearest.locality,
-                        store_address: nearest.primaryServingAddress || nearest.address,
-                        store_pincode: nearest.pincode,
-                        status: 'Live & Active',
-                        status_type: 'live',
-                        eta: '8 Mins',
-                        is_health: true,
-                        is_simulated: true
-                    };
-                }
-
+            if (minDist < 0.026 && nearest) {
                 return {
-                    store_id: `disc_${Math.round(lat * 1000)}_${Math.round(lng * 1000)}`,
-                    store_locality: localityName,
-                    store_address: fullAddr,
-                    store_pincode: pincode,
+                    store_id: nearest.podId,
+                    store_locality: nearest.locality,
+                    store_address: nearest.primaryServingAddress || nearest.address,
+                    store_pincode: nearest.pincode,
                     status: 'Live & Active',
                     status_type: 'live',
-                    eta: '10 Mins',
-                    is_health: true,
-                    is_new: true
+                    eta: '8 Mins',
+                    is_health: true
                 };
-            } catch(e) {
-                return null;
             }
+
+            return { status: 'Unserviceable', status_type: 'unserviceable' };
         }
 
+        // 4. Trace Real Boundary in 12 Radial Directions
+        window.traceStoreBoundary = async function(podId) {
+            const store = podsMap.get(String(podId));
+            if (!store) return alert('Store not found: ' + podId);
+            if (isProbingActive) {
+                abortProbe = true;
+                return;
+            }
+
+            isProbingActive = true;
+            abortProbe = false;
+            probeActiveGroup.clearLayers();
+
+            const originLat = store.coordinates.latitude;
+            const originLng = store.coordinates.longitude;
+
+            map.setView([originLat, originLng], 14);
+
+            // 12 directions (every 30 degrees)
+            const DIRECTIONS = [
+                { deg: 0, name: 'North' },
+                { deg: 30, name: 'NNE' },
+                { deg: 60, name: 'ENE' },
+                { deg: 90, name: 'East' },
+                { deg: 120, name: 'ESE' },
+                { deg: 150, name: 'SSE' },
+                { deg: 180, name: 'South' },
+                { deg: 210, name: 'SSW' },
+                { deg: 240, name: 'WSW' },
+                { deg: 270, name: 'West' },
+                { deg: 300, name: 'WNW' },
+                { deg: 330, name: 'NNW' }
+            ];
+
+            const perimeterPoints = [];
+            let maxReachMeters = 0;
+
+            bottomHint.style.display = 'flex';
+            bottomHint.className = 'bottom-hint probing';
+
+            // Draw initial store beam center
+            const centerBeam = L.circleMarker([originLat, originLng], {
+                radius: 8,
+                color: '#7c3aed',
+                fillColor: '#a855f7',
+                fillOpacity: 0.9
+            });
+            probeActiveGroup.addLayer(centerBeam);
+
+            for (let i = 0; i < DIRECTIONS.length; i++) {
+                if (abortProbe) break;
+                const dir = DIRECTIONS[i];
+
+                bottomHint.innerHTML = `<span>⚡ <b>Probing Direction [${i + 1}/${DIRECTIONS.length}]:</b> ${dir.name} (${dir.deg}°) for <b>${store.locality}</b>...</span>`;
+
+                // Radial Binary Search between 700m and 5200m
+                let low = 600, high = 5000;
+                let bestServingDistance = low;
+                let lastProbeCoords = [originLat, originLng];
+
+                // 3 binary search probes per direction
+                for (let iter = 0; iter < 3; iter++) {
+                    if (abortProbe) break;
+                    const testDist = Math.round((low + high) / 2);
+                    const [pLat, pLng] = offsetCoordinates(originLat, originLng, testDist, dir.deg);
+                    lastProbeCoords = [pLat, pLng];
+
+                    // Visual beam marker
+                    const probeMarker = L.circleMarker([pLat, pLng], {
+                        radius: 5,
+                        color: '#ffffff',
+                        fillColor: '#7c3aed',
+                        fillOpacity: 0.9,
+                        weight: 2
+                    });
+                    probeActiveGroup.addLayer(probeMarker);
+
+                    const res = await querySwiggyDiscovery(pLat, pLng);
+                    await sleep(180);
+
+                    const servesHere = res && String(res.store_id || res.podId) === String(podId) && res.status_type === 'live';
+
+                    if (servesHere) {
+                        bestServingDistance = testDist;
+                        low = testDist; // Expand outward
+                        probeMarker.setStyle({ fillColor: '#10b981', color: '#ffffff' });
+                    } else {
+                        high = testDist; // Contract inward
+                        probeMarker.setStyle({ fillColor: '#ef4444', color: '#ffffff' });
+                    }
+                }
+
+                if (bestServingDistance > maxReachMeters) maxReachMeters = bestServingDistance;
+
+                const [edgeLat, edgeLng] = offsetCoordinates(originLat, originLng, bestServingDistance, dir.deg);
+                perimeterPoints.push([edgeLat, edgeLng]);
+
+                // Live draw polygon perimeter so far
+                if (perimeterPoints.length > 2) {
+                    renderStorePolygon(podId, store.locality, perimeterPoints, store.is_newly_discovered);
+                }
+            }
+
+            isProbingActive = false;
+            probeActiveGroup.clearLayers();
+
+            if (perimeterPoints.length > 2 && !abortProbe) {
+                // Save boundary polygon to localStorage
+                try {
+                    localStorage.setItem('swiggy_traced_boundary_' + podId, JSON.stringify(perimeterPoints));
+                } catch(e) {}
+
+                renderStorePolygon(podId, store.locality, perimeterPoints, store.is_newly_discovered);
+
+                const maxReachKm = (maxReachMeters / 1000).toFixed(1);
+                bottomHint.className = 'bottom-hint';
+                bottomHint.innerHTML = `<span>🎉 <b>Boundary Complete!</b> Traced actual delivery perimeter for <b>${store.locality}</b> (Max Reach: ~${maxReachKm} km).</span>`;
+                setTimeout(updateBottomHint, 5000);
+            } else {
+                updateBottomHint();
+            }
+        };
+
+        // 5. Store Finder Click Handler
         let discoveryRadarMarker = null;
 
         map.on('click', async (e) => {
-            if (!finderMode) return;
+            if (!finderMode || isProbingActive) return;
             const { lat, lng } = e.latlng;
 
             if (discoveryRadarMarker) map.removeLayer(discoveryRadarMarker);
@@ -996,14 +1229,11 @@
             const existing = podId ? podsMap.get(podId) : null;
 
             if (existing) {
-                // CASE 1: STORE ALREADY PRESENT IN DATABASE
                 const m = markerById.get(podId);
-                const circle = circleById.get(podId);
-                if (circle) {
-                    circle.setStyle({ weight: 3.5, fillOpacity: 0.28, color: '#059669' });
-                    setTimeout(() => {
-                        circle.setStyle({ weight: 1.5, fillOpacity: 0.09, color: '#ea580c' });
-                    }, 4000);
+                const poly = polygonById.get(podId);
+                if (poly) {
+                    poly.setStyle({ weight: 4, fillOpacity: 0.35 });
+                    setTimeout(() => poly.setStyle({ weight: 2.5, fillOpacity: 0.22 }), 4000);
                 }
 
                 const popupContent = `
@@ -1017,15 +1247,19 @@
                         </div>
                         <div class="popup-sub">
                             <span class="status-badge">● Active Store</span>
-                            <span style="background:#fff7ed;color:#ea580c;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10.5px;">⭕ ~2.5km Coverage</span>
                             ${disc.eta ? `<span style="background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10.5px;">⚡ ${disc.eta}</span>` : ''}
                         </div>
                         <div class="popup-addr-box">
                             <span class="addr-label">Serving Dark Store Address</span>
                             <span class="addr-text">${existing.primaryServingAddress || existing.address || disc.store_address}</span>
                         </div>
-                        <div style="font-size:11px;color:#64748b;font-weight:600;">
-                            ✓ Verified store in your pre-loaded 112 Mumbai dark stores list.
+                        <div class="popup-actions">
+                            <button onclick="traceStoreBoundary('${podId}')" class="trace-btn">
+                                📐 Trace True Boundary
+                            </button>
+                            <span class="coords-tag" onclick="copyCoords('${lat.toFixed(6)}, ${lng.toFixed(6)}', this)">
+                                📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}
+                            </span>
                         </div>
                     </div>
                 `;
@@ -1041,7 +1275,6 @@
                 }
 
             } else {
-                // CASE 2: NEW DARK STORE DISCOVERED!
                 const newStore = {
                     podId: podId || `pod_${Date.now()}`,
                     locality: disc.store_locality || `Discovered Store #${podId}`,
@@ -1049,10 +1282,7 @@
                     primaryServingAddress: disc.store_address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
                     liveSwiggyAddress: disc.store_address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
                     pincode: disc.store_pincode || '',
-                    coordinates: {
-                        latitude: lat,
-                        longitude: lng
-                    },
+                    coordinates: { latitude: lat, longitude: lng },
                     mapsUrl: `https://www.google.com/maps?q=${lat},${lng}`,
                     is_newly_discovered: true
                 };
@@ -1080,19 +1310,20 @@
                         </div>
                         <div class="popup-sub">
                             <span class="status-badge">● Live & Active</span>
-                            <span style="background:#ecfdf5;color:#065f46;padding:1px 6px;border-radius:4px;font-weight:800;font-size:10.5px;">⭕ ~2.5km Coverage</span>
                             ${disc.eta ? `<span style="background:#ecfdf5;color:#065f46;padding:1px 6px;border-radius:4px;font-weight:800;font-size:10.5px;">⚡ ${disc.eta}</span>` : ''}
                         </div>
                         <div class="popup-addr-box">
-                            <span class="addr-label">Discovered Location / Serving Address</span>
+                            <span class="addr-label">Discovered Location</span>
                             <span class="addr-text">${newStore.primaryServingAddress}</span>
                         </div>
-                        <div style="font-size:11px;color:#065f46;font-weight:700;">
-                            ✓ Successfully added to your map! Total stores: <b>${storesData.length}</b>.
+                        <div class="popup-actions">
+                            <button onclick="traceStoreBoundary('${newStore.podId}')" class="trace-btn">
+                                📐 Trace True Boundary
+                            </button>
+                            <button onclick="exportUpdatedJson()" style="background:#059669;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-weight:700;font-size:11px;cursor:pointer;">
+                                💾 Export JSON
+                            </button>
                         </div>
-                        <button onclick="exportUpdatedJson()" style="background:#059669;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:11.5px;cursor:pointer;margin-top:2px;">
-                            💾 Download Updated JSON (${storesData.length} Stores)
-                        </button>
                     </div>
                 `;
 
@@ -1104,7 +1335,7 @@
             }
         });
 
-        // 3. Export Updated Master JSON
+        // 6. Export Updated Master JSON
         window.exportUpdatedJson = function() {
             const jsonStr = JSON.stringify(storesData, null, 2);
             const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -1116,7 +1347,7 @@
             a.remove();
         };
 
-        // 4. Search Filtering
+        // 7. Search Filtering
         const searchInput = document.getElementById('searchInput');
         let searchDebounce = null;
 
