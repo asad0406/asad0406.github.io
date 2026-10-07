@@ -677,6 +677,8 @@
             zoomControl: false,
             attributionControl: true
         }).setView([19.1150, 72.9000], 11);
+        window.leafletMap = map;
+        window.storesData = storesData;
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -782,6 +784,8 @@
             return result;
         }
 
+        window.addStoreMarker = addStoreMarker;
+        window.clusterGroup = clusterGroup;
         function addStoreMarker(store, animate = false) {
             const lat = store.coordinates?.latitude || 0;
             const lng = store.coordinates?.longitude || 0;
