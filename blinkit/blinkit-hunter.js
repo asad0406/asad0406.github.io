@@ -145,7 +145,7 @@
           const products = await searchStore(query, lat, lng, pages);
           if (products.length) hits++;
           for (const prod of products) {
-            rows.push({ store_id: s.id, lat, lng, accuracy: s.accuracy, ...prod });
+            rows.push({ store_id: s.id, address: s.address || '', lat, lng, accuracy: s.accuracy, ...prod });
           }
           done++;
           render();
@@ -206,7 +206,7 @@
   }
 
   function toCsv() {
-    const cols = ['store_id', 'lat', 'lng', 'accuracy', 'product_id', 'name', 'variant', 'price', 'mrp', 'inventory', 'merchant_id'];
+    const cols = ['store_id', 'address', 'lat', 'lng', 'accuracy', 'product_id', 'name', 'variant', 'price', 'mrp', 'inventory', 'merchant_id'];
     const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n');
   }

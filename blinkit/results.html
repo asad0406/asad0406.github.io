@@ -69,6 +69,8 @@
     <input type="search" id="filter" placeholder="Filter by product name or store id…">
     <label class="chk"><input type="checkbox" id="instock"> In stock only</label>
     <label class="chk"><input type="checkbox" id="noacc"> Hide accessories</label>
+    <label class="chk"><input type="checkbox" id="disconly"> Discounted only</label>
+    <button id="geo">📍 Addresses</button>
     <button id="csv">⬇ CSV</button>
     <button id="json">⬇ JSON</button>
   </div>
@@ -77,10 +79,13 @@
     <table>
       <thead><tr>
         <th data-k="store_id">Store</th>
+        <th data-k="address">Address</th>
         <th data-k="name">Product</th>
         <th data-k="variant">Variant</th>
         <th data-k="priceNum">Price</th>
         <th data-k="mrp">MRP</th>
+        <th data-k="discNum">Disc %</th>
+        <th data-k="saveNum">Saved</th>
         <th data-k="inventory">Stock</th>
         <th data-k="merchant_id">Merchant</th>
       </tr></thead>
@@ -100,6 +105,9 @@
   var ACC = /cover|case|protector|glass|cable|charger|holder|stand|pouch|skin|guard|lens|strap|adapter|ring|mount|screen/i;
 
   var all = [], query = '', sortKey = 'priceNum', sortAsc = true;
+  var ADDR = {};  // "lat,lng" -> address, reverse-geocoded on demand
+  try { ADDR = JSON.parse(localStorage.getItem('bk-addr') || '{}'); } catch (e) {}
+  var addr = function (r) { return r.address || ADDR[r.lat + ',' + r.lng] || ''; };
 
   var $ = function (id) { return document.getElementById(id); };
   var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[^\d.]/g, '')) || 0; };
@@ -113,9 +121,11 @@
     var term = $('filter').value.trim().toLowerCase();
     var onlyStock = $('instock').checked;
     var hideAcc = $('noacc').checked;
+    var onlyDisc = $('disconly').checked;
     return all.filter(function (r) {
       if (onlyStock && !(+r.inventory > 0)) return false;
       if (hideAcc && ACC.test(r.name || '')) return false;
+      if (onlyDisc && !(r.saveNum > 0)) return false;
       if (term && (String(r.name || '') + ' ' + r.store_id).toLowerCase().indexOf(term) === -1) return false;
       return true;
     });
@@ -148,7 +158,7 @@
 
     list.sort(function (a, b) {
       var x = a[sortKey], y = b[sortKey];
-      if (sortKey === 'priceNum' || sortKey === 'inventory' || sortKey === 'store_id') {
+      if (sortKey === 'priceNum' || sortKey === 'inventory' || sortKey === 'discNum' || sortKey === 'saveNum' || sortKey === 'store_id') {
         x = +x || 0; y = +y || 0;
       } else { x = String(x || ''); y = String(y || ''); }
       return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1);
@@ -163,10 +173,13 @@
         : '<span class="oos">out</span>';
       return '<tr>'
         + '<td><a href="https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng + '" target="_blank" rel="noopener">' + esc(r.store_id) + '</a></td>'
+        + '<td class="dim">' + esc(addr(r)) + '</td>'
         + '<td>' + esc(r.name) + '</td>'
         + '<td class="dim">' + esc(r.variant) + '</td>'
         + '<td class="price">' + esc(r.price) + '</td>'
         + '<td class="strike">' + esc(r.mrp) + '</td>'
+        + '<td>' + (r.discNum ? r.discNum + '%' : '') + '</td>'
+        + '<td>' + (r.saveNum ? '₹' + r.saveNum.toLocaleString('en-IN') : '') + '</td>'
         + '<td>' + stock + '</td>'
         + '<td class="dim">' + esc(r.merchant_id) + '</td>'
         + '</tr>';
@@ -176,6 +189,9 @@
   function load(rows, q) {
     all = (rows || []).map(function (r) {
       r.priceNum = num(r.price);
+      var m = num(r.mrp);
+      r.saveNum = (m && r.priceNum && m > r.priceNum) ? m - r.priceNum : 0;
+      r.discNum = r.saveNum ? Math.round(r.saveNum / m * 100) : 0;
       return r;
     });
     query = q || '';
@@ -184,6 +200,36 @@
     $('empty').textContent = 'No rows match these filters.';
     render();
   }
+
+  // ---------- addresses ----------
+  // Store data carries only coordinates, so addresses are reverse-geocoded on
+  // demand. Nominatim asks for <=1 req/sec; results are cached across reloads.
+  $('geo').onclick = function () {
+    var btn = $('geo'), rows = visible(), seen = {}, todo = [];
+    rows.forEach(function (r) {
+      var k = r.lat + ',' + r.lng;
+      if (!seen[k] && !addr(r)) { seen[k] = 1; todo.push([k, r.lat, r.lng]); }
+    });
+    if (!todo.length) { render(); return; }
+    btn.disabled = true;
+    var i = 0;
+    (function next() {
+      if (i >= todo.length) {
+        btn.disabled = false; btn.textContent = '📍 Addresses';
+        try { localStorage.setItem('bk-addr', JSON.stringify(ADDR)); } catch (e) {}
+        render();
+        return;
+      }
+      var t = todo[i++];
+      btn.textContent = '📍 ' + i + '/' + todo.length;
+      fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat='
+        + t[1] + '&lon=' + t[2])
+        .then(function (res) { return res.json(); })
+        .then(function (d) { ADDR[t[0]] = (d && d.display_name) || '—'; })
+        .catch(function () { ADDR[t[0]] = '—'; })
+        .then(function () { render(); setTimeout(next, 1100); });
+    })();
+  };
 
   // ---------- export ----------
 
@@ -197,18 +243,24 @@
   }
 
   $('csv').onclick = function () {
-    var cols = ['store_id', 'lat', 'lng', 'name', 'variant', 'price', 'mrp', 'inventory', 'merchant_id'];
+    var cols = ['store_id', 'address', 'lat', 'lng', 'name', 'variant', 'price', 'mrp', 'discNum', 'saveNum', 'inventory', 'merchant_id'];
     var cell = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
-    var body = visible().map(function (r) { return cols.map(function (c) { return cell(r[c]); }).join(','); });
+    var body = visible().map(function (r) {
+      return cols.map(function (c) {
+        return cell(c === 'address' ? addr(r) : r[c]);
+      }).join(',');
+    });
     save([cols.join(',')].concat(body).join('\n'), 'text/csv', 'csv');
   };
   $('json').onclick = function () {
-    save(JSON.stringify(visible(), null, 2), 'application/json', 'json');
+    save(JSON.stringify(visible().map(function (r) {
+      return Object.assign({}, r, { address: addr(r) });
+    }), null, 2), 'application/json', 'json');
   };
 
   // ---------- wiring ----------
 
-  ['filter', 'instock', 'noacc'].forEach(function (id) {
+  ['filter', 'instock', 'noacc', 'disconly'].forEach(function (id) {
     $(id).addEventListener('input', render);
   });
 
