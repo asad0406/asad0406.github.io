@@ -1,301 +1,1144 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🛒 Blinkit MMR — Results</title>
-<style>
-  :root {
-    --bg:#0f172a; --panel:#1e293b; --border:#334155; --text:#f8fafc;
-    --muted:#94a3b8; --accent:#f8cb46; --green:#4ade80; --red:#f87171;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);min-height:100vh;padding:28px 20px;
-    font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1180px;margin:0 auto}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🛒 Blinkit MMR — Results</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style id="app-style">
+    :root {
+      --ink: #1f1b16;
+      --paper: #edebdf;
+      --card: #ffffff;
+      --crate: #2b5235;
+      --crate-tint: #e4ede3;
+      --brick: #a6402b;
+      --brick-tint: #f4e5e0;
+      --blink: #eab308;
+      --blink-dim: #a16207;
+      --stone: #5b5648;
+      --line: #dcd8c8;
+      --display: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      --body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 400 13px/1.5 var(--body);
+      background: var(--paper);
+      color: var(--ink);
+    }
 
-  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
-  .pill{background:rgba(248,203,70,.15);color:var(--accent);border:1px solid rgba(248,203,70,.35);
-    font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:20px}
-  h1{font-size:24px;font-weight:800;letter-spacing:-.3px}
-  h1 span{color:var(--muted);font-weight:600}
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--paper);
+      border-bottom: 2px solid var(--ink);
+      padding: 14px 20px 12px;
+    }
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .title-logo {
+      font-size: 24px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+    }
+    .query-tag {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 19px;
+      letter-spacing: -.01em;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 5px 14px 6px;
+      border-radius: 3px;
+      transform: rotate(-.6deg);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .query-tag .q-mark { color: var(--blink); }
 
-  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-  .tile{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-  .tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
-  .tile .v{font-size:22px;font-weight:800;line-height:1.2}
-  .tile .v.good{color:var(--green)}
+    #metaCard {
+      flex: none;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    #metaCard .stat {
+      font-family: var(--display);
+      border: 1.5px solid var(--ink);
+      border-radius: 3px;
+      padding: 5px 11px;
+      color: var(--ink);
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      background: var(--card);
+    }
+    #metaCard .stat b { color: var(--blink-dim); font-weight: 700; }
 
-  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
-  input[type=search]{flex:1;min-width:200px;background:var(--panel);border:1px solid var(--border);
-    color:var(--text);border-radius:9px;padding:10px 13px;font-size:14px}
-  label.chk{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--border);
-    border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13px;user-select:none;white-space:nowrap}
-  label.chk input{accent-color:var(--accent);cursor:pointer}
-  button{background:var(--panel);border:1px solid var(--border);color:#cbd5e1;border-radius:9px;
-    padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer}
-  button:hover{border-color:#475569}
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-bottom: 2px;
+    }
+    .toolbar::-webkit-scrollbar { height: 4px; }
+    .toolbar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+    .toolbar .spacer { flex: 1; min-width: 8px; }
+    input#filter, select.filter-select {
+      padding: 6px 11px;
+      border: 1.5px solid var(--line);
+      border-radius: 20px;
+      font-size: 12px;
+      background: var(--card);
+      color: var(--ink);
+      flex: 0 0 auto;
+      font-family: var(--body);
+      outline: none;
+      white-space: nowrap;
+    }
+    select.filter-select { max-width: 150px; cursor: pointer; }
+    input#filter { width: 170px; flex: 0 1 auto; }
+    input#filter:focus, select.filter-select:focus { border-color: var(--blink); }
+    button.tool-btn {
+      padding: 6px 13px;
+      border: 1.5px solid var(--line);
+      border-radius: 20px;
+      background: var(--card);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 0 0 auto;
+      white-space: nowrap;
+      font-family: var(--body);
+      transition: all 0.15s;
+    }
+    button.tool-btn:hover { border-color: var(--blink); }
+    button.tool-btn.active { background: var(--crate); border-color: var(--crate); color: #fff; }
+    button.tool-btn:disabled { opacity: .55; cursor: progress; }
+    button.btn-primary {
+      background: var(--blink);
+      border: none;
+      color: var(--ink);
+      font-family: var(--display);
+      font-weight: 700;
+      padding: 7px 16px;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    button.btn-primary:hover { background: #f8cb46; }
 
-  .tablewrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:70vh}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{position:sticky;top:0;background:var(--panel);text-align:left;padding:10px 12px;font-size:11px;
-    text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--border);
-    cursor:pointer;white-space:nowrap;z-index:1}
-  th:hover{color:var(--text)}
-  th.sorted::after{content:' ▾';color:var(--accent)}
-  th.sorted.asc::after{content:' ▴'}
-  td{padding:9px 12px;border-bottom:1px solid #1a2744;vertical-align:top}
-  tr:hover td{background:#16213a}
-  td a{color:var(--accent);text-decoration:none}
-  td a:hover{text-decoration:underline}
-  .dim{color:var(--muted)}
-  .price{font-weight:700;color:var(--green);white-space:nowrap}
-  .strike{text-decoration:line-through;color:var(--muted);white-space:nowrap}
-  .oos{color:var(--red);font-weight:600}
-  .empty{padding:50px 20px;text-align:center;color:var(--muted)}
-  footer{margin-top:18px;text-align:center;font-size:12px;color:#64748b}
-</style>
+    #tableWrap {
+      overflow: auto;
+      max-height: calc(100vh - 128px);
+      padding: 0 20px 20px;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--paper);
+      text-align: left;
+      padding: 10px 10px 8px;
+      border-bottom: 2px solid var(--ink);
+      font-weight: 600;
+      font-family: var(--display);
+      color: var(--ink);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th:hover { color: var(--blink-dim); }
+    tbody td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 400;
+      max-width: 280px;
+      white-space: normal;
+      overflow-wrap: break-word;
+      vertical-align: middle;
+    }
+    tbody tr { border-left: 4px solid transparent; transition: background 0.1s; }
+    tbody td.nowrap { max-width: none; white-space: nowrap; }
+    tbody td.addr { max-width: 220px; font-size: 11.5px; color: var(--stone); }
+    tbody tr:hover { background: #ffffff; }
+    tbody tr.sold-out { background: var(--brick-tint); border-left-color: var(--brick); }
+    tbody tr.sold-out:hover { background: #efd6cf; }
+    tbody tr.in-stock { background: var(--crate-tint); border-left-color: var(--crate); }
+    tbody tr.in-stock:hover { background: #d6e5d4; }
+    tbody tr.cheapest { border-left-color: var(--blink); box-shadow: inset 3px 0 0 var(--blink); }
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-family: var(--display);
+      font-weight: 600;
+    }
+    td a { color: var(--blink-dim); text-decoration: none; font-weight: 600; }
+    td a:hover { text-decoration: underline; }
+
+    .prod-link {
+      color: var(--ink);
+      font-weight: 600;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .store-cell { display: flex; flex-direction: column; gap: 1px; }
+    .store-cell .loc { font-weight: 600; }
+    .store-cell .sid { font-size: 10.5px; color: var(--stone); font-weight: 600; letter-spacing: .02em; }
+    .qty-tag { font-size: 11px; font-weight: 600; color: var(--stone); }
+    .mrp-strike { text-decoration: line-through; color: var(--stone); }
+    .brand-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--stone);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .rating-tag { font-size: 11.5px; font-weight: 700; color: var(--blink-dim); }
+    .thumb {
+      height: 36px;
+      width: 36px;
+      object-fit: contain;
+      border-radius: 4px;
+      vertical-align: middle;
+      cursor: zoom-in;
+      background: #ffffff;
+      border: 1px solid var(--line);
+    }
+    .thumb-fallback {
+      height: 36px;
+      width: 36px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      vertical-align: middle;
+    }
+    .modal-head img {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      object-fit: contain;
+      flex: none;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+
+    .view-btn {
+      border: 1.5px solid var(--line);
+      background: var(--card);
+      border-radius: 5px;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .view-btn:hover { border-color: var(--blink); transform: scale(1.08); }
+
+    .health-pill {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .health-pill.live { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .health-pill.low { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+    .health-pill.out { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .disc-pill {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--crate);
+      background: var(--crate-tint);
+      padding: 3px 8px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(31, 27, 22, .55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-card {
+      background: var(--card);
+      border-radius: 4px;
+      width: 490px;
+      max-width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 60px rgba(31,27,22,.4);
+      position: relative;
+    }
+    .modal-head {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 20px 20px 16px;
+      border-bottom: 2px dashed var(--line);
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 2;
+    }
+    .modal-head .name {
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 14.5px;
+      line-height: 1.3;
+      flex: 1;
+    }
+    .modal-close {
+      cursor: pointer;
+      color: var(--stone);
+      font-size: 14px;
+      line-height: 1;
+      flex: none;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--paper);
+      user-select: none;
+    }
+    .modal-close:hover { background: var(--line); color: var(--ink); }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 16px 20px;
+    }
+    .modal-grid .full { grid-column: 1 / -1; }
+    .modal-field .k {
+      font-family: var(--display);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--stone);
+      margin-bottom: 3px;
+      border-left: 2px solid var(--blink);
+      padding-left: 6px;
+    }
+    .modal-field .v {
+      font-size: 12.5px;
+      line-height: 1.45;
+      word-break: break-word;
+      padding-left: 8px;
+    }
+
+    .modal-section { padding: 14px 20px 18px; border-top: 2px dashed var(--line); }
+    .modal-section .sec-title {
+      font-family: var(--display);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      border-left: 2px solid var(--blink);
+      padding-left: 6px;
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      margin-bottom: 4px;
+    }
+    .price-row .store { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; flex-wrap: wrap; }
+    .price-row .amount {
+      font-family: var(--display);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      flex: none;
+      white-space: nowrap;
+    }
+    .price-row .soldout { color: var(--stone); font-size: 11px; }
+    .pill {
+      font-family: var(--display);
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      display: inline-block;
+      width: fit-content;
+      color: #fff;
+    }
+    .pill.best { background: var(--crate); }
+    .pill.worst { background: var(--brick); }
+
+    .price-compare { display: flex; gap: 8px; margin-bottom: 6px; }
+    .price-card {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      padding: 10px 12px;
+      border-radius: 4px;
+    }
+    .price-card.best { background: var(--crate-tint); }
+    .price-card.worst { background: var(--brick-tint); }
+    .price-card .pc-label { font-size: 11.5px; color: var(--stone); margin-top: 3px; }
+    .pc-amount-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .price-card .pc-amount {
+      font-family: var(--display);
+      font-size: 17px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .price-card .pc-amount.best { color: var(--crate); }
+    .price-card .pc-amount.worst { color: var(--brick); }
+    .save-tag {
+      font-family: var(--body);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: var(--crate);
+    }
+
+    .toggle-stores {
+      display: inline-block;
+      cursor: pointer;
+      color: var(--blink-dim);
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 11.5px;
+      margin: 6px 0 0 8px;
+      user-select: none;
+    }
+    .toggle-stores:hover { color: var(--ink); text-decoration: underline; }
+
+    .table-status-bar {
+      text-align: center;
+      padding: 16px 20px 24px;
+      font-size: 12px;
+      color: var(--stone);
+      font-family: var(--display);
+      font-weight: 600;
+    }
+    #empty {
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 15px;
+      color: var(--stone);
+      font-family: var(--display);
+      font-weight: 600;
+    }
+    #empty small { display: block; margin-top: 8px; font-weight: 400; font-size: 12.5px; }
+
+    @media (max-width: 800px) {
+      header { padding: 12px 14px; }
+      .toolbar { gap: 6px; }
+      #tableWrap { padding: 0 10px 14px; }
+      .modal-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
+
   <header>
-    <span class="pill">MMR</span>
-    <h1>Blinkit Results <span id="q"></span></h1>
+    <div class="top-row">
+      <div class="title-row">
+        <span class="title-logo">🛒</span>
+        <span class="query-tag" id="titleTag">
+          <span class="q-mark">#</span><span id="queryLabel">Blinkit MMR Hunter</span>
+        </span>
+      </div>
+      <div id="metaCard"></div>
+    </div>
+    <div class="toolbar">
+      <select id="filterStore" class="filter-select"><option value="">All stores</option></select>
+      <select id="filterBrand" class="filter-select"><option value="">All brands</option></select>
+      <select id="filterStock" class="filter-select">
+        <option value="">All stock</option>
+        <option value="In stock">In stock</option>
+        <option value="Sold out">Sold out</option>
+      </select>
+      <select id="sortSelect" class="filter-select">
+        <option value="price-asc">💵 Price: Low to High</option>
+        <option value="price-desc">💎 Price: High to Low</option>
+        <option value="discount-desc">🔥 Highest Discount %</option>
+        <option value="saved-desc">💰 Biggest Saving ₹</option>
+        <option value="rating-desc">⭐ Best Rated</option>
+        <option value="stock-desc">📦 Most Stock</option>
+        <option value="brand-asc">🏷️ Brand: A to Z</option>
+        <option value="title-asc">🔤 Product: A to Z</option>
+        <option value="store-asc">📍 Store: A to Z</option>
+      </select>
+      <input id="filter" type="text" placeholder="Search product, variant, store...">
+      <button id="filterVariation" class="tool-btn">Price varies by store</button>
+      <button id="filterAcc" class="tool-btn">Hide accessories</button>
+      <button id="geo" class="tool-btn">📍 Addresses</button>
+      <div class="spacer"></div>
+      <button id="downloadJson" class="tool-btn">JSON</button>
+      <button id="download" class="tool-btn btn-primary">Download CSV</button>
+    </div>
   </header>
 
-  <div class="tiles" id="tiles"></div>
-
-  <div class="controls">
-    <input type="search" id="filter" placeholder="Filter by product name or store id…">
-    <label class="chk"><input type="checkbox" id="instock"> In stock only</label>
-    <label class="chk"><input type="checkbox" id="noacc"> Hide accessories</label>
-    <label class="chk"><input type="checkbox" id="disconly"> Discounted only</label>
-    <button id="geo">📍 Addresses</button>
-    <button id="csv">⬇ CSV</button>
-    <button id="json">⬇ JSON</button>
+  <div id="tableWrap">
+    <div id="empty">Waiting for scan data from the hunter…<small>Or drop a JSON export onto this page.</small></div>
   </div>
 
-  <div class="tablewrap">
-    <table>
-      <thead><tr>
-        <th data-k="store_id">Store</th>
-        <th data-k="address">Address</th>
-        <th data-k="name">Product</th>
-        <th data-k="variant">Variant</th>
-        <th data-k="priceNum">Price</th>
-        <th data-k="mrp">MRP</th>
-        <th data-k="discNum">Disc %</th>
-        <th data-k="saveNum">Saved</th>
-        <th data-k="inventory">Stock</th>
-        <th data-k="merchant_id">Merchant</th>
-      </tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </div>
+  <script id="app-script">
+    const tableWrap = document.getElementById('tableWrap');
+    const filterEl = document.getElementById('filter');
+    const storeSel = document.getElementById('filterStore');
+    const brandSel = document.getElementById('filterBrand');
+    const stockSel = document.getElementById('filterStock');
+    const sortSel = document.getElementById('sortSelect');
+    const variationBtn = document.getElementById('filterVariation');
+    const accBtn = document.getElementById('filterAcc');
+    const geoBtn = document.getElementById('geo');
 
-  <div class="empty" id="empty">Waiting for scan data from the hunter…</div>
-  <footer>Blinkit MMR Hunter • <a href="./" style="color:#64748b">back to hunter</a></footer>
-</div>
+    // A search for a phone comes back mostly cases, glass and cables.
+    const ACC = /cover|case|protector|glass|cable|charger|holder|stand|pouch|skin|guard|lens|strap|adapter|ring|mount|screen/i;
 
-<script>
-(function () {
-  'use strict';
-
-  // accessory keywords — a search for a phone returns mostly cases and glass
-  var ACC = /cover|case|protector|glass|cable|charger|holder|stand|pouch|skin|guard|lens|strap|adapter|ring|mount|screen/i;
-
-  var all = [], query = '', sortKey = 'priceNum', sortAsc = true;
-  var ADDR = {};  // "lat,lng" -> address, reverse-geocoded on demand
-  try { ADDR = JSON.parse(localStorage.getItem('bk-addr') || '{}'); } catch (e) {}
-  var addr = function (r) { return r.address || ADDR[r.lat + ',' + r.lng] || ''; };
-
-  var $ = function (id) { return document.getElementById(id); };
-  var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[^\d.]/g, '')) || 0; };
-  var esc = function (s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  };
-
-  function visible() {
-    var term = $('filter').value.trim().toLowerCase();
-    var onlyStock = $('instock').checked;
-    var hideAcc = $('noacc').checked;
-    var onlyDisc = $('disconly').checked;
-    return all.filter(function (r) {
-      if (onlyStock && !(+r.inventory > 0)) return false;
-      if (hideAcc && ACC.test(r.name || '')) return false;
-      if (onlyDisc && !(r.saveNum > 0)) return false;
-      if (term && (String(r.name || '') + ' ' + r.store_id).toLowerCase().indexOf(term) === -1) return false;
-      return true;
-    });
-  }
-
-  function tiles(list) {
-    var stores = {}, products = {}, inStock = 0, cheapest = Infinity, units = 0;
-    list.forEach(function (r) {
-      stores[r.store_id] = 1;
-      products[r.name] = 1;
-      units += +r.inventory || 0;
-      if (+r.inventory > 0) { inStock++; if (r.priceNum) cheapest = Math.min(cheapest, r.priceNum); }
-    });
-    var t = [
-      ['Rows', list.length],
-      ['Stores', Object.keys(stores).length],
-      ['Distinct products', Object.keys(products).length],
-      ['In-stock listings', inStock],
-      ['Units available', units],
-      ['Cheapest in stock', cheapest === Infinity ? '—' : '₹' + cheapest.toLocaleString('en-IN'), 'good'],
+    const COLUMN_ORDER = [
+      'store_locality', 'image', 'name', 'brand', 'variant', 'stock',
+      'mrp_inr', 'price_inr', 'discount_pct', 'saved_inr', 'delivery_type', 'merchant_id', 'maps_url'
     ];
-    $('tiles').innerHTML = t.map(function (x) {
-      return '<div class="tile"><div class="k">' + x[0] + '</div><div class="v ' + (x[2] || '') + '">' + x[1] + '</div></div>';
-    }).join('');
-  }
 
-  function render() {
-    var list = visible();
-    tiles(list);
+    const COLUMN_LABELS = {
+      store_locality: 'Store / Locality',
+      address: 'Address',
+      image: '',
+      name: 'Product',
+      brand: 'Brand',
+      rating: 'Rating',
+      delivery_type: 'Delivery',
+      variant: 'Variant',
+      stock: 'Stock',
+      mrp_inr: 'MRP (₹)',
+      price_inr: 'Price (₹)',
+      discount_pct: 'Discount %',
+      saved_inr: 'Saved (₹)',
+      merchant_id: 'Merchant',
+      maps_url: 'Map',
+      store_id: 'Store ID',
+      product_id: 'Product ID',
+      accuracy: 'Coord accuracy (m)',
+      lat: 'Latitude',
+      lng: 'Longitude'
+    };
 
-    list.sort(function (a, b) {
-      var x = a[sortKey], y = b[sortKey];
-      if (sortKey === 'priceNum' || sortKey === 'inventory' || sortKey === 'discNum' || sortKey === 'saveNum' || sortKey === 'store_id') {
-        x = +x || 0; y = +y || 0;
-      } else { x = String(x || ''); y = String(y || ''); }
-      return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1);
-    });
+    const DETAIL_COLS = ['store_locality', 'store_id', 'merchant_id', 'brand', 'variant', 'price_inr',
+      'mrp_inr', 'discount_pct', 'saved_inr', 'stock', 'rating', 'delivery_type', 'product_id', 'accuracy', 'address'];
+    const DETAIL_FULL_WIDTH = new Set(['address']);
+    const NUMERIC_COLS = new Set(['mrp_inr', 'price_inr', 'discount_pct', 'saved_inr', 'stock', 'rating']);
+    const NOWRAP_COLS = new Set(['stock', 'variant', 'maps_url', 'merchant_id', 'store_locality',
+      'image', 'rating', 'delivery_type', 'brand']);
 
-    $('empty').style.display = list.length ? 'none' : 'block';
-    if (!list.length && all.length) $('empty').textContent = 'No rows match these filters.';
+    // '' is a real label (the image column has no heading), so no || fallback here
+    const label = c => (c in COLUMN_LABELS) ? COLUMN_LABELS[c] : c;
 
-    $('rows').innerHTML = list.map(function (r) {
-      var stock = +r.inventory > 0
-        ? r.inventory
-        : '<span class="oos">out</span>';
-      return '<tr>'
-        + '<td><a href="https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng + '" target="_blank" rel="noopener">' + esc(r.store_id) + '</a></td>'
-        + '<td class="dim">' + esc(addr(r)) + '</td>'
-        + '<td>' + esc(r.name) + '</td>'
-        + '<td class="dim">' + esc(r.variant) + '</td>'
-        + '<td class="price">' + esc(r.price) + '</td>'
-        + '<td class="strike">' + esc(r.mrp) + '</td>'
-        + '<td>' + (r.discNum ? r.discNum + '%' : '') + '</td>'
-        + '<td>' + (r.saveNum ? '₹' + r.saveNum.toLocaleString('en-IN') : '') + '</td>'
-        + '<td>' + stock + '</td>'
-        + '<td class="dim">' + esc(r.merchant_id) + '</td>'
-        + '</tr>';
-    }).join('');
-  }
+    let allRows = [];
+    let filteredRows = [];
+    let renderedCount = 0;
+    const PAGE_CHUNK = 80;
+    let currentQuery = '';
+    let sortCol = 'price_inr', sortDir = 1;
+    let onlyVariation = false;
+    let hideAcc = false;
+    let cheapestByKey = new Map();
+    let variantsMap = new Map();
 
-  function load(rows, q) {
-    all = (rows || []).map(function (r) {
-      r.priceNum = num(r.price);
-      var m = num(r.mrp);
-      r.saveNum = (m && r.priceNum && m > r.priceNum) ? m - r.priceNum : 0;
-      r.discNum = r.saveNum ? Math.round(r.saveNum / m * 100) : 0;
-      return r;
-    });
-    query = q || '';
-    $('q').textContent = query ? '— "' + query + '"' : '';
-    document.title = '🛒 Blinkit MMR — ' + (query || 'Results');
-    $('empty').textContent = 'No rows match these filters.';
-    render();
-  }
+    // Store rows carry only coordinates when the store list has no address, so
+    // addresses are reverse-geocoded on demand and cached across reloads.
+    let ADDR = {};
+    try { ADDR = JSON.parse(localStorage.getItem('bk-addr') || '{}'); } catch (e) {}
 
-  // ---------- addresses ----------
-  // Store data carries only coordinates, so addresses are reverse-geocoded on
-  // demand. Nominatim asks for <=1 req/sec; results are cached across reloads.
-  $('geo').onclick = function () {
-    var btn = $('geo'), rows = visible(), seen = {}, todo = [];
-    rows.forEach(function (r) {
-      var k = r.lat + ',' + r.lng;
-      if (!seen[k] && !addr(r)) { seen[k] = 1; todo.push([k, r.lat, r.lng]); }
-    });
-    if (!todo.length) { render(); return; }
-    btn.disabled = true;
-    var i = 0;
-    (function next() {
-      if (i >= todo.length) {
-        btn.disabled = false; btn.textContent = '📍 Addresses';
-        try { localStorage.setItem('bk-addr', JSON.stringify(ADDR)); } catch (e) {}
-        render();
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const num = v => parseFloat(String(v == null ? '' : v).replace(/[^\d.]/g, '')) || 0;
+    const inr = n => '₹' + Number(n).toLocaleString('en-IN');
+
+    // Nominatim orders segments road, suburb, ward, city… Skip the street and the
+    // administrative wrappers so the first real place name wins:
+    //   "Harbour Heights service road, Colaba, A Ward, Mumbai…" -> "Colaba"
+    //   "Nariman Point, A Ward, Mumbai…"                        -> "Nariman Point"
+    const NOT_LOCALITY = /\b(road|rd|marg|street|st|lane|ln|highway|path|cross|chowk|flyover|ward|taluka|tehsil|district|zone|division)\b/i;
+    function localityOf(address, storeId) {
+      const parts = String(address || '').split(',').map(s => s.trim()).filter(Boolean);
+      return parts.find(p => !NOT_LOCALITY.test(p)) || parts[0] || ('Store ' + storeId);
+    }
+
+    // group_id identifies the same product across merchants; older exports that
+    // predate it fall back to the display name.
+    const variantKey = r => r.group_id
+      ? 'g' + r.group_id
+      : `${r.name || ''}__${r.variant || ''}`.trim().toLowerCase();
+
+    function normalizeRow(r) {
+      const address = r.address || ADDR[r.lat + ',' + r.lng] || '';
+      const priceNum = num(r.price);
+      const mrpNum = num(r.mrp);
+      const saved = (mrpNum && priceNum && mrpNum > priceNum) ? mrpNum - priceNum : 0;
+      const stockCount = Number(r.inventory) || 0;
+      // product_state is authoritative when the scan captured it
+      const sold = r.product_state ? r.product_state !== 'available' : stockCount <= 0;
+      const name = (r.name || '-').trim();
+      const brand = r.brand || '';
+      const storeId = r.store_id != null ? String(r.store_id) : '-';
+      const locality = localityOf(address, storeId);
+
+      return {
+        store_id: storeId,
+        store_locality: locality,
+        address: address,
+        lat: r.lat,
+        lng: r.lng,
+        accuracy: r.accuracy != null ? r.accuracy : '',
+        maps_url: (r.lat != null && r.lng != null)
+          ? `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}` : '',
+        product_id: r.product_id || '',
+        group_id: r.group_id || null,
+        name: name,
+        brand: brand,
+        variant: r.variant || '',
+        image: r.image || '',
+        rating: r.rating != null ? Number(r.rating) : null,
+        rating_count: r.rating_count || '',
+        delivery_type: r.delivery_type || '',
+        price_inr: priceNum || null,
+        mrp_inr: mrpNum || null,
+        saved_inr: saved,
+        discount_pct: saved ? Math.round(saved / mrpNum * 100) : 0,
+        inventory: stockCount,
+        stock: sold ? 'Sold out' : 'In stock',
+        merchant_id: r.merchant_id == null ? '' : String(r.merchant_id),
+        _acc: ACC.test(name),
+        _search: `${name} ${brand} ${r.variant || ''} ${locality} ${storeId} ${address} ${r.merchant_id || ''}`.toLowerCase()
+      };
+    }
+
+    // Re-derive address-dependent fields after a geocoding pass fills ADDR in.
+    function refreshAddresses() {
+      allRows.forEach(r => {
+        if (r.address) return;
+        const a = ADDR[r.lat + ',' + r.lng];
+        if (!a || a === '—') return;
+        r.address = a;
+        r.store_locality = localityOf(a, r.store_id);
+        r._search = `${r.name} ${r.variant} ${r.store_locality} ${r.store_id} ${a} ${r.merchant_id}`.toLowerCase();
+      });
+      fillStoreOptions();
+    }
+
+    function priceAcrossStores(row) {
+      return (variantsMap.get(variantKey(row)) || [])
+        .filter(r => r.price_inr != null)
+        .map(r => ({ store: r.store_locality, price: r.price_inr, stock: r.stock }))
+        .sort((a, b) => a.price - b.price);
+    }
+
+    function computeVariationKeys() {
+      const byKey = new Map();
+      variantsMap = new Map();
+
+      for (const r of allRows) {
+        const k = variantKey(r);
+        let group = variantsMap.get(k);
+        if (!group) variantsMap.set(k, group = []);
+        group.push(r);
+
+        if (r.stock !== 'In stock' || r.price_inr == null) continue;
+        const e = byKey.get(k);
+        if (!e) byKey.set(k, { min: r.price_inr, max: r.price_inr, cheapest: r });
+        else {
+          e.min = Math.min(e.min, r.price_inr);
+          e.max = Math.max(e.max, r.price_inr);
+          if (r.price_inr < e.cheapest.price_inr) e.cheapest = r;
+        }
+      }
+      cheapestByKey = new Map([...byKey].filter(([, v]) => v.min !== v.max).map(([k, v]) => [k, v.cheapest]));
+      variationBtn.textContent = `Price varies by store (${cheapestByKey.size})`;
+    }
+
+    function buildPriceSection(prices) {
+      const min = prices[0].price, max = prices[prices.length - 1].price;
+      const toggle = `<span class="toggle-stores">Show all ${prices.length} stores</span>`;
+
+      if (min === max) {
+        return `<div class="modal-section"><div class="sec-title">Price across stores</div>` +
+          `<div class="price-row"><span class="store">${prices.length} stores have the same price</span>` +
+          `<span class="amount">${inr(min)}</span></div>${toggle}</div>`;
+      }
+
+      const cheapest = prices.filter(p => p.price === min);
+      const restCount = prices.length - cheapest.length;
+      const savings = Math.round((max - min) / max * 100);
+      const cheapestLabel = cheapest.length === 1 ? esc(cheapest[0].store) : `${cheapest.length} stores`;
+
+      return `<div class="modal-section"><div class="sec-title">Price across stores</div>` +
+        `<div class="price-compare">` +
+        `<div class="price-card best"><span class="pill best">cheapest</span>` +
+        `<span class="pc-label">${cheapestLabel}</span>` +
+        `<span class="pc-amount-row">${savings > 0 ? `<span class="save-tag">save ${savings}%</span>` : ''}` +
+        `<span class="pc-amount best">${inr(min)}</span></span></div>` +
+        `<div class="price-card worst"><span class="pill worst">priciest</span>` +
+        `<span class="pc-label">${restCount} other store${restCount > 1 ? 's' : ''}</span>` +
+        `<span class="pc-amount worst">${inr(max)}</span></div>` +
+        `</div>${toggle}</div>`;
+    }
+
+    function showModal(html, onMount) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = html;
+      const close = () => { modal.remove(); document.removeEventListener('keydown', onKey); };
+      const onKey = e => { if (e.key === 'Escape') close(); };
+      modal.addEventListener('click', e => { if (e.target === modal) close(); });
+      modal.querySelector('.modal-close').addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(modal);
+      if (onMount) onMount(modal);
+    }
+
+    function openStoreListModal(prices) {
+      const rows = prices.map(p =>
+        `<div class="price-row"><span class="store">${esc(p.store)}` +
+        `${p.stock === 'Sold out' ? ' <span class="soldout">(sold out)</span>' : ''}</span>` +
+        `<span class="amount">${inr(p.price)}</span></div>`).join('');
+      showModal(
+        `<div class="modal-card" style="width:360px;">` +
+        `<div class="modal-head"><div class="name">All ${prices.length} stores</div>` +
+        `<span class="modal-close">✕</span></div>` +
+        `<div class="modal-section" style="border-top:none;">${rows}</div></div>`);
+    }
+
+    function openDetail(row) {
+      const fields = DETAIL_COLS.map(c => {
+        let val = esc(row[c] === '' || row[c] == null ? '-' : row[c]);
+        if (c === 'price_inr' && row.price_inr) val = `<b>${inr(row.price_inr)}</b>`;
+        if (c === 'mrp_inr' && row.mrp_inr) val = inr(row.mrp_inr);
+        if (c === 'saved_inr') val = row.saved_inr ? inr(row.saved_inr) : '-';
+        if (c === 'discount_pct') val = row.discount_pct ? `${row.discount_pct}% OFF` : '-';
+        if (c === 'stock') val = stockPill(row);
+        if (c === 'address' && row.maps_url) {
+          val += `<br><a href="${row.maps_url}" target="_blank" rel="noopener noreferrer"` +
+            ` style="font-weight:700;display:inline-block;margin-top:4px;">📍 Open in Google Maps ↗</a>`;
+        }
+        return `<div class="modal-field${DETAIL_FULL_WIDTH.has(c) ? ' full' : ''}">` +
+          `<div class="k">${label(c)}</div><div class="v">${val}</div></div>`;
+      }).join('');
+
+      const prices = priceAcrossStores(row);
+      showModal(
+        `<div class="modal-card">` +
+        `<div class="modal-head">${row.image
+          ? `<img src="${esc(row.image)}" alt="">`
+          : `<div style="font-size:24px;">🛒</div>`}` +
+        `<div class="name">${esc(row.name)}${row.variant ? ` <span class="qty-tag">${esc(row.variant)}</span>` : ''}</div>` +
+        `<span class="modal-close">✕</span></div>` +
+        `<div class="modal-grid">${fields}</div>` +
+        (prices.length > 1 ? buildPriceSection(prices) : '') + `</div>`,
+        modal => {
+          const t = modal.querySelector('.toggle-stores');
+          if (t) t.addEventListener('click', () => openStoreListModal(prices));
+        });
+    }
+
+    function stockPill(r) {
+      if (r.stock === 'Sold out') return `<span class="health-pill out">✕ Sold out</span>`;
+      if (!r.inventory) return `<span class="health-pill live">In stock</span>`;
+      return `<span class="health-pill ${r.inventory <= 3 ? 'low' : 'live'}">${r.inventory} left</span>`;
+    }
+
+    function cellValue(row, col) {
+      const v = row[col];
+      switch (col) {
+        case 'store_locality':
+          return `<span class="store-cell"><span class="loc">${esc(v)}</span>` +
+            `<span class="sid">#${esc(row.store_id)}</span></span>`;
+        case 'image':
+          return v
+            ? `<img src="${esc(v)}" loading="lazy" class="thumb" data-src="${esc(v)}">`
+            : `<span class="thumb-fallback">🛒</span>`;
+        case 'name':
+          return `<span class="prod-link">${esc(v)}</span>`;
+        case 'brand':
+          return v ? `<span class="brand-tag">${esc(v)}</span>` : '-';
+        case 'rating':
+          return v ? `<span class="rating-tag">★ ${v}</span>` +
+            (row.rating_count ? ` <span class="qty-tag">${esc(row.rating_count)}</span>` : '') : '-';
+        case 'delivery_type':
+          return v ? `<span class="qty-tag">${esc(String(v).replace(/_/g, ' '))}</span>` : '-';
+        case 'variant':
+          return v ? `<span class="qty-tag">${esc(v)}</span>` : '-';
+        case 'stock':
+          return stockPill(row);
+        case 'price_inr':
+          return v != null ? inr(v) : '-';
+        case 'mrp_inr':
+          return (v && row.price_inr && v > row.price_inr) ? `<span class="mrp-strike">${inr(v)}</span>` : '-';
+        case 'discount_pct':
+          return v > 0 ? `<span class="disc-pill">${v}%</span>` : '-';
+        case 'saved_inr':
+          return v > 0 ? inr(v) : '-';
+        case 'maps_url':
+          return v ? `<a href="${v}" target="_blank" rel="noopener noreferrer">📍 Map ↗</a>` : '-';
+        case 'address':
+          return esc(v) || '<span class="qty-tag">— tap 📍 Addresses</span>';
+        default:
+          return esc(v) || '-';
+      }
+    }
+
+    function sortRows(rows) {
+      if (!sortCol) return rows;
+      const numeric = NUMERIC_COLS.has(sortCol);
+      const key = sortCol === 'stock' ? 'inventory' : sortCol;
+      return [...rows].sort((a, b) => {
+        const av = a[key], bv = b[key];
+        // nulls (no price) always sink, whichever way the column is sorted
+        if (numeric && (av == null) !== (bv == null)) return av == null ? 1 : -1;
+        const cmp = numeric
+          ? (Number(av) || 0) - (Number(bv) || 0)
+          : String(av == null ? '' : av).localeCompare(String(bv == null ? '' : bv));
+        return cmp * sortDir;
+      });
+    }
+
+    function renderRowHtml(r, i) {
+      const cls = [r.stock === 'Sold out' ? 'sold-out' : 'in-stock',
+        cheapestByKey.get(variantKey(r)) === r ? 'cheapest' : ''].filter(Boolean).join(' ');
+      return `<tr class="${cls}"><td class="nowrap">` +
+        `<button data-idx="${i}" class="view-btn" title="View details">👁</button></td>` +
+        COLUMN_ORDER.map(c => {
+          const td = [NUMERIC_COLS.has(c) ? 'num' : '', NOWRAP_COLS.has(c) ? 'nowrap' : '',
+            c === 'address' ? 'addr' : ''].filter(Boolean).join(' ');
+          return `<td class="${td}">${cellValue(r, c)}</td>`;
+        }).join('') + '</tr>';
+    }
+
+    function updateTableStatus() {
+      const statusEl = document.getElementById('tableStatus');
+      if (!statusEl) return;
+      const total = filteredRows.length;
+      statusEl.textContent = !total ? ''
+        : renderedCount >= total
+          ? `✓ Showing all ${total.toLocaleString()} listings`
+          : `Showing ${renderedCount.toLocaleString()} of ${total.toLocaleString()} listings • Scroll down to load more`;
+    }
+
+    function appendNextChunk() {
+      const tbody = document.getElementById('tableBody');
+      if (!tbody || renderedCount >= filteredRows.length) return;
+      const next = filteredRows.slice(renderedCount, renderedCount + PAGE_CHUNK);
+      tbody.insertAdjacentHTML('beforeend',
+        next.map((r, i) => renderRowHtml(r, renderedCount + i)).join(''));
+      renderedCount += next.length;
+      updateTableStatus();
+    }
+
+    function renderInitialTable() {
+      if (!filteredRows.length) {
+        tableWrap.innerHTML = `<div id="empty">${allRows.length
+          ? 'No listings match your filter criteria.'
+          : 'Waiting for scan data from the hunter…<small>Or drop a JSON export onto this page.</small>'}</div>`;
         return;
       }
-      var t = todo[i++];
-      btn.textContent = '📍 ' + i + '/' + todo.length;
-      fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat='
-        + t[1] + '&lon=' + t[2])
-        .then(function (res) { return res.json(); })
-        .then(function (d) { ADDR[t[0]] = (d && d.display_name) || '—'; })
-        .catch(function () { ADDR[t[0]] = '—'; })
-        .then(function () { render(); setTimeout(next, 1100); });
-    })();
-  };
+      const head = '<thead><tr><th></th>' + COLUMN_ORDER.map(c => {
+        const arrow = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+        return `<th data-col="${c}">${label(c)}${arrow}</th>`;
+      }).join('') + '</tr></thead>';
 
-  // ---------- export ----------
+      renderedCount = Math.min(PAGE_CHUNK, filteredRows.length);
+      let body = '';
+      for (let i = 0; i < renderedCount; i++) body += renderRowHtml(filteredRows[i], i);
 
-  function save(text, type, ext) {
-    var name = 'blinkit_' + (query || 'results').replace(/\W+/g, '_') + '_'
-      + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.' + ext;
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: type }));
-    a.download = name;
-    a.click();
-  }
+      tableWrap.innerHTML = `<table>${head}<tbody id="tableBody">${body}</tbody></table>` +
+        `<div id="tableStatus" class="table-status-bar"></div>`;
+      updateTableStatus();
+      tableWrap.scrollTop = 0;
+    }
 
-  $('csv').onclick = function () {
-    var cols = ['store_id', 'address', 'lat', 'lng', 'name', 'variant', 'price', 'mrp', 'discNum', 'saveNum', 'inventory', 'merchant_id'];
-    var cell = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
-    var body = visible().map(function (r) {
-      return cols.map(function (c) {
-        return cell(c === 'address' ? addr(r) : r[c]);
-      }).join(',');
+    function applyFilter() {
+      const q = filterEl.value.trim().toLowerCase();
+      const store = storeSel.value;
+      const stock = stockSel.value;
+      const base = onlyVariation ? [...cheapestByKey.values()] : allRows;
+      const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+
+      filteredRows = sortRows(base.filter(r => {
+        if (store && r.store_id !== store) return false;
+        if (brandSel.value && r.brand !== brandSel.value) return false;
+        if (stock && r.stock !== stock) return false;
+        if (hideAcc && r._acc) return false;
+        return tokens.every(t => r._search.includes(t));
+      }));
+
+      renderInitialTable();
+      updateMetaRibbon();
+    }
+
+    // One delegated listener on the wrapper instead of per-row handlers.
+    tableWrap.addEventListener('click', e => {
+      const th = e.target.closest('th[data-col]');
+      if (th) {
+        sortDir = sortCol === th.dataset.col ? -sortDir : 1;
+        sortCol = th.dataset.col;
+        applyFilter();
+        return;
+      }
+      const viewBtn = e.target.closest('.view-btn');
+      if (viewBtn && filteredRows[+viewBtn.dataset.idx]) { openDetail(filteredRows[+viewBtn.dataset.idx]); return; }
+      const thumb = e.target.closest('.thumb');
+      if (thumb) openImage(thumb.dataset.src);
     });
-    save([cols.join(',')].concat(body).join('\n'), 'text/csv', 'csv');
-  };
-  $('json').onclick = function () {
-    save(JSON.stringify(visible().map(function (r) {
-      return Object.assign({}, r, { address: addr(r) });
-    }), null, 2), 'application/json', 'json');
-  };
 
-  // ---------- wiring ----------
+    let scrollScheduled = false;
+    tableWrap.addEventListener('scroll', () => {
+      if (scrollScheduled) return;
+      scrollScheduled = true;
+      requestAnimationFrame(() => {
+        scrollScheduled = false;
+        if (renderedCount >= filteredRows.length) return;
+        if (tableWrap.scrollHeight - tableWrap.scrollTop - tableWrap.clientHeight < 600) appendNextChunk();
+      });
+    }, { passive: true });
 
-  ['filter', 'instock', 'noacc', 'disconly'].forEach(function (id) {
-    $(id).addEventListener('input', render);
-  });
+    function updateMetaRibbon() {
+      const metaEl = document.getElementById('metaCard');
+      const allStores = new Set(allRows.map(r => r.store_id));
+      const shownStores = new Set(filteredRows.map(r => r.store_id));
+      const prices = filteredRows.filter(r => r.stock === 'In stock' && r.price_inr != null).map(r => r.price_inr);
+      const units = filteredRows.reduce((n, r) => n + r.inventory, 0);
+      const isFiltered = filteredRows.length < allRows.length;
 
-  Array.prototype.forEach.call(document.querySelectorAll('th[data-k]'), function (th) {
-    th.onclick = function () {
-      var k = th.dataset.k;
-      sortAsc = sortKey === k ? !sortAsc : true;
-      sortKey = k;
-      Array.prototype.forEach.call(document.querySelectorAll('th'), function (o) { o.className = ''; });
-      th.className = 'sorted' + (sortAsc ? ' asc' : '');
-      render();
+      metaEl.innerHTML =
+        `<span class="stat">${isFiltered
+          ? `<b>${filteredRows.length.toLocaleString()}</b> / ${allRows.length.toLocaleString()} rows`
+          : `<b>${allRows.length.toLocaleString()}</b> rows`}</span>` +
+        `<span class="stat">${isFiltered
+          ? `<b>${shownStores.size}</b> / ${allStores.size} stores`
+          : `<b>${allStores.size}</b> stores`}</span>` +
+        `<span class="stat"><b>${units.toLocaleString()}</b> units</span>` +
+        (prices.length ? `<span class="stat">cheapest <b>${inr(Math.min(...prices))}</b></span>` : '') +
+        `<span class="stat">${new Date().toLocaleTimeString()}</span>`;
+    }
+
+    function fillStoreOptions() {
+      const byId = new Map();
+      allRows.forEach(r => {
+        if (!byId.has(r.store_id)) byId.set(r.store_id, { id: r.store_id, locality: r.store_locality, count: 0 });
+        byId.get(r.store_id).count++;
+      });
+      const stores = [...byId.values()].sort((a, b) => a.locality.localeCompare(b.locality));
+      const keep = storeSel.value;
+      storeSel.innerHTML = `<option value="">All stores (${stores.length})</option>`;
+      stores.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = `${s.locality} · #${s.id} (${s.count})`;
+        storeSel.appendChild(o);
+      });
+      storeSel.value = keep;
+    }
+
+    function fillBrandOptions() {
+      const count = new Map();
+      allRows.forEach(r => { if (r.brand) count.set(r.brand, (count.get(r.brand) || 0) + 1); });
+      const brands = [...count.keys()].sort((a, b) => a.localeCompare(b));
+      brandSel.innerHTML = `<option value="">All brands (${brands.length})</option>`;
+      brands.forEach(b => {
+        const o = document.createElement('option');
+        o.value = b;
+        o.textContent = `${b} (${count.get(b)})`;
+        brandSel.appendChild(o);
+      });
+      brandSel.style.display = brands.length ? '' : 'none';
+    }
+
+    function openImage(src) {
+      if (!src) return;
+      const m = document.createElement('div');
+      m.className = 'modal-overlay';
+      m.style.cursor = 'zoom-out';
+      m.innerHTML = `<img src="${esc(src)}" style="max-width:85vw;max-height:85vh;border-radius:8px;` +
+        `box-shadow:0 16px 40px rgba(0,0,0,.5);background:#fff;padding:8px;">`;
+      m.addEventListener('click', () => m.remove());
+      document.body.appendChild(m);
+    }
+
+    // ---------- addresses ----------
+    // Nominatim asks for <=1 req/sec. Results cache in localStorage.
+    geoBtn.addEventListener('click', () => {
+      const todo = [], seen = {};
+      filteredRows.forEach(r => {
+        const k = r.lat + ',' + r.lng;
+        if (!r.address && !ADDR[k] && !seen[k]) { seen[k] = 1; todo.push([k, r.lat, r.lng]); }
+      });
+      if (!todo.length) { geoBtn.textContent = '📍 All addresses known'; return; }
+      geoBtn.disabled = true;
+      let i = 0;
+      (function next() {
+        if (i >= todo.length) {
+          geoBtn.disabled = false;
+          geoBtn.textContent = '📍 Addresses';
+          try { localStorage.setItem('bk-addr', JSON.stringify(ADDR)); } catch (e) {}
+          refreshAddresses();
+          applyFilter();
+          return;
+        }
+        const [k, lat, lng] = todo[i++];
+        geoBtn.textContent = `📍 ${i}/${todo.length}`;
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${lat}&lon=${lng}`)
+          .then(res => res.json())
+          .then(d => { ADDR[k] = (d && d.display_name) || '—'; })
+          .catch(() => { ADDR[k] = '—'; })
+          .then(() => { refreshAddresses(); setTimeout(next, 1100); });
+      })();
+    });
+
+    // ---------- export ----------
+    function save(text, type, ext) {
+      const name = `blinkit_${(currentQuery || 'results').replace(/\W+/g, '_')}_`
+        + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.' + ext;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type }));
+      a.download = name;
+      a.click();
+    }
+
+    const EXPORT_COLS = ['store_id', 'store_locality', 'address', 'lat', 'lng', 'accuracy',
+      'product_id', 'group_id', 'name', 'brand', 'variant', 'price_inr', 'mrp_inr', 'discount_pct',
+      'saved_inr', 'inventory', 'stock', 'rating', 'rating_count', 'delivery_type', 'merchant_id',
+      'image', 'maps_url'];
+
+    document.getElementById('download').addEventListener('click', () => {
+      const rows = filteredRows.length ? filteredRows : allRows;
+      if (!rows.length) return;
+      const cell = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+      save([['#'].concat(EXPORT_COLS).join(',')]
+        .concat(rows.map((r, i) => [i + 1].concat(EXPORT_COLS.map(c => cell(r[c]))).join(',')))
+        .join('\n'), 'text/csv;charset=utf-8;', 'csv');
+    });
+
+    document.getElementById('downloadJson').addEventListener('click', () => {
+      const rows = filteredRows.length ? filteredRows : allRows;
+      if (!rows.length) return;
+      save(JSON.stringify(rows.map(r => {
+        const o = {};
+        EXPORT_COLS.forEach(c => { o[c] = r[c]; });
+        return o;
+      }), null, 2), 'application/json', 'json');
+    });
+
+    // ---------- wiring ----------
+    let filterDebounce = null;
+    filterEl.addEventListener('input', () => {
+      clearTimeout(filterDebounce);
+      filterDebounce = setTimeout(applyFilter, 120);
+    });
+    storeSel.addEventListener('change', applyFilter);
+    brandSel.addEventListener('change', applyFilter);
+    stockSel.addEventListener('change', applyFilter);
+
+    const SORTS = {
+      'price-asc': ['price_inr', 1], 'price-desc': ['price_inr', -1],
+      'discount-desc': ['discount_pct', -1], 'saved-desc': ['saved_inr', -1],
+      'rating-desc': ['rating', -1], 'brand-asc': ['brand', 1],
+      'stock-desc': ['stock', -1], 'title-asc': ['name', 1], 'store-asc': ['store_locality', 1]
     };
-  });
-
-  // The hunter runs on blinkit.com, so it cannot share storage with this page.
-  // It hands the rows over by postMessage once we announce we are listening.
-  window.addEventListener('message', function (e) {
-    var d = e.data;
-    if (d && d.type === 'bk-data') load(d.rows, d.query);
-  });
-  if (window.opener) {
-    try { window.opener.postMessage({ type: 'bk-ready' }, '*'); } catch (err) {}
-  }
-
-  // standalone use: drop a JSON export onto the page
-  document.addEventListener('dragover', function (e) { e.preventDefault(); });
-  document.addEventListener('drop', function (e) {
-    e.preventDefault();
-    var f = e.dataTransfer.files[0];
-    if (!f) return;
-    f.text().then(function (t) {
-      try { load(JSON.parse(t), f.name); } catch (err) { $('empty').textContent = 'Not valid JSON: ' + err.message; }
+    sortSel.addEventListener('change', () => {
+      [sortCol, sortDir] = SORTS[sortSel.value] || ['price_inr', 1];
+      applyFilter();
     });
-  });
-})();
-</script>
+
+    variationBtn.addEventListener('click', () => {
+      onlyVariation = !onlyVariation;
+      variationBtn.classList.toggle('active', onlyVariation);
+      applyFilter();
+    });
+    accBtn.addEventListener('click', () => {
+      hideAcc = !hideAcc;
+      accBtn.classList.toggle('active', hideAcc);
+      applyFilter();
+    });
+
+    function initData(items, query) {
+      currentQuery = query || '';
+      document.getElementById('queryLabel').textContent = currentQuery || 'Blinkit MMR Hunter';
+      document.title = '🛒 Blinkit MMR — ' + (currentQuery || 'Results');
+      allRows = (items || []).map(normalizeRow);
+      computeVariationKeys();
+      fillStoreOptions();
+      fillBrandOptions();
+      applyFilter();
+    }
+
+    // The hunter runs on blinkit.com, so it cannot share storage with this page.
+    // It hands the rows over by postMessage once we announce we are listening.
+    window.addEventListener('message', e => {
+      if (e.origin !== 'https://blinkit.com' && e.origin !== 'https://www.blinkit.com') return;
+      if (e.data && e.data.type === 'bk-data') initData(e.data.rows, e.data.query);
+    });
+    if (window.opener) {
+      try { window.opener.postMessage({ type: 'bk-ready' }, '*'); } catch (err) {}
+    }
+
+    // standalone use: drop a JSON export onto the page
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', e => {
+      e.preventDefault();
+      const f = e.dataTransfer.files[0];
+      if (!f) return;
+      f.text().then(t => {
+        try {
+          const parsed = JSON.parse(t);
+          initData(Array.isArray(parsed) ? parsed : parsed.rows || parsed.items,
+            Array.isArray(parsed) ? f.name.replace(/\.json$/i, '') : parsed.query || '');
+        } catch (err) {
+          tableWrap.innerHTML = `<div id="empty">Not valid JSON<small>${esc(err.message)}</small></div>`;
+        }
+      });
+    });
+  </script>
 </body>
 </html>

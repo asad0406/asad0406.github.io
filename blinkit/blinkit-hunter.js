@@ -34,13 +34,24 @@
 
   const parseProduct = (d) => {
     const cart = d?.atc_action?.add_to_cart?.cart_item || {};
+    const bar = d?.rating?.bar || {};
     return {
       product_id: d?.identity?.id ?? null,
+      // group_id ties the same product together across merchants — a far better
+      // cross-store key than the display name, which varies per listing.
+      group_id: d.group_id ?? null,
       name: text(d.name),
+      brand: text(d.brand_name),
       variant: text(d.variant),
       price: text(d.normal_price),
       mrp: text(d.mrp),
       inventory: d.inventory ?? null,
+      // the authoritative stock flag; inventory alone can disagree with it
+      product_state: d.product_state ?? null,
+      rating: bar.value != null ? Math.round(bar.value * 10) / 10 : null,
+      rating_count: text(bar.title),
+      delivery_type: d.eta_identifier ?? d.merchant_type ?? null,
+      image: d?.image?.url ?? null,
       merchant_id: cart.merchant_id ?? null,
     };
   };
@@ -206,7 +217,8 @@
   }
 
   function toCsv() {
-    const cols = ['store_id', 'address', 'lat', 'lng', 'accuracy', 'product_id', 'name', 'variant', 'price', 'mrp', 'inventory', 'merchant_id'];
+    const cols = ['store_id', 'address', 'lat', 'lng', 'accuracy', 'product_id', 'group_id', 'name', 'brand',
+      'variant', 'price', 'mrp', 'inventory', 'product_state', 'rating', 'rating_count', 'delivery_type', 'image', 'merchant_id'];
     const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n');
   }
