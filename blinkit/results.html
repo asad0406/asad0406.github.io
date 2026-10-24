@@ -135,7 +135,6 @@
     }
     button.tool-btn:hover { border-color: var(--blink); }
     button.tool-btn.active { background: var(--crate); border-color: var(--crate); color: #fff; }
-    button.tool-btn:disabled { opacity: .55; cursor: progress; }
     button.btn-primary {
       background: var(--blink);
       border: none;
@@ -513,7 +512,6 @@
       <input id="filter" type="text" placeholder="Search product, variant, store...">
       <button id="filterVariation" class="tool-btn">Price varies by store</button>
       <button id="filterAcc" class="tool-btn">Hide accessories</button>
-      <button id="geo" class="tool-btn">📍 Addresses</button>
       <div class="spacer"></div>
       <button id="downloadJson" class="tool-btn">JSON</button>
       <button id="download" class="tool-btn btn-primary">Download CSV</button>
@@ -533,7 +531,6 @@
     const sortSel = document.getElementById('sortSelect');
     const variationBtn = document.getElementById('filterVariation');
     const accBtn = document.getElementById('filterAcc');
-    const geoBtn = document.getElementById('geo');
 
     // A search for a phone comes back mostly cases, glass and cables.
     const ACC = /cover|case|protector|glass|cable|charger|holder|stand|pouch|skin|guard|lens|strap|adapter|ring|mount|screen/i;
@@ -587,11 +584,6 @@
     let cheapestByKey = new Map();
     let variantsMap = new Map();
 
-    // Store rows carry only coordinates when the store list has no address, so
-    // addresses are reverse-geocoded on demand and cached across reloads.
-    let ADDR = {};
-    try { ADDR = JSON.parse(localStorage.getItem('bk-addr') || '{}'); } catch (e) {}
-
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const num = v => parseFloat(String(v == null ? '' : v).replace(/[^\d.]/g, '')) || 0;
@@ -614,7 +606,7 @@
       : `${r.name || ''}__${r.variant || ''}`.trim().toLowerCase();
 
     function normalizeRow(r) {
-      const address = r.address || ADDR[r.lat + ',' + r.lng] || '';
+      const address = r.address || '';
       const priceNum = num(r.price);
       const mrpNum = num(r.mrp);
       const saved = (mrpNum && priceNum && mrpNum > priceNum) ? mrpNum - priceNum : 0;
@@ -654,19 +646,6 @@
         _acc: ACC.test(name),
         _search: `${name} ${brand} ${r.variant || ''} ${locality} ${storeId} ${address} ${r.merchant_id || ''}`.toLowerCase()
       };
-    }
-
-    // Re-derive address-dependent fields after a geocoding pass fills ADDR in.
-    function refreshAddresses() {
-      allRows.forEach(r => {
-        if (r.address) return;
-        const a = ADDR[r.lat + ',' + r.lng];
-        if (!a || a === '—') return;
-        r.address = a;
-        r.store_locality = localityOf(a, r.store_id);
-        r._search = `${r.name} ${r.variant} ${r.store_locality} ${r.store_id} ${a} ${r.merchant_id}`.toLowerCase();
-      });
-      fillStoreOptions();
     }
 
     function priceAcrossStores(row) {
@@ -822,8 +801,6 @@
           return v > 0 ? inr(v) : '-';
         case 'maps_url':
           return v ? `<a href="${v}" target="_blank" rel="noopener noreferrer">📍 Map ↗</a>` : '-';
-        case 'address':
-          return esc(v) || '<span class="qty-tag">— tap 📍 Addresses</span>';
         default:
           return esc(v) || '-';
       }
@@ -1005,36 +982,6 @@
       m.addEventListener('click', () => m.remove());
       document.body.appendChild(m);
     }
-
-    // ---------- addresses ----------
-    // Nominatim asks for <=1 req/sec. Results cache in localStorage.
-    geoBtn.addEventListener('click', () => {
-      const todo = [], seen = {};
-      filteredRows.forEach(r => {
-        const k = r.lat + ',' + r.lng;
-        if (!r.address && !ADDR[k] && !seen[k]) { seen[k] = 1; todo.push([k, r.lat, r.lng]); }
-      });
-      if (!todo.length) { geoBtn.textContent = '📍 All addresses known'; return; }
-      geoBtn.disabled = true;
-      let i = 0;
-      (function next() {
-        if (i >= todo.length) {
-          geoBtn.disabled = false;
-          geoBtn.textContent = '📍 Addresses';
-          try { localStorage.setItem('bk-addr', JSON.stringify(ADDR)); } catch (e) {}
-          refreshAddresses();
-          applyFilter();
-          return;
-        }
-        const [k, lat, lng] = todo[i++];
-        geoBtn.textContent = `📍 ${i}/${todo.length}`;
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${lat}&lon=${lng}`)
-          .then(res => res.json())
-          .then(d => { ADDR[k] = (d && d.display_name) || '—'; })
-          .catch(() => { ADDR[k] = '—'; })
-          .then(() => { refreshAddresses(); setTimeout(next, 1100); });
-      })();
-    });
 
     // ---------- export ----------
     function save(text, type, ext) {
